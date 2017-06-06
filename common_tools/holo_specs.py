@@ -31,6 +31,13 @@ H2O = 960
 DATA_DIR = "../../common_tools/data/"
 
 
+def plot_atomic_lines(ax,ymax,redshift=0,atmospheric_lines=True):
+    lines = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O]
+    labels = ['$H\\alpha$','$H\\beta$','$H\\gamma$','$H\\delta$','$O_2$','$H_2 O$']
+    for il,l in enumerate(lines):
+        if not atmospheric_lines and il > 3 : continue
+        ax.plot([l*(1+redshift),l*(1+redshift)],[0.,ymax],lw=2,label=labels[il])
+
 def neutral_lines(x_center,y_center,theta_tilt):
     xs = np.linspace(0,IMSIZE,20)
     line1 = np.tan(theta_tilt*np.pi/180)*(xs-x_center)+y_center
@@ -83,6 +90,14 @@ class Grating():
         self.N = N # lines per mm
         self.N_err = 1
         self.label = label
+        self.load_files()
+
+    def load_files(self):
+        filename = DATA_DIR+self.label+"/N.txt"
+        if os.path.isfile(filename):
+            a = np.loadtxt(filename)
+            self.N = a[0]
+            self.N_err = a[1]
 
     def refraction_angle(self,deltaX):
         # refraction angle in radians
@@ -105,7 +120,7 @@ class Grating():
 class Hologram(Grating):
 
     def __init__(self,label,lambda_plot=256000):
-        Grating.init(LINES_PER_MM,label=label)
+        Grating.__init__(self,LINES_PER_MM,label=label)
         self.holo_center = None # center of symmetry of the hologram interferences in pixels
         self.plate_center = None # center of the hologram plate
         self.rotation_angle_map = None # interpolated rotation angle map of the hologram from data in degrees
@@ -120,6 +135,7 @@ class Hologram(Grating):
             a = np.loadtxt(filename)
             self.N = a[0]
             self.N_err = a[1]
+        print 'N = %.2f +/- %.2f grooves/mm' % (self.N, self.N_err)
         filename = DATA_DIR+self.label+"/hologram_center.txt"
         if os.path.isfile(filename):
             lines = [line.rstrip('\n') for line in open(filename)]
@@ -128,6 +144,7 @@ class Hologram(Grating):
         else :
             self.holo_center = [0.5*IMSIZE,0.5*IMSIZE]
             self.theta_tilt = 0
+            return
         print 'Hologram center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.holo_center[0],self.holo_center[1],self.theta_tilt)
         self.plate_center = [0.5*IMSIZE+PLATE_CENTER_SHIFT_X/PIXEL2MM,0.5*IMSIZE+PLATE_CENTER_SHIFT_Y/PIXEL2MM] 
         print 'Plate center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.plate_center[0],self.plate_center[1],self.theta_tilt)
