@@ -4,15 +4,29 @@ import os, sys
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
 PIXEL2MM = 24e-3 # pixel size in mm
-DISTANCE2CCD = 58 # distance between hologram and CCD in mm
+DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
+DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
 
 # Making of the holograms
 LAMBDA_CONSTRUCTOR = 639e-6 # constructor wavelength to make holograms in mm
-LINES_PER_MM = 355 # approximate effective number of lines per millimeter of the hologram
+LINES_PER_MM = 350 # approximate effective number of lines per millimeter of the hologram
 PLATE_CENTER_SHIFT_X = -6. # plate center shift on x in mm in filter frame
 PLATE_CENTER_SHIFT_Y = -8. # plate center shift on x in mm in filter frame
 PLATE_CENTER_SHIFT_X_ERR = 2. # estimate uncertainty on plate center shift on x in mm in filter frame
 PLATE_CENTER_SHIFT_Y_ERR = 2. # estimate uncertainty on plate center shift on x in mm in filter frame
+
+# H-alpha filter
+HALPHA_CENTER = 655.9e-6 # center of the filter in mm
+HALPHA_WIDTH = 6.4e-6 # width of the filter in mm
+
+# Main emission/absorption lines in nm
+HALPHA = 656.3
+HBETA = 486.3
+HGAMMA = 434.0
+HDELTA = 410.2
+O2 = 762.1 # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
+H2O = 960
+
 
 DATA_DIR = "../../common_tools/data/"
 
@@ -60,11 +74,38 @@ def build_hologram(x_center,y_center,theta_tilt,lambda_plot=256000):
 
 
 
-class Hologram():
+
+
+
+
+class Grating():
+    def __init__(self,N,label=""):
+        self.N = N # lines per mm
+        self.N_err = 1
+        self.label = label
+
+    def refraction_angle(self,deltaX):
+        # refraction angle in radians
+        return( np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD) )
+        
+    def grating_pixel_to_lambda(self,deltaX):
+        # wavelength in nm
+        theta = self.refraction_angle(deltaX)
+        l = np.sin(theta)/self.N
+        return(l*1e6)
+
+    def grating_resolution(self,deltaX):
+        # wavelength resolution in nm per pixel
+        theta = self.refraction_angle(deltaX)
+        res = (np.cos(theta)**3*PIXEL2MM*1e6)/(self.N*DISTANCE2CCD)
+        return(res)
+
+
+        
+class Hologram(Grating):
 
     def __init__(self,label,lambda_plot=256000):
-        self.label = label
-        self.lines_per_mm = LINES_PER_MM
+        Grating.init(LINES_PER_MM,label=label)
         self.holo_center = None # center of symmetry of the hologram interferences in pixels
         self.plate_center = None # center of the hologram plate
         self.rotation_angle_map = None # interpolated rotation angle map of the hologram from data in degrees
@@ -74,11 +115,11 @@ class Hologram():
         self.hologram_shape = build_hologram(self.holo_center[0],self.holo_center[1],self.theta_tilt,lambda_plot=lambda_plot)
 
     def load_specs(self):
-        filename = DATA_DIR+self.label+"/lines_per_mm.txt"
+        filename = DATA_DIR+self.label+"/N.txt"
         if os.path.isfile(filename):
             a = np.loadtxt(filename)
-            print a
-            self.lines_per_mm = a
+            self.N = a[0]
+            self.N_err = a[1]
         filename = DATA_DIR+self.label+"/hologram_center.txt"
         if os.path.isfile(filename):
             lines = [line.rstrip('\n') for line in open(filename)]
