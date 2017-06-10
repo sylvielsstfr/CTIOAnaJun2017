@@ -4,6 +4,7 @@ import os, sys
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
 PIXEL2MM = 24e-3 # pixel size in mm
+PIXEL2ARCSEC = 0.401 # pixel size in arcsec
 DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
 DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
 
