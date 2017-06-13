@@ -18,6 +18,7 @@ def dist2lines(x,theta,lines):
         y_line = l[1]
         dist += dist2line(x,theta,x_line,y_line)
     return(dist)
+
 def RotationLines(all_theta,central_positions):
     proj_x_lines = []
     for i in range(5):
@@ -38,6 +39,9 @@ def RotationLines(all_theta,central_positions):
                 y.append(t)
         proj_y_lines.append([x,y])
     return(proj_x_lines,proj_y_lines)
+
+
+
 
 
 
@@ -93,9 +97,9 @@ def hessian_analysis(z):
             dets[i,j] = np.linalg.det(h)
     return(Hxx,Hyy,Hxy,dets)
 
-def scatter_interpol(central_positions,values,margin=10):
+def scatter_interpol(central_positions,values,margin=10,kind='cubic'):
     y, x = np.array(central_positions).T
-    interp = interpolate.interp2d(x, y, values, kind='cubic')
+    interp = interpolate.interp2d(x, y, values, kind=kind)
 
     step = 1
     xx = np.arange(np.min(x)-margin,np.max(x)+margin,step)

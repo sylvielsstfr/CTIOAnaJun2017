@@ -1,9 +1,11 @@
 import numpy as np
 import os, sys
+from scipy import ndimage
 
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
 PIXEL2MM = 24e-3 # pixel size in mm
+PIXEL2ARCSEC = 0.401 # pixel size in arcsec
 DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
 DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
 
@@ -38,6 +40,7 @@ def plot_atomic_lines(ax,ymax,redshift=0,atmospheric_lines=True):
         if not atmospheric_lines and il > 3 : continue
         ax.plot([l*(1+redshift),l*(1+redshift)],[0.,ymax],lw=2,label=labels[il])
 
+        
 def neutral_lines(x_center,y_center,theta_tilt):
     xs = np.linspace(0,IMSIZE,20)
     line1 = np.tan(theta_tilt*np.pi/180)*(xs-x_center)+y_center
@@ -80,6 +83,17 @@ def build_hologram(x_center,y_center,theta_tilt,lambda_plot=256000):
     return(holo)
 
 
+def build_ronchi(x_center,y_center,theta_tilt,grooves=400):
+    intensity = lambda x,y : 2*np.sin(2*np.pi*(x-x_center*PIXEL2MM)*0.5*grooves)**2
+
+    xronchi = np.linspace(0,IMSIZE*PIXEL2MM,IMSIZE)
+    yronchi = np.linspace(0,IMSIZE*PIXEL2MM,IMSIZE)
+    xxronchi, yyronchi = np.meshgrid(xronchi,yronchi)
+    ronchi = (intensity(xxronchi,yyronchi)).astype(int)
+    rotated_ronchi=ndimage.interpolation.rotate(ronchi,theta_tilt)
+    return(ronchi)
+
+
 
 
 
@@ -98,6 +112,16 @@ class Grating():
             a = np.loadtxt(filename)
             self.N = a[0]
             self.N_err = a[1]
+        filename = DATA_DIR+self.label+"/hologram_center.txt"
+        if os.path.isfile(filename):
+            lines = [line.rstrip('\n') for line in open(filename)]
+            #self.holo_center = map(float,lines[1].split(' ')[:2])
+            self.theta_tilt = float(lines[1].split(' ')[2])
+        else :
+            self.theta_tilt = 0
+            return
+        self.plate_center = [0.5*IMSIZE,0.5*IMSIZE]
+        print 'Grating plate center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.plate_center[0],self.plate_center[1],self.theta_tilt)
 
     def refraction_angle(self,deltaX):
         # refraction angle in radians
