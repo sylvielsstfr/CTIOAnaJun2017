@@ -32,6 +32,7 @@ filename_qe = "qecurve.txt"
 filename_FGB37="FGB37.txt"
 filename_RG175="RG175.txt"
 filename_Throughput='ctio_throughput.txt'
+filename_mirrors='lsst_mirrorthroughput.txt'
 
 WLMIN=300.
 WLMAX=1100.
@@ -77,6 +78,17 @@ def Get_Throughput():
     data_rg=ascii.read(filename) 
     x=data_rg["col1"]
     y=data_rg["col2"]
+    indexes = np.where(np.logical_and(x>WLMIN,x<WLMAX)) 
+    return x[indexes],y[indexes]
+#---------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+def Get_Mirror():
+    
+    filename=os.path.join(path_CTIOtransm,filename_mirrors)
+    
+    data_m=ascii.read(filename) 
+    x=data_m["col1"]
+    y=data_m["col2"]
     indexes = np.where(np.logical_and(x>WLMIN,x<WLMAX)) 
     return x[indexes],y[indexes]
 
@@ -127,6 +139,19 @@ def PlotThroughput():
     plt.ylabel("transmission")
     plt.xlim(WLMIN,WLMAX)
 
+    #---------------------------------------------------------------
+def PlotMirror():
+    
+    wl,tr=Get_Mirror()
+  
+    plt.figure()
+    plt.plot(wl,tr,"b-",label='1 mirror')
+    plt.plot(wl,tr*tr,"r-",label='2 mirrors')
+    plt.title('Mirror')
+    plt.xlabel("$\lambda$")
+    plt.ylabel("transmission")
+    plt.legend()
+    plt.xlim(WLMIN,WLMAX)
 #---------------------------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -137,4 +162,6 @@ if __name__ == "__main__":
     PlotFGB()
     
     PlotThroughput()
+    
+    PlotMirror()
     
