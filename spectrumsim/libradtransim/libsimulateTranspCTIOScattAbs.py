@@ -1,10 +1,10 @@
 ################################################################
 #
 # Script to simulate air transparency with LibRadTran
-# With a pure absorbing atmosphere
-# Here we vary PWV
+# With scattering and absorption
+# Tune CTIO astmosphere as wished
 # author: sylvielsstfr
-# creation date : November 2nd 2016
+# creation date : June 27th  2017
 # 
 #
 #################################################################
@@ -60,7 +60,10 @@ def ensure_dir(f):
 
 def usage():
     print "*******************************************************************"
-    print sys.argv[0],' -z <airmass> -w <pwv> -o <oz>'
+    print sys.argv[0],' -z <airmass> -w <pwv> -o <oz> -p <P>'
+    print ' \t - airmass from 1.0 to 3.0, typical z=1 '
+    print ' \t - pwv is precipitable watr vapor in kg per m2 or mm, typical pwv = 5.18 mm'
+    print ' \t - Pressure in hPa, typical P=775.3 hPa  '
     print 'Number of arguments:', len(sys.argv), 'arguments.'
     print 'Argument List:', str(sys.argv)
     
@@ -73,13 +76,14 @@ def usage():
 #-----------------------------------------------------------------------------
 
 
-def ProcessSimulation(airmass_num,pwv_num,oz_num):    
+def ProcessSimulation(airmass_num,pwv_num,oz_num,press_num):    
     
     
     print '--------------------------------------------'
     print ' 2) airmass = ', airmass_num
     print ' 2) pwv = ', pwv_num
-    print ' 2) oz = ', oz_num
+    print ' 3) oz = ', oz_num
+    print ' 4) pressure  = ',press_num
     print '--------------------------------------------'    
    
     
@@ -182,7 +186,9 @@ def ProcessSimulation(airmass_num,pwv_num,oz_num):
                 molresol ='medium'
             else:
                 molresol ='fine'
-           
+         
+            
+         
         
         #water vapor   
         pwv_val=pwv_num
@@ -197,7 +203,7 @@ def ProcessSimulation(airmass_num,pwv_num,oz_num):
         # Ozone    
         oz_val=oz_num
         oz_str='O3 '+str(oz_num)+ ' DU'
-        ozfileindex=int(oz_num/10.)
+        ozfileindex=int(oz_val/10.)
         
             
         BaseFilename=BaseFilename_part1+atmkey+'_'+Proc+'_'+Mod+'_z'+str(amfileindex)+'_'+WVXX+str(wvfileindex) +'_'+OZXX+str(ozfileindex)                   
@@ -236,6 +242,11 @@ def ProcessSimulation(airmass_num,pwv_num,oz_num):
         # set up the ozone value               
         uvspec.inp["mol_modify"] = pwv_str
         uvspec.inp["mol_modify2"] = oz_str
+        
+        
+        # rescale pressure   if reasonable pressure values are provided
+        if press_num>600. and press_num<1015.:
+            uvspec.inp["pressure"] = press_num
                     
                 
         uvspec.inp["output_user"] = 'lambda edir'
@@ -273,6 +284,22 @@ def ProcessSimulation(airmass_num,pwv_num,oz_num):
 # The program simulation start here
 #
 ####################################################################
+#
+# Typical values at ground ::  
+# P0= 775.28625 hPa  
+# T0= 273.9 K  
+# Z0= 2.2 km 
+#
+# At ground :
+#
+# Air = 2.05022e+19 molecules / cm3  
+# H2O =  8.90711e+16 molecules / cm3
+# M_H2O_0= 0.002664675 kg / m3 humidite absolue dans LibRadTran
+# M_H20_0= 0.0025525645 kg/m3 calcule par la formule de l humidite absolue 
+#                         pour 50 pourcent  d humidite relative, a P0 et T0
+# PWV= 5.180 kg/m2   dans LibRadTran
+#########################################################################
+
 
 if __name__ == "__main__":
     
@@ -280,12 +307,16 @@ if __name__ == "__main__":
     airmass_str=""
     pwv_str=""
     oz_str=""
+    press_str=""
     
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hz:w:o:",["z=","w=","o="])
+        opts, args = getopt.getopt(sys.argv[1:],"hz:w:o:p:",["z=","w=","o=","p="])
     except getopt.GetoptError:
-        print ' Exception bad getopt with :: '+sys.argv[0]+ ' -z <airmass> -w <pwv> -o <oz>'
+        print ' Exception bad getopt with :: '+sys.argv[0]+ ' -z <airmass> -w <pwv> -o <oz> -p <pr>'
+        print ' - pwv in kg / m2 or mm '
+        print ' - oz in DbU '
+        print ' - P in hPa '
         sys.exit(2)
         
         
@@ -304,14 +335,17 @@ if __name__ == "__main__":
             pwv_str = arg
         elif opt in ("-o", "--oz"):
             oz_str = arg  
+        elif opt in ("-p", "--pr"):
+            press_str = arg      
         else:
             print 'Do not understand arguments : ',argv
             
          
     print '--------------------------------------------'     
     print '1) airmass = ', airmass_str
-    print '1) pwv = ', pwv_str
-    print "1) oz = ", oz_str
+    print '2) pwv = ', pwv_str
+    print "3) oz = ", oz_str
+    print "4) pr = ", press_str
     print '--------------------------------------------' 
 
     if airmass_str=="":
@@ -326,11 +360,17 @@ if __name__ == "__main__":
         usage()
         sys.exit()
         
+    
+    if press_str=="":
+        usage()
+        sys.exit()
+        
 	
 	
     airmass_nb=float(airmass_str)
     pwv_nb=float(pwv_str)
     oz_nb=float(oz_str)	
+    pr_nb=float(press_str)	
     
     if airmass_nb<1 or airmass_nb >3 :
         print "bad airmass value z=",airmass_nb
@@ -344,9 +384,13 @@ if __name__ == "__main__":
         print "bad Ozone value oz=",oz_nb
         sys.exit()
         
+    if pr_nb<0 or pr_nb >1015 :
+        print "bad Pressure value pr=",pr_nb
+        sys.exit()
+        
     # do the simulation now    
     
-    path, outputfile=ProcessSimulation(airmass_nb,pwv_nb,oz_nb)
+    path, outputfile=ProcessSimulation(airmass_nb,pwv_nb,oz_nb,pr_nb)
     
     print '*****************************************************'
     print ' path       = ', path
