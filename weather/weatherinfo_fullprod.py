@@ -4,6 +4,12 @@ import pyfits
 import pandas as pd
 import numpy as np
 
+import sys
+
+sys.path.append('../humidity')
+import humidity as hum
+import libhumidity_ctio as humctio
+
 
   
 
@@ -65,7 +71,7 @@ def BuildHeaderInfo(filenames):
     all_seeingam = []
     all_filter1 = []
     all_filter2 = []
-   
+    all_pwv = []
 
   
 
@@ -88,12 +94,14 @@ def BuildHeaderInfo(filenames):
         fcl = float(header['TELFOCUS'])
         temp= float(header['OUTTEMP'])
         press= float(header['OUTPRESS'])
-        hum= float(header['OUTHUM'])
+        rhumid= float(header['OUTHUM'])
         windsp=float(header['WNDSPEED'])
         seeing=float(header['SEEING'])
         seeingam=float(header['SAIRMASS'])
         filter1 = header['FILTER1']
         filter2 = header['FILTER2']
+        
+        pwv= humctio.HRtoPWV(rhumid/100.,press,temp+273.0)
     
         all_dates.append(date_obs)
         all_airmass.append(airmass)
@@ -110,25 +118,26 @@ def BuildHeaderInfo(filenames):
         all_focus.append(fcl)
         all_temp.append(temp)
         all_press.append(press)
-        all_hum.append(hum)
+        all_hum.append(rhumid)
         all_windsp.append(windsp)
         all_seeing.append(seeing)
         all_seeingam.append(seeingam)
         all_filter1.append(filter1)
         all_filter2.append(filter2)
+        all_pwv.append(pwv)
 
         
         hdu_list.close()
         
         
-    return all_dates, all_airmass,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2
+    return all_dates, all_airmass,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2,all_pwv
 #----------------------------------------------------------------------------------
 
 
 #--------------------------------------------------------------------------------
 
 
-top_input_rawimage='/Users/dagoret-campagnesylvie/MacOsX/LSST/MyWork/GitHub/CTIODataJune2017'
+top_input_rawimage='/Volumes/LaCie2/CTIODataJune2017'
 
 
 # put which subdirs to which perform overscan and trim
@@ -171,9 +180,9 @@ if __name__ == '__main__':
         
        
         
-        (all_dates,all_airmass,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2)=BuildHeaderInfo(filelist_fitsimages) 
+        (all_dates,all_airmass,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2,all_pwv)=BuildHeaderInfo(filelist_fitsimages) 
         
-        dd = {'DATE': all_dates, 'T': all_temp,'P':all_press,'H':all_hum}
+        dd = {'DATE': all_dates, 'T': all_temp,'P':all_press,'H':all_hum,'PWV':all_pwv}
         
         df=pd.DataFrame(dd)
         
@@ -205,6 +214,8 @@ if __name__ == '__main__':
     plt.savefig('pressure.pdf') 
     all_data.plot('DATE','H',figsize=(20,6),rot=45,grid=True,title='Relative humiditye vs date',color='m',marker='o',linewidth=2)
     plt.savefig('humidity.pdf') 
+    all_data.plot('DATE','PWV',figsize=(20,6),rot=45,grid=True,title='Relative humiditye vs date',color='g',marker='o',linewidth=2)
+    plt.savefig('pwv.pdf') 
     
     
     
