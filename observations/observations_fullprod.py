@@ -6,9 +6,6 @@ import numpy as np
 
 import sys
 
-sys.path.append('../humidity')
-import humidity as hum
-import libhumidity_ctio as humctio
 
 
   
@@ -71,11 +68,15 @@ def BuildHeaderInfo(filenames):
     all_seeingam = []
     all_filter1 = []
     all_filter2 = []
-    all_pwv = []
+   
+    all_obj = []
 
   
 
-    for idx,f in np.ndenumerate(filenames):   
+    for idx,f in np.ndenumerate(filenames):  
+        
+
+        
         hdu_list=pyfits.open(f)
         
         header=hdu_list[0].header
@@ -92,9 +93,11 @@ def BuildHeaderInfo(filenames):
         st = header['ST']
         alt = float(header['ALT'])
         fcl = float(header['TELFOCUS'])
+        obj= header['OBJECT']
         filter1 = header['FILTER1']
         filter2 = header['FILTER2']
         
+        # Missing info 
         if re.search('data_04jun17/20170604',f):
             temp=0
             press=0
@@ -102,7 +105,7 @@ def BuildHeaderInfo(filenames):
             rhumid=0
             seeing=0
             seeingam=0
-            pwv=0    
+            
         
         else:
             temp= float(header['OUTTEMP'])
@@ -111,11 +114,13 @@ def BuildHeaderInfo(filenames):
             windsp=float(header['WNDSPEED'])       
             seeing=float(header['SEEING'])
             seeingam=float(header['SAIRMASS'])
-            pwv= humctio.HRtoPWV(rhumid/100.,press,temp+273.0)
+        
+        
+        
     
         all_dates.append(date_obs)
         all_airmass.append(airmass)
-        
+        all_obj.append(obj)
         all_exposures.append(expo)
         all_ut.append(ut)
         all_ra.append(ra)
@@ -134,13 +139,13 @@ def BuildHeaderInfo(filenames):
         all_seeingam.append(seeingam)
         all_filter1.append(filter1)
         all_filter2.append(filter2)
-        all_pwv.append(pwv)
+       
 
         
         hdu_list.close()
         
         
-    return all_dates, all_airmass,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2,all_pwv
+    return all_dates, all_airmass,all_obj,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2
 #----------------------------------------------------------------------------------
 
 
@@ -161,6 +166,8 @@ subdirs=['data_26may17','data_28may17', 'data_29may17','data_30may17', 'data_31m
 #         'data_01jun17','data_02jun17','data_03jun17','data_04jun17','data_05jun17',
 #         'data_08jun17','data_09jun17','data_10jun17','data_12jun17','data_13jun17']
 
+
+#subdirs=['data_04jun17']
 
 NBNIGHTS=len(subdirs)         
 		
@@ -190,9 +197,9 @@ if __name__ == '__main__':
         
        
         
-        (all_dates,all_airmass,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2,all_pwv)=BuildHeaderInfo(filelist_fitsimages) 
+        (all_dates,all_airmass,all_obj,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2)=BuildHeaderInfo(filelist_fitsimages) 
         
-        dd = {'DATE': all_dates, 'T': all_temp,'P':all_press,'H':all_hum,'PWV':all_pwv}
+        dd = {'date': all_dates, 'object': all_obj,'airmass':all_airmass,'seeing':all_seeing,'filter':all_filter1,'disperser':all_filter2}
         
         df=pd.DataFrame(dd)
         
@@ -215,17 +222,11 @@ if __name__ == '__main__':
     print 'Total Number Of Fits Files = ', NumberOfFiles
     
     print all_data.describe()
-    all_data.to_csv('ctioweatherinfo_jun2017.csv')
+    all_data.to_csv('ctioobsinfo_jun2017.csv')
     
     
-    all_data.plot('DATE','T',figsize=(20,6),rot=45,grid=True,title='Temperature vs date',color='b',marker='o',linewidth=2)
-    plt.savefig('temperature.pdf') 
-    all_data.plot('DATE','P',figsize=(20,6),rot=45,grid=True,title='Pressure vs date',color='r',marker='o',linewidth=2)
-    plt.savefig('pressure.pdf') 
-    all_data.plot('DATE','H',figsize=(20,6),rot=45,grid=True,title='Relative humiditye vs date',color='m',marker='o',linewidth=2)
-    plt.savefig('humidity.pdf') 
-    all_data.plot('DATE','PWV',figsize=(20,6),rot=45,grid=True,title='Relative humiditye vs date',color='g',marker='o',linewidth=2)
-    plt.savefig('pwv.pdf') 
+    all_data.plot('date','airmass',figsize=(20,6),rot=45,grid=True,title='airmasses vs date',color='b',marker='o',linewidth=2)
+    plt.savefig('am.pdf') 
     
     
     
