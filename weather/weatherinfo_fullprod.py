@@ -147,15 +147,15 @@ def BuildHeaderInfo(filenames):
 #--------------------------------------------------------------------------------
 
 
-top_input_rawimage='/Volumes/LaCie2/CTIODataJune2017'
+top_input_rawimage='/Users/dagoret/MacOSX/data/AtmosphericCalibration/CTIODataJune2017_ovsctrim'
 
 
 # put which subdirs to which perform overscan and trim
 
 # remove 4th jun and 13 jun
 subdirs=['data_26may17','data_28may17', 'data_29may17','data_30may17', 'data_31may17',
-         'data_01jun17','data_02jun17','data_03jun17','data_05jun17',
-         'data_08jun17','data_09jun17','data_10jun17','data_12jun17','data_13jun17']
+         'data_01jun17','data_02jun17','data_03jun17','data_05jun17','data_06jun17',
+         'data_08jun17','data_09jun17','data_10jun17','data_12jun17']
 
 #subdirs=['data_26may17','data_28may17', 'data_29may17','data_30may17', 'data_31may17',
 #         'data_01jun17','data_02jun17','data_03jun17','data_04jun17','data_05jun17',
@@ -167,7 +167,8 @@ NBNIGHTS=len(subdirs)
 
 MIN_IMGNUMBER=1
 MAX_IMGNUMBER=500
-SearchTagRe='^2017[0-9]+_([0-9]+).fits$'
+#SearchTagRe='^2017[0-9]+_([0-9]+).fits$'
+SearchTagRe='^trim_2017[0-9]+_([0-9]+).fits$'
 
 
 if __name__ == '__main__':
