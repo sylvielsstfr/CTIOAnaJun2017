@@ -16,9 +16,11 @@ def fwhm(ys,intensities,max_fwhm=50):
     return fwhm
 
 
-def FWHMProfiles(all_images,thex0,they0,all_expo,all_titles,object_name,dir_top_images,all_filt,width_to_stack=10,central_star_cut = 100, width_cut = 20, left_edge = 0, right_edge = 1900, max_fwhm=20):
+def FWHMProfiles(all_images,thex0,they0,all_expo,all_titles,object_name,dir_top_images,all_filt,width_to_stack=10,central_star_cut = 100, width_cut = 20, left_edges = None, right_edges = None, max_fwhm=20):
     theprofiles = []
     fig = plt.figure(figsize=(20,8))
+    if left_edges == None : left_edges = np.zeros_like(all_images)
+    if right_edges == None : right_edges = 1900*np.ones_like(all_images)
         
     for index in range(len(all_images)):
         
@@ -31,12 +33,12 @@ def FWHMProfiles(all_images,thex0,they0,all_expo,all_titles,object_name,dir_top_
 
         full_image=np.copy(all_images[index])
         full_image[:,x_0-central_star_cut:x_0+central_star_cut]=0 ## TURN OFF CENTRAL STAR
-        image=full_image[y_0-width_cut:y_0+width_cut,left_edge:right_edge]/all_expo[index]
+        image=full_image[y_0-width_cut:y_0+width_cut,left_edges[index]:right_edges[index]]/all_expo[index]
         for x in range(0,image.shape[1],width_to_stack):
             # stack profile over a small width
             profile = np.median(image.T[x:x+width_to_stack],axis=0)
             fwhms.append( fwhm(range(image.shape[0]),profile,max_fwhm=max_fwhm) )
-            xs.append(x+left_edge)
+            xs.append(x+left_edges[index])
         theprofiles.append([xs,fwhms])
         plt.plot(xs,fwhms)
         plt.xlabel('Pixel x')
