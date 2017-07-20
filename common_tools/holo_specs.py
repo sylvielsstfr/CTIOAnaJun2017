@@ -1,11 +1,13 @@
 import numpy as np
 import os, sys
 from scipy import ndimage
+from scipy.optimize import curve_fit
 
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
 PIXEL2MM = 24e-3 # pixel size in mm
 PIXEL2ARCSEC = 0.401 # pixel size in arcsec
+ARCSEC2RADIANS = np.pi/(180.*3600.) # conversion factor from arcsec to radians
 DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
 DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
 
@@ -97,6 +99,19 @@ def build_ronchi(x_center,y_center,theta_tilt,grooves=400):
 
 
 
+def gauss(x,a,x0,sigma):
+    return a*np.exp(-(x-x0)**2/(2*sigma**2))
+
+def fit_gauss(x,y,guess=[10,1000,1],bounds=(-np.inf,np.inf)):
+    popt,pcov = curve_fit(gauss,x,y,p0=guess,bounds=bounds)
+    return popt, pcov
+
+def EmissionLineFit(spectra,left_edge=1200,right_edge=1600,guess=[10,1400,200],bounds=(-np.inf,np.inf)):
+    xs = np.arange(left_edge,right_edge,1)
+    right_spectrum = spectra[left_edge:right_edge]
+    popt, pcov = fit_gauss(xs,right_spectrum,guess=guess)
+    return(popt, pcov)
+
 
 
 class Grating():
@@ -127,10 +142,15 @@ class Grating():
         # refraction angle in radians
         return( np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD) )
         
-    def grating_pixel_to_lambda(self,deltaX):
+    def refraction_angle_lambda(self,l,theta0=0,order=1):
+        # refraction angle in radians with lambda in mm and
+        # tetha0 incident angle in radians (wrt normal)
+        return( np.arcsin(order*l*self.N + np.sin(theta0) ) )
+        
+    def grating_pixel_to_lambda(self,deltaX,theta0=0,order=1):
         # wavelength in nm
         theta = self.refraction_angle(deltaX)
-        l = np.sin(theta)/self.N
+        l = (np.sin(theta)-np.sin(theta0))/(order*self.N)
         return(l*1e6)
 
     def grating_resolution(self,deltaX):
