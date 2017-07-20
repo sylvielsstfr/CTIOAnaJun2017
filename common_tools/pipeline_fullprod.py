@@ -77,16 +77,16 @@ def BuildRawImages(filenames):
 #--------------------------------------------------------------------------------
 
 
-top_input_rawimage='/Volumes/LaCie2/CTIODataJune2017'
-top_output_trimimage='/Volumes/LaCie2/CTIODataJune2017_ovsctrim'
+top_input_rawimage='/sps/lsst/data/AtmosphericCalibration/CTIODataJune2017'
+top_output_trimimage='./CTIODataJune2017_ovsctrim'
 
 # put which subdirs to which perform overscan and trim
 
-subdirs=['data_26may17','data_28may17', 'data_29may17','data_30may17', 'data_31may17',
-         'data_01jun17','data_02jun17','data_03jun17','data_04jun17','data_05jun17',
-         'data_08jun17','data_09jun17','data_10jun17','data_12jun17','data_13jun17']
+#subdirs=['data_26may17','data_28may17', 'data_29may17','data_30may17', 'data_31may17',
+#         'data_01jun17','data_02jun17','data_03jun17','data_04jun17','data_05jun17',
+#         'data_06jun17','data_08jun17','data_09jun17','data_10jun17','data_12jun17','data_13jun17']
 
-#subdirs=['data_06jun17']
+subdirs=['data_06jun17']
          
 		
 
