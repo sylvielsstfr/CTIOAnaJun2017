@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from tools import *
 import commands
 import os
+from astropy.io import fits
 from astropy import units as u
 import numpy as np
 import overscan_subtract_andTrim as ovsubtrim
@@ -76,9 +77,14 @@ def BuildRawImages(filenames):
     all_titles = []
     all_header = []
 
-    for idx,f in np.ndenumerate(filenames):   
-        hdu_list=pyfits.open(f)
+    for idx,f in np.ndenumerate(filenames): 
+        
+        
+        hdu_list=fits.open(f)
         header=hdu_list[0].header
+        #hdu_list=pyfits.open(f)
+        #header=hdu_list[0].header
+        
         date_obs = header['DATE-OBS']
         airmass = header['AIRMASS']
         num=sorted_numbers[idx[0]]
@@ -86,6 +92,7 @@ def BuildRawImages(filenames):
         title=object_name+" z= {:3.2f} Nb={}".format(float(airmass),num)
         image_corr=hdu_list[0].data
         image=image_corr
+        
         all_dates.append(date_obs)
         all_airmass.append(float(airmass))
         all_images.append(image)
@@ -139,13 +146,13 @@ def med_over_images(masked_arr, axis=0):
 
 
 
+top_datapath='/sps/lsst/data/AtmosphericCalibration/'
 
-
-top_input_trimimage='/Users/dagoret/MacOSX/data/AtmosphericCalibration/CTIODataJune2017_ovsctrim'
+top_input_trimimage=top_datapath+'CTIODataJune2017_ovsctrim'
 top_output_reducimage='./CTIODataJune2017_reducedRed'
 
-master_bias_file='/Users/dagoret/MacOSX/data/AtmosphericCalibration/CTIODataJune2017/Flats_et_bias/median_bias.fits'
-master_flat_file='/Users/dagoret/MacOSX/data/AtmosphericCalibration/CTIODataJune2017/Flats_et_bias/RG715_median_flat.fits'
+master_bias_file=top_datapath+'CTIODataJune2017/Flats_et_bias/median_bias.fits'
+master_flat_file=top_datapath+'CTIODataJune2017/Flats_et_bias/RG715_median_flat.fits'
 
 
 # put which subdirs to which perform overscan and trim
@@ -159,7 +166,7 @@ subdirs=['data_26may17','data_28may17', 'data_29may17','data_30may17', 'data_31m
          'data_06jun17','data_08jun17','data_09jun17','data_10jun17','data_12jun17','data_13jun17']
  
  
-subdirs=['data_31may17']
+#subdirs=['data_31may17']
          
 		
 
@@ -208,7 +215,7 @@ if __name__ == '__main__':
         sorted_files,sorted_numbers=SortFileList(indexes_files,filelist_fitsimages)
         
         
-        all_dates, all_airmass, all_images, all_titles, all_heade=BuildRawImages(sorted_files)
+        all_dates, all_airmass, all_images, all_titles, all_header=BuildRawImages(sorted_files)
         
         
         print "put images in CCDPROC"
@@ -227,7 +234,7 @@ if __name__ == '__main__':
         for raw_image in all_rawimage:
             bias_subtracted = ccdproc.subtract_bias(raw_image, master_bias)
             all_bias_subtracted.append(bias_subtracted)
-            print id
+            #sprint id
             id+=1
         
         
@@ -238,7 +245,7 @@ if __name__ == '__main__':
         for bias_sub in all_bias_subtracted:
             reduced_image = ccdproc.flat_correct(bias_sub, master_flat,min_value=0.9)
             all_reduced.append(reduced_image)
-            print id
+            #print id
             id+=1
         
         
@@ -252,7 +259,7 @@ if __name__ == '__main__':
         newfullfilenames=[]
         for idx,file in np.ndenumerate(sorted_files):
     
-            short_infilename=file.split("/")[3]
+            short_infilename=os.path.basename(file)
             short_partfilename=re.findall('^trim_(.*)',short_infilename)
             short_outfilename='reduc_'+short_partfilename[0]
             newfullfilename=os.path.join(outputdir,short_outfilename)
@@ -262,7 +269,10 @@ if __name__ == '__main__':
         # Save file in output
         #--------------------
         for idx,file in np.ndenumerate(newfullfilenames):
-            prihdu = fits.PrimaryHDU(header=all_header[idx[0]],data=all_reduced[idx[0]])
+            idex=idx[0]
+            #print idex,"  ",file
+            #print all_header[idex]
+            prihdu = fits.PrimaryHDU(header=all_header[idex],data=all_reduced[idex])
             thdulist = fits.HDUList(prihdu)
             thdulist.writeto(file,overwrite=True)
         
