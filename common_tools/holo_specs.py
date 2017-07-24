@@ -24,23 +24,27 @@ HALPHA_CENTER = 655.9e-6 # center of the filter in mm
 HALPHA_WIDTH = 6.4e-6 # width of the filter in mm
 
 # Main emission/absorption lines in nm
-HALPHA = 656.3
-HBETA = 486.3
-HGAMMA = 434.0
-HDELTA = 410.2
-O2 = 762.1 # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
-H2O = 960
+HALPHA = {'lambda':656.3,'atmospheric':False,'label':'$H\\alpha$'}
+HBETA = {'lambda': 486.3,'atmospheric':False,'label':'$H\\beta$'} 
+HGAMMA = {'lambda':434.0,'atmospheric':False,'label':'$H\\gamma$'} 
+HDELTA = {'lambda': 410.2,'atmospheric':False,'label':'$H\\delta$'}
+O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$'} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
+H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$'}
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O]
 
 
 DATA_DIR = "../../common_tools/data/"
 
 
-def plot_atomic_lines(ax,ymax,redshift=0,atmospheric_lines=True):
-    lines = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O]
-    labels = ['$H\\alpha$','$H\\beta$','$H\\gamma$','$H\\delta$','$O_2$','$H_2 O$']
-    for il,l in enumerate(lines):
-        if not atmospheric_lines and il > 3 : continue
-        ax.plot([l*(1+redshift),l*(1+redshift)],[0.,ymax],lw=2,label=labels[il])
+def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,color_atomic='g',color_atmospheric='b',fontsize=16):
+    xlim = ax.get_xlim()
+    for line in LINES:
+        if not atmospheric_lines and line['atmospheric']: continue
+        color = color_atomic
+        l = line['lambda']*(1+redshift)
+        if line['atmospheric']: color = color_atmospheric
+        ax.axvline(l,lw=2,color=color)
+        ax.annotate(line['label'],xy=((l-xlim[0])/(xlim[1]-xlim[0])+0.01,0.02),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
 
         
 def neutral_lines(x_center,y_center,theta_tilt):
