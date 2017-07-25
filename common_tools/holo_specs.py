@@ -13,7 +13,7 @@ DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
 
 # Making of the holograms
 LAMBDA_CONSTRUCTOR = 639e-6 # constructor wavelength to make holograms in mm
-LINES_PER_MM = 350 # approximate effective number of lines per millimeter of the hologram
+GROOVES_PER_MM = 350 # approximate effective number of lines per millimeter of the hologram
 PLATE_CENTER_SHIFT_X = -6. # plate center shift on x in mm in filter frame
 PLATE_CENTER_SHIFT_Y = -8. # plate center shift on x in mm in filter frame
 PLATE_CENTER_SHIFT_X_ERR = 2. # estimate uncertainty on plate center shift on x in mm in filter frame
@@ -24,27 +24,36 @@ HALPHA_CENTER = 655.9e-6 # center of the filter in mm
 HALPHA_WIDTH = 6.4e-6 # width of the filter in mm
 
 # Main emission/absorption lines in nm
-HALPHA = {'lambda':656.3,'atmospheric':False,'label':'$H\\alpha$'}
-HBETA = {'lambda': 486.3,'atmospheric':False,'label':'$H\\beta$'} 
-HGAMMA = {'lambda':434.0,'atmospheric':False,'label':'$H\\gamma$'} 
-HDELTA = {'lambda': 410.2,'atmospheric':False,'label':'$H\\delta$'}
-O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$'} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
-H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$'}
-LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O]
+HALPHA = {'lambda':656.3,'atmospheric':False,'label':'$H\\alpha$','pos':[0.007,0.02]}
+HBETA = {'lambda': 486.3,'atmospheric':False,'label':'$H\\beta$','pos':[0.007,0.02]} 
+HGAMMA = {'lambda':434.0,'atmospheric':False,'label':'$H\\gamma$','pos':[0.007,0.02]} 
+HDELTA = {'lambda': 410.2,'atmospheric':False,'label':'$H\\delta$','pos':[0.007,0.02]}
+CII1 =  {'lambda': 723.5,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
+CII2 =  {'lambda': 711.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
+CIV =  {'lambda': 706.0,'atmospheric':False,'label':'$C_{IV}$','pos':[-0.02,0.92]}
+CII3 =  {'lambda': 679.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
+CIII1 =  {'lambda': 673.0,'atmospheric':False,'label':'$C_{III}$','pos':[-0.02,0.92]}
+CIII2 =  {'lambda': 570.0,'atmospheric':False,'label':'$C_{III}$','pos':[0.007,0.02]}
+HEI =  {'lambda': 587.5,'atmospheric':False,'label':'$He_{I}$','pos':[0.007,0.02]}
+HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.02]}
+O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
+H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII]
 
 
 DATA_DIR = "../../common_tools/data/"
 
 
-def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,color_atomic='g',color_atmospheric='b',fontsize=16):
+def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,hydrogen_only=False,color_atomic='g',color_atmospheric='b',fontsize=16):
     xlim = ax.get_xlim()
     for line in LINES:
         if not atmospheric_lines and line['atmospheric']: continue
+        if hydrogen_only and '$H\\' not in line['label'] : continue
         color = color_atomic
         l = line['lambda']*(1+redshift)
         if line['atmospheric']: color = color_atmospheric
         ax.axvline(l,lw=2,color=color)
-        ax.annotate(line['label'],xy=((l-xlim[0])/(xlim[1]-xlim[0])+0.01,0.02),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
+        ax.annotate(line['label'],xy=((l-xlim[0])/(xlim[1]-xlim[0])+line['pos'][0],line['pos'][1]),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
 
         
 def neutral_lines(x_center,y_center,theta_tilt):
@@ -55,7 +64,7 @@ def neutral_lines(x_center,y_center,theta_tilt):
 
 def order01_positions(x_center,y_center,theta_tilt,verbose=True):
     # refraction angle between order 0 and order 1 at fabrication
-    alpha = np.arcsin(LINES_PER_MM*LAMBDA_CONSTRUCTOR) 
+    alpha = np.arcsin(GROOVES_PER_MM*LAMBDA_CONSTRUCTOR) 
     # distance between order 0 and order 1 in pixels
     AB = np.tan(alpha)*DISTANCE2CCD/PIXEL2MM
     # position of order 1 in pixels
@@ -168,7 +177,7 @@ class Grating():
 class Hologram(Grating):
 
     def __init__(self,label,lambda_plot=256000):
-        Grating.__init__(self,LINES_PER_MM,label=label)
+        Grating.__init__(self,GROOVES_PER_MM,label=label)
         self.holo_center = None # center of symmetry of the hologram interferences in pixels
         self.plate_center = None # center of the hologram plate
         self.rotation_angle_map = None # interpolated rotation angle map of the hologram from data in degrees
