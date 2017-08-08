@@ -1,5 +1,7 @@
 import os, re
+import scipy
 from scipy.optimize import curve_fit
+from scipy.misc import imresize
 import numpy as np
 
 def gauss(x,a,x0,sigma):
@@ -23,3 +25,10 @@ def ensure_dir(f):
         os.makedirs(f)
         
 
+def resize_image(data,Nx_final,Ny_final):
+    # F mode stands for 'float' : output is float and not int between 0 and 255
+    data_resampled=scipy.misc.imresize(data,(Nx_final,Ny_final),mode='F')
+    data_rescaled = data_resampled
+    # following line is not useful with mode='F', uncomment it with mode='I'
+    #data_rescaled=(np.max(data)-np.min(data))*(data_resampled-np.min(data_resampled))/(np.max(data_resampled)-np.min(data_resampled))+np.min(data)
+    return(data_rescaled)

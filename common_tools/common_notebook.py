@@ -33,7 +33,7 @@ from skimage.feature import hessian_matrix
 
 from tools import *
 from scan_holo import *
-
+from targets import *
 
 def init_notebook():
     print 'ccdproc version',ccdproc.__version__
@@ -137,39 +137,40 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
 
 
 
-def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERLROW=2,vmin=0,vmax=2000):
+def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
     """
     ShowRawImages: Show the raw images without background subtraction
     ==============
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERLROW)+1
-
-    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERLROW,figsize=(25,5*MAXIMGROW))
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
     for index in np.arange(0,NBIMAGES):
-        ix=index%NBIMGPERLROW
-        iy=index/NBIMGPERLROW
-        #im=axarr[iy,ix].imshow(all_images[index],origin='lower',cmap='rainbow',norm=LogNorm(vmin=0.1, vmax=10))
-        im=axarr[iy,ix].imshow(all_images[index],origin='lower',cmap='rainbow',vmin=vmin, vmax=vmax)
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        if verbose : print 'Processing image %d...' % index        
+        im=axarr[iy,ix].imshow(all_images[index][::downsampling,::downsampling],cmap='rainbow',vmin=vmin, vmax=vmax, aspect='auto',origin='lower')
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(color='white', ls='solid')
         axarr[iy,ix].text(5.,5,all_filt[index],verticalalignment='bottom', horizontalalignment='left',color='yellow', fontweight='bold',fontsize=16)
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
 
-def ShowHistograms(all_images,all_titles,all_filt,object_name,NBIMGPERLROW=2,bins=100,range=(-50,10000)):
+def ShowHistograms(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,bins=100,range=(-50,10000),downsampling=1,verbose=False):
     """
     ShowHistograms
     ==============
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERLROW)+1
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
+
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(20,int(5*MAXIMGROW)))
     
-    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERLROW,figsize=(20,int(5*MAXIMGROW)))
     for index in np.arange(0,NBIMAGES):
-        ix=index%NBIMGPERLROW
-        iy=index/NBIMGPERLROW
-        image_flat=all_images[index].flatten()
+        if verbose : print 'Processing image %d...' % index
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        image_flat=all_images[index][::downsampling,::downsampling].flatten()
         stat_mean=image_flat.mean()
         stat_rms=image_flat.std()
         legtitle='mean={:4.2f} std={:4.2f}'.format(stat_mean,stat_rms)
@@ -213,22 +214,25 @@ def ComputeStatImages(all_images,fwhm=10,threshold=300,sigma=10.0,iters=5):
 
 
 
-def ShowCenterImages(x0,y0,DeltaX,DeltaY,all_images,all_titles,all_filt,object_name,NBIMGPERLROW=2,vmin=0,vmax=2000):
+def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000):
     """
     ShowCenterImages: Show the raw images without background subtraction
     ==============
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERLROW)+1
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
     
     croped_images = []
-    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERLROW,figsize=(25,5*MAXIMGROW))
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
     for index in np.arange(0,NBIMAGES):
-        ix=index%NBIMGPERLROW
-        iy=index/NBIMGPERLROW
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        x0 = int(thex0[index])
+        y0 = int(they0[index])
+        deltax = int(DeltaX[index])
+        deltay = int(DeltaY[index])
         theimage=all_images[index]
-        #image_cut=theimage[y0-DeltaY:y0+DeltaY,x0-DeltaX:x0+DeltaX]
-        image_cut=np.copy(theimage[max(0,y0-DeltaY):min(IMSIZE,y0+DeltaY),max(0,x0-DeltaX):min(IMSIZE,x0+DeltaX)])
+        image_cut=np.copy(theimage[max(0,y0-deltay):min(IMSIZE,y0+deltay),max(0,x0-deltax):min(IMSIZE,x0+deltax)])
         croped_images.append(image_cut)
         #aperture=CircularAperture([positions_central[index]], r=100.)
         im=axarr[iy,ix].imshow(image_cut,cmap='rainbow',vmin=vmin,vmax=vmax,aspect='auto',origin='lower',interpolation='None')
@@ -276,67 +280,8 @@ def ComputeAveY(data):
     return the_averY
 
 
-def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,dir_top_images,NBIMGPERROW=2,w=20,ws=80,DeltaX=600):
-    """
-    ShowTransverseProfile:
-    =====================
-    """
-    NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
-    thespectra= []
-    they0= []
-    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
-    for index in np.arange(0,NBIMAGES):
-        ix=index%NBIMGPERROW
-        iy=index/NBIMGPERROW
-        data=np.copy(all_images[index])
-        data[:,DeltaX-ws:DeltaX+ws]=0
-        if(all_expo[index]<=0):
-            yprofile=np.sum(data,axis=1)  #very special case
-        else:
-            yprofile=np.sum(data,axis=1)/all_expo[index]
-        ymin=1
-        ymax=yprofile.max()
-        y0=np.where(yprofile==ymax)[0][0]
-        they0.append(y0)
-        #im=axarr[iy,ix].imshow(data,vmin=-10,vmax=50)
-        axarr[iy,ix].semilogy(yprofile)
-        axarr[iy,ix].semilogy([y0,y0],[ymin,ymax],'r-')
-        axarr[iy,ix].semilogy([y0-w,y0-w],[ymin,ymax],'k-')
-        axarr[iy,ix].semilogy([y0+w,y0+w],[ymin,ymax],'k-')
-        axarr[iy,ix].set_ylim(1000.,2e5)
-        spectrum2D=np.copy(data[y0-w:y0+w,:])
-        xprofile=np.sum(spectrum2D,axis=0)
-        thespectra.append(xprofile/(2.*float(w))/all_expo[index])
-        axarr[iy,ix].set_title(all_titles[index])
-        axarr[iy,ix].grid(True)
-    title='Spectrum tranverse profile '.format(object_name)
-    plt.suptitle(title,size=16)
-    #figfilename=os.path.join(dir_top_images,'transverse_profile.pdf')
-    #plt.savefig(figfilename)  
-    return thespectra,they0
 
 
-def ShowSpectrumProfile(spectra,all_titles,object_name,dir_top_images,    NBIMGPERROW=2):
-    """
-    ShowSpectrumProfile:
-    =====================
-    """
-    NBSPEC=len(spectra)
-    MAXIMGROW=int(NBSPEC/NBIMGPERROW)+1
-    
-    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
-    for index in np.arange(0,NBSPEC):
-        ix=index%NBIMGPERROW
-        iy=index/NBIMGPERROW
-        axarr[iy,ix].plot(spectra[index])
-        axarr[iy,ix].set_title(all_titles[index])
-        axarr[iy,ix].grid(True)
-        axarr[iy,ix].set_ylim(0.,200.)
-    title='Spectrum 1D profile '.format(object_name)
-    #figfilename=os.path.join(dir_top_images,'longitudinal_profile.pdf')
-    #plt.savefig(figfilename)  
-    plt.suptitle(title,size=16)
 
 
 def ComputeRotationAngle(all_images,thex0,they0,all_titles,object_name):
@@ -357,7 +302,7 @@ def ComputeRotationAngle(all_images,thex0,they0,all_titles,object_name):
     
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
     
     param_a=np.zeros(NBIMAGES)
     param_b=np.zeros(NBIMAGES)
@@ -415,7 +360,7 @@ def ComputeRotationAngle(all_images,thex0,they0,all_titles,object_name):
     return param_a,param_b
 
 
-def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NBIMGPERROW=2, lambda_threshold = -20, deg_threshold = 20, width_cut = 20, right_edge = 1600):
+def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NBIMGPERROW=2, lambda_threshold = -20, deg_threshold = 20, width_cut = 20, right_edge = 1600,margin_cut=1):
     """
     ComputeRotationAngle
     ====================
@@ -434,8 +379,7 @@ def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NB
     
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
-    
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
     
     param_theta=np.zeros(NBIMAGES)
     
@@ -447,26 +391,26 @@ def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NB
         image=all_images[index]    
         
         image_sel=np.copy(image)
-        y0=they0[index]
-        x0=thex0[index]
+        y0=int(they0[index])
+        x0=int(thex0[index])
         
-        # extract a region of 200 x 1000 centered at y=100,x=500
-        
+        # extract a region 
         region=np.copy(image_sel[y0-width_cut:y0+width_cut,0:right_edge])
         data=np.copy(region)
         
         # compute hessian matrices on the image
-        
         Hxx, Hxy, Hyy = hessian_matrix(data, sigma=3, order = 'xy')
         lambda_plus = 0.5*( (Hxx+Hyy) + np.sqrt( (Hxx-Hyy)**2 +4*Hxy*Hxy) )
         lambda_minus = 0.5*( (Hxx+Hyy) - np.sqrt( (Hxx-Hyy)**2 +4*Hxy*Hxy) )
-                
-
-        mask = np.where(lambda_minus>lambda_threshold)
-        #lambda_mask = np.copy(lambda_minus)
-        #lambda_mask[mask]=np.nan
-
         theta = 0.5*np.arctan2(2*Hxy,Hyy-Hxx)*180/np.pi
+                
+        # remobe the margins
+        lambda_minus = lambda_minus[margin_cut:-margin_cut,margin_cut:-margin_cut]
+        lambda_plus = lambda_plus[margin_cut:-margin_cut,margin_cut:-margin_cut]
+        theta = theta[margin_cut:-margin_cut,margin_cut:-margin_cut]
+
+        # thresholds
+        mask = np.where(lambda_minus>lambda_threshold)
         theta_mask = np.copy(theta)
         theta_mask[mask]=np.nan
 
@@ -479,6 +423,7 @@ def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NB
         
         param_theta[index] = theta_median
         
+        xindex=np.arange(data.shape[1])
         x_new = np.linspace(xindex.min(),xindex.max(), 50)
         y_new = y0 - width_cut + (x_new-x0)*np.tan(theta_median*np.pi/180.)
     
@@ -492,10 +437,6 @@ def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NB
 
     title='Fit rotation angle of '.format(object_name)    
     plt.suptitle(title,size=16)
-    
-    figfilename=os.path.join(dir_top_images,'fit_rotation.pdf')
-    plt.savefig(figfilename)  
-    
     
     return param_theta
     
@@ -520,8 +461,8 @@ def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_n
     
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
-    
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
+
     param_theta=np.zeros(NBIMAGES)
     
     f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,2*MAXIMGROW))
@@ -530,8 +471,8 @@ def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_n
         iy=index/NBIMGPERROW
         
         image_sel=np.copy(all_images[index])
-        y0=they0[index]
-        x0=thex0[index]
+        y0=int(they0[index])
+        x0=int(thex0[index])
         
         # extract a region of 200 x 1000 centered at y=100,x=500    
         region=np.copy(image_sel[max(0,y0-width_cut):min(y0+width_cut,IMSIZE),0:min(IMSIZE,right_edge)])
@@ -589,7 +530,7 @@ def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_n
     
 
 
-def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2):
+def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2,vmin=0,vmax=1000,oversample_factor=6):
     """
     TurnTheImages
     =============
@@ -606,7 +547,7 @@ def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2):
     
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
     
     all_rotated_images = []
 
@@ -614,20 +555,15 @@ def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2):
     for index in np.arange(0,NBIMAGES):
         ix=index%NBIMGPERROW
         iy=index/NBIMGPERROW
-        
         image=all_images[index]    
         angle=all_angles[index]    
         data=np.copy(image)
-        
-        rotated_image=ndimage.interpolation.rotate(data,angle)
-        
+        # prefilter=False and order=5 give best rotated images
+        rotated_image=ndimage.interpolation.rotate(data,angle,prefilter=False,order=5)
         all_rotated_images.append(rotated_image)
-        
-        im=axarr[iy,ix].imshow(rotated_image,origin='lower',cmap='rainbow',vmin=0,vmax=800)
-        #im=axarr[iy,ix].plot(x_new,y_new,'b-')
+        im=axarr[iy,ix].imshow(rotated_image,origin='lower',cmap='rainbow',vmin=vmin,vmax=vmax)
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(color='white', ls='solid')
-        
         axarr[iy,ix].grid(True)
         
     title='Rotated images for '.format(object_name)    
@@ -667,7 +603,7 @@ def ShowOneOrder(all_images,all_titles,x0,object_name,all_expo,NBIMGPERROW=2):
     ==============
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
     f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
     f.tight_layout()
     for index in np.arange(0,NBIMAGES):
@@ -692,7 +628,7 @@ def ShowOneOrder(all_images,all_titles,x0,object_name,all_expo,NBIMGPERROW=2):
 
 
 
-def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW=2,DeltaX=1000,w=10,ws=80,right_edge=1800):
+def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW=2,DeltaX=1000,w=10,ws=[10,20],right_edge=1800,ylim=None):
     """
     ShowTransverseProfile: Show the raw images without background subtraction
     =====================
@@ -700,7 +636,7 @@ def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW
     
     """
     NBIMAGES=len(all_images)
-    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
 
     thespectra= []
     thespectraUp=[]
@@ -719,17 +655,21 @@ def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW
             yprofile=np.sum(data,axis=1)
         else:
             yprofile=np.sum(data,axis=1)/all_expo[index]            
-            
         ymin=1
         ymax=yprofile.max()
         y0=np.where(yprofile==ymax)[0][0]
         they0.append(y0)
         axarr[iy,ix].semilogy(yprofile)
         axarr[iy,ix].semilogy([y0,y0],[ymin,ymax],'r-')
-        axarr[iy,ix].semilogy([y0-w,y0-w],[ymin,ymax],'k-')
-        axarr[iy,ix].semilogy([y0+w,y0+w],[ymin,ymax],'k-')
+        axarr[iy,ix].semilogy([y0-w,y0-w],[ymin,ymax],'b-')
+        axarr[iy,ix].semilogy([y0+w,y0+w],[ymin,ymax],'b-')
+        axarr[iy,ix].semilogy([y0+ws[0],y0+ws[0]],[ymin,ymax],'k-')
+        axarr[iy,ix].semilogy([y0+ws[1],y0+ws[1]],[ymin,ymax],'k-')
+        axarr[iy,ix].semilogy([y0-ws[0],y0-ws[0]],[ymin,ymax],'k-')
+        axarr[iy,ix].semilogy([y0-ws[1],y0-ws[1]],[ymin,ymax],'k-')
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(True)
+        if ylim is not None : axarr[iy,ix].set_ylim(ylim)
     title='Spectrum tranverse profile '.format(object_name)
     plt.suptitle(title,size=16)   
     return they0
@@ -747,22 +687,25 @@ def ExtractSpectra(they0,all_images,all_titles,object_name,all_expo,w=10,ws=80,r
     thespectra= []
     thespectraUp=[]
     thespectraDown=[]
-
-    Dist = 4*w
     
     for index in np.arange(0,NBIMAGES):
         data=np.copy(all_images[index])[:,0:right_edge]
-        y0 = they0[index]
+        y0 = int(they0[index])
         spectrum2D=np.copy(data[y0-w:y0+w,:])
-        xprofile=np.sum(spectrum2D,axis=0)
+        xprofile=np.mean(spectrum2D,axis=0)
         
         ### Lateral bands to remove sky background
         ### ---------------------------------------
-        spectrum2DUp=np.copy(data[y0-w+Dist:y0+w+Dist,:])
-        xprofileUp=np.median(spectrum2DUp,axis=0)*2.*float(w)
+        Ny, Nx =  data.shape
+        ymax = min(Ny,y0+ws[1])
+        ymin = max(0,y0-ws[1])
+        #spectrum2DUp=np.copy(data[y0-w+Dist:y0+w+Dist,:])
+        spectrum2DUp=np.copy(data[y0+ws[0]:ymax,:])
+        xprofileUp=np.median(spectrum2DUp,axis=0)#*float(ymax-ws[0]-y0)
 
-        spectrum2DDown=np.copy(data[y0-w-Dist:y0+w-Dist,:])
-        xprofileDown=np.median(spectrum2DDown,axis=0)*2.*float(w)
+        #spectrum2DDown=np.copy(data[y0-w-Dist:y0+w-Dist,:])
+        spectrum2DDown=np.copy(data[ymin:y0-ws[0],:])
+        xprofileDown=np.median(spectrum2DDown,axis=0)#*float(y0-ws[0]-ymin)
         
         if(all_expo[index]<=0):
             thespectra.append(xprofile)
@@ -774,6 +717,80 @@ def ExtractSpectra(they0,all_images,all_titles,object_name,all_expo,w=10,ws=80,r
             thespectraDown.append(xprofileDown/all_expo[index]) 
     
     return thespectra,thespectraUp,thespectraDown
+
+
+
+
+def ShowRightOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top_images,NBIMGPERROW=2):
+    """
+    ShowRawImages: Show the raw images without background subtraction
+    ==============
+    """
+    NBIMAGES=len(all_images)
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
+    f.tight_layout()
+    
+    right_edge = 1800
+    
+    for index in np.arange(0,NBIMAGES):
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        full_image=np.copy(all_images[index])[:,0:right_edge]
+        y_0=they0[index]
+        x_0=thex0[index]
+
+        reduc_image=full_image[y_0-20:y_0+20,x_0+100:right_edge]/all_expo[index]
+        
+        X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))
+        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=100)
+        #axarr[iy,ix].colorbar(im, orientation='vertical')
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
+        
+        axarr[iy,ix].set_title(all_titles[index])
+        
+    
+    title='Right part of spectrum of {} '.format(object_name)
+    plt.suptitle(title,size=16)
+    figfilename=os.path.join(dir_top_images,'rightorder.pdf')
+    
+    #plt.savefig(figfilename)  
+
+
+
+def ShowLeftOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top_images,NBIMGPERROW=2):
+    """
+    ShowRawImages: Show the raw images without background subtraction
+    ==============
+    """
+    NBIMAGES=len(all_images)
+    MAXIMGROW=(NBIMAGES-1) / NBIMGPERROW +1
+    
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
+    f.tight_layout()
+
+    for index in np.arange(0,NBIMAGES):
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        full_image=np.copy(all_images[index])
+        y_0=they0[index]
+        x_0=thex0[index]
+        
+        
+        reduc_image=full_image[y_0-20:y_0+20,0:x_0-100]/all_expo[index] 
+
+        X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))
+        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=30)
+        #axarr[iy,ix].colorbar(im, orientation='vertical')
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
+        
+        axarr[iy,ix].set_title(all_titles[index])
+        
+    
+    title='Left part of spectrum of '.format(object_name)
+    plt.suptitle(title,size=16)
+    figfilename=os.path.join(dir_top_images,'leftorder.pdf')
+    #plt.savefig(figfilename)  
 
 
 def CleanBadPixels(spectraUp,spectraDown):
@@ -806,8 +823,8 @@ def ShowLongitBackground(spectra,spectraUp,spectraDown,spectraAv,all_titles,all_
     Show the background to be removed to the spectrum
     """
     NBSPEC=len(spectra)
-    MAXIMGROW=int(NBSPEC/NBIMGPERROW)+1
-    
+    MAXIMGROW=(NBSPEC-1) / NBIMGPERROW +1
+
     f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
     f.tight_layout()
     for index in np.arange(0,NBSPEC):
@@ -820,7 +837,102 @@ def ShowLongitBackground(spectra,spectraUp,spectraDown,spectraAv,all_titles,all_
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(True)
         axarr[iy,ix].set_ylim(0.,spectra[index][:right_edge].max()*1.2)
-        axarr[iy,ix].text(20.,spectra[index][:right_edge].max()*1.1, all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
     title='Longitudinal background Up/Down'.format(object_name)
     plt.suptitle(title,size=16)
+    
+def CorrectSpectrumFromBackground(spectra, background):
+    """
+    Background Subtraction
+    """
+    NBSPEC=len(spectra)
+        
+    corrected_spectra = []
+    
+    for index in np.arange(0,NBSPEC):
+        corrspec=spectra[index]-background[index]
+        corrected_spectra.append(corrspec)
+    return corrected_spectra
+
+def ShowSpectrumProfile(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xlim=None,vertical_lines=None):
+    """
+    ShowSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    NBSPEC=len(spectra)
+    MAXIMGROW=(NBSPEC-1) / NBIMGPERROW +1
+    
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
+    f.tight_layout()
+    for index in np.arange(0,NBSPEC):
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        axarr[iy,ix].plot(spectra[index],'r-')
+        axarr[iy,ix].set_title(all_titles[index])
+        axarr[iy,ix].grid(True)
+        axarr[iy,ix].set_ylim(0.,spectra[index][:1800].max()*1.2)
+        if xlim is not None :
+            axarr[iy,ix].set_xlim(xlim)
+            axarr[iy,ix].set_ylim(0.,spectra[index][xlim[0]:xlim[1]].max()*1.2)
+        axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
+        if vertical_lines is not None :
+            axarr[iy,ix].axvline(vertical_lines[index],color='k',linestyle='--',lw=2)
+    title='Spectrum 1D profile and background Up/Down for {}'.format(object_name)
+    plt.suptitle(title,size=16)
+
+
+def SpectrumAmplitudeRatio(spectra):
+    """
+    SpectrumAmplitudeRatio: ratio of amplitudes
+    =====================
+    """
+    ratio_list= []
+    
+    NBSPEC=len(spectra)
+    
+    for index in np.arange(0,NBSPEC):
+       
+        max_right=spectra[index][700:1900].max()
+        max_left=spectra[index][:700].max()
+        
+        ratio=max_right/max_left
+        ratio_list.append(ratio) 
+        
+    return ratio_list
+
+def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xlim=(1200,1600),guess=[10,1400,200],vertical_lines=None):
+    """
+    ShowRightSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    NBSPEC=len(spectra)
+    MAXIMGROW=(NBSPEC-1) / NBIMGPERROW +1
+    
+    left_edge = xlim[0]
+    right_edge = xlim[1]
+    xs = np.arange(left_edge,right_edge,1)
+    
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
+    f.tight_layout()
+    for index in np.arange(0,NBSPEC):
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        
+        popt, pcov = EmissionLineFit(spectra[index],left_edge,right_edge,guess=guess)
+        
+        right_spectrum = spectra[index][left_edge:right_edge]
+        axarr[iy,ix].plot(xs,right_spectrum,'r-',lw=2)
+        axarr[iy,ix].plot(xs,gauss(xs,*popt),'b-')
+        axarr[iy,ix].set_title(all_titles[index])
+        axarr[iy,ix].grid(True)
+        axarr[iy,ix].set_ylim(0.,right_spectrum.max()*1.2)
+        axarr[iy,ix].set_xlim(left_edge,right_edge)
+        axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
+        print '%s:\t gaussian center x=%.2f+/-%.2f' % (all_filt[index],popt[1],np.sqrt(pcov[1,1]))
+        axarr[iy,ix].axvline(popt[1],color='b',linestyle='-',lw=2)    
+        if vertical_lines is not None :
+            axarr[iy,ix].axvline(vertical_lines[index],color='k',linestyle='--',lw=2)    
+    title='Spectrum 1D profile and background Up/Down for {}'.format(object_name)
+    plt.suptitle(title,size=16)
+    
     

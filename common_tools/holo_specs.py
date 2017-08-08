@@ -2,14 +2,17 @@ import numpy as np
 import os, sys
 from scipy import ndimage
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
 PIXEL2MM = 24e-3 # pixel size in mm
 PIXEL2ARCSEC = 0.401 # pixel size in arcsec
 ARCSEC2RADIANS = np.pi/(180.*3600.) # conversion factor from arcsec to radians
-DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
-DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
+#DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
+#DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
+DISTANCE2CCD = 55.45 # distance between hologram and CCD in mm
+DISTANCE2CCD_ERR = 0.19 # uncertainty on distance between hologram and CCD in mm
 
 # Making of the holograms
 LAMBDA_CONSTRUCTOR = 639e-6 # constructor wavelength to make holograms in mm
@@ -112,20 +115,6 @@ def build_ronchi(x_center,y_center,theta_tilt,grooves=400):
 
 
 
-def gauss(x,a,x0,sigma):
-    return a*np.exp(-(x-x0)**2/(2*sigma**2))
-
-def fit_gauss(x,y,guess=[10,1000,1],bounds=(-np.inf,np.inf)):
-    popt,pcov = curve_fit(gauss,x,y,p0=guess,bounds=bounds)
-    return popt, pcov
-
-def EmissionLineFit(spectra,left_edge=1200,right_edge=1600,guess=[10,1400,200],bounds=(-np.inf,np.inf)):
-    xs = np.arange(left_edge,right_edge,1)
-    right_spectrum = spectra[left_edge:right_edge]
-    popt, pcov = fit_gauss(xs,right_spectrum,guess=guess)
-    return(popt, pcov)
-
-
 
 class Grating():
     def __init__(self,N,label=""):
@@ -215,3 +204,351 @@ class Hologram(Grating):
             
 
                 
+def gauss(x,a,x0,sigma):
+    return a*np.exp(-(x-x0)**2/(2*sigma**2))
+
+def fit_gauss(x,y,guess=[10,1000,1],bounds=(-np.inf,np.inf)):
+    popt,pcov = curve_fit(gauss,x,y,p0=guess,bounds=bounds)
+    return popt, pcov
+
+def EmissionLineFit(spectra,left_edge=1200,right_edge=1600,guess=[10,1400,200],bounds=(-np.inf,np.inf)):
+    xs = np.arange(left_edge,right_edge,1)
+    right_spectrum = spectra[left_edge:right_edge]
+    popt, pcov = fit_gauss(xs,right_spectrum,guess=guess)
+    return(popt, pcov)
+
+
+
+
+
+def CalibrateDistance2CCD_OneOrder(thecorrspectra,thex0,all_filt,left_edge=1200,right_edge=1600,guess=[10,1400,200],bounds=(-np.inf,np.inf)):
+
+    f, axarr = plt.subplots(2,2,figsize=(25,10))
+    count = 0
+    D_range = 1 # in mm
+    print 'Present distance to CCD : %.2f mm (to update if necessary)' % DISTANCE2CCD
+    print '-------------------------------'    
+    distances = []
+    distances_err = []
+    for index in range(len(thecorrspectra)):
+        if "Ron400" not in all_filt[index] and "Thor300" not in all_filt[index] : continue
+        if "Thor300" in all_filt[index] : N_theo = 300
+        if "Ron400" in all_filt[index] : N_theo = 400  
+        # dispersion axis analysis
+        spectra = thecorrspectra[index]
+        popt, pcov = EmissionLineFit(spectra,left_edge,right_edge,guess,bounds)
+        x0 = popt[1]
+        x0_err = np.sqrt(pcov[1][1]) 
+        deltaX = np.abs(x0 - thex0[index])
+        theta0 = (thex0[index] - IMSIZE/2)*PIXEL2ARCSEC*ARCSEC2RADIANS
+        deltaX0 = np.tan(theta0)*DISTANCE2CCD/PIXEL2MM
+        print all_filt[index]
+        print 'Position of the H-alpha emission line : %.2f +/- %.2f pixels (%.2f percent)' % (deltaX,x0_err,x0_err/deltaX*100)
+        Ds = np.linspace(DISTANCE2CCD-D_range,DISTANCE2CCD+D_range,100)
+        Ns = []
+        diffs = []
+        optimal_D = DISTANCE2CCD
+        optimal_D_inf = DISTANCE2CCD
+        optimal_D_sup = DISTANCE2CCD
+        test = 1e20
+        test_sup = 1e20
+        test_inf = 1e20
+        for D in Ds :
+            theta = np.arctan2(deltaX*PIXEL2MM,D)
+            N = np.sin(theta)/(HALPHA_CENTER)
+            Ns.append( N )
+            diff = np.abs(N-N_theo)
+            diff_sup = np.abs(N-N_theo+1)
+            diff_inf = np.abs(N-N_theo-1)
+            diffs.append(diff)
+            if diff < test :
+                test = diff
+                optimal_D = D
+            if diff_sup < test_sup :
+                test_sup = diff_sup
+                optimal_D_sup = D
+            if diff_inf < test_inf :
+                test_inf = diff_inf
+                optimal_D_inf = D
+        optimal_D_err  = 0.5*(optimal_D_sup-optimal_D_inf)
+        distances.append(optimal_D)
+        distances_err.append(optimal_D_err)
+        print 'Deduced distance to CCD with %s : %.2f +/- %.2f mm (%.2f percent)' % (all_filt[index],optimal_D,optimal_D_err,100*optimal_D_err/optimal_D)
+        # plot Ns vs Ds
+        axarr[0,count].plot(Ds,Ns,'b-',lw=2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo,N_theo],'r-',lw=2)
+        axarr[0,count].plot([optimal_D,optimal_D],[np.min(Ns),np.max(Ns)],'r-',lw=2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo+1,N_theo+1],'k--',lw=2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo-1,N_theo-1],'k--',lw=2)
+        axarr[0,count].plot([optimal_D_inf,optimal_D_inf],[np.min(Ns),np.max(Ns)],'k--',lw=2)
+        axarr[0,count].plot([optimal_D_sup,optimal_D_sup],[np.min(Ns),np.max(Ns)],'k--',lw=2)
+        axarr[0,count].fill_between([optimal_D_inf,optimal_D_sup],[np.min(Ns),np.min(Ns)],[np.max(Ns),np.max(Ns)],color='red',alpha=0.2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo-1,N_theo-1],'k--',lw=2)
+        axarr[0,count].fill_between([np.min(Ds),np.max(Ds)],[N_theo-1,N_theo-1],[N_theo+1,N_theo+1],color='red',alpha=0.2)
+        axarr[0,count].scatter([optimal_D],[N_theo],s=200,color='r')
+        axarr[0,count].set_xlim([np.min(Ds),np.max(Ds)])
+        axarr[0,count].set_ylim([np.min(Ns),np.max(Ns)])
+        axarr[0,count].grid(True)
+        axarr[0,count].text(DISTANCE2CCD+0.6*D_range,N_theo+2.3,all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        axarr[0,count].set_xlabel('Distance to CCD [mm]',fontsize=16)
+        axarr[0,count].set_ylabel('Grooves per mm',fontsize=16)
+        # plot diffs vs Ds
+        axarr[1,count].plot(Ds,diffs,'b-',lw=2)
+        axarr[1,count].plot([optimal_D,optimal_D],[np.min(diffs),np.max(diffs)],'r-',lw=2)
+        axarr[1,count].plot([np.min(Ds),np.max(Ds)],[1,1],'k--',lw=2)
+        #axarr[1,count].scatter([N_theo],[optimal_D],s=200,color='r')
+        axarr[1,count].set_xlim([np.min(Ds),np.max(Ds)])
+        axarr[1,count].set_ylim([np.min(diffs),np.max(diffs)])
+        axarr[1,count].grid(True)
+        axarr[1,count].set_xlabel('Distance to CCD [mm]',fontsize=16)
+        axarr[1,count].set_ylabel('Difference to $N_{\mathrm{theo}}$ [grooves per mm]',fontsize=16)
+        axarr[1,count].plot([optimal_D_inf,optimal_D_inf],[np.min(diffs),np.max(diffs)],'k--',lw=2)
+        axarr[1,count].plot([optimal_D_sup,optimal_D_sup],[np.min(diffs),np.max(diffs)],'k--',lw=2)
+        axarr[1,count].fill_between([optimal_D_inf,optimal_D_sup],[np.min(diffs),np.min(diffs)],[np.max(diffs),np.max(diffs)],color='red',alpha=0.2)
+        axarr[1,count].text(DISTANCE2CCD+0.6*D_range,2.5,all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        count += 1
+        print '-------------------------------'  
+    distances_mean = np.mean(distances)
+    distances_mean_err = np.sqrt(np.mean(np.array(distances_err)**2))
+    print 'Average distance to CCD : %.2f +/- %.2f mm (%.2f percent)' % (distances_mean,distances_mean_err,100*distances_mean_err/distances_mean)
+
+    plt.show()
+    return(distances_mean,distances_mean_err)
+
+
+def CalibrateDistance2CCD_TwoOrder(thecorrspectra,all_filt,leftorder_edges=[100,400],rightorder_edges=[1200,1600],guess=[[10,200,100],[10,1400,200]],bounds=(-np.inf,np.inf)):
+
+    f, axarr = plt.subplots(2,2,figsize=(25,10))
+    count = 0
+    D_range = 1 # in mm
+    print 'Present distance to CCD : %.2f mm (to update if necessary)' % DISTANCE2CCD
+    print '-------------------------------'    
+    distances = []
+    distances_err = []
+    for index in range(len(thecorrspectra)):
+        if "Ron400" not in all_filt[index] and "Thor300" not in all_filt[index] : continue
+        if "Thor300" in all_filt[index] : N_theo = 300
+        if "Ron400" in all_filt[index] : N_theo = 400  
+        # dispersion axis analysis
+        spectra = thecorrspectra[index]
+        popt, pcov = EmissionLineFit(spectra,leftorder_edges[0],leftorder_edges[1],guess[0],bounds)
+        x0_left = popt[1]
+        x0_left_err = np.sqrt(pcov[1][1]) 
+        popt, pcov = EmissionLineFit(spectra,rightorder_edges[0],rightorder_edges[1],guess[1],bounds)
+        x0_right = popt[1]
+        x0_right_err = np.sqrt(pcov[1][1]) 
+        deltaX = 0.5*np.abs(x0_right - x0_left)
+        x0_err = 0.5*np.sqrt(x0_right_err**2+x0_left_err**2)
+        print all_filt[index]
+        print 'Position of the H-alpha emission line : %.2f +/- %.2f pixels (%.2f percent)' % (deltaX,x0_err,x0_err/deltaX*100)
+        Ds = np.linspace(DISTANCE2CCD-D_range,DISTANCE2CCD+D_range,100)
+        Ns = []
+        diffs = []
+        optimal_D = DISTANCE2CCD
+        optimal_D_inf = DISTANCE2CCD
+        optimal_D_sup = DISTANCE2CCD
+        test = 1e20
+        test_sup = 1e20
+        test_inf = 1e20
+        for D in Ds :
+            theta = np.arctan2(deltaX*PIXEL2MM,D)
+            N = np.sin(theta)/HALPHA_CENTER
+            Ns.append( N )
+            diff = np.abs(N-N_theo)
+            diff_sup = np.abs(N-N_theo+1)
+            diff_inf = np.abs(N-N_theo-1)
+            diffs.append(diff)
+            if diff < test :
+                test = diff
+                optimal_D = D
+            if diff_sup < test_sup :
+                test_sup = diff_sup
+                optimal_D_sup = D
+            if diff_inf < test_inf :
+                test_inf = diff_inf
+                optimal_D_inf = D
+        optimal_D_err  = 0.5*(optimal_D_sup-optimal_D_inf)
+        distances.append(optimal_D)
+        distances_err.append(optimal_D_err)
+        print 'Deduced distance to CCD with %s : %.2f +/- %.2f mm (%.2f percent)' % (all_filt[index],optimal_D,optimal_D_err,100*optimal_D_err/optimal_D)
+        # plot Ns vs Ds
+        axarr[0,count].plot(Ds,Ns,'b-',lw=2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo,N_theo],'r-',lw=2)
+        axarr[0,count].plot([optimal_D,optimal_D],[np.min(Ns),np.max(Ns)],'r-',lw=2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo+1,N_theo+1],'k--',lw=2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo-1,N_theo-1],'k--',lw=2)
+        axarr[0,count].plot([optimal_D_inf,optimal_D_inf],[np.min(Ns),np.max(Ns)],'k--',lw=2)
+        axarr[0,count].plot([optimal_D_sup,optimal_D_sup],[np.min(Ns),np.max(Ns)],'k--',lw=2)
+        axarr[0,count].fill_between([optimal_D_inf,optimal_D_sup],[np.min(Ns),np.min(Ns)],[np.max(Ns),np.max(Ns)],color='red',alpha=0.2)
+        axarr[0,count].plot([np.min(Ds),np.max(Ds)],[N_theo-1,N_theo-1],'k--',lw=2)
+        axarr[0,count].fill_between([np.min(Ds),np.max(Ds)],[N_theo-1,N_theo-1],[N_theo+1,N_theo+1],color='red',alpha=0.2)
+        axarr[0,count].scatter([optimal_D],[N_theo],s=200,color='r')
+        axarr[0,count].set_xlim([np.min(Ds),np.max(Ds)])
+        axarr[0,count].set_ylim([np.min(Ns),np.max(Ns)])
+        axarr[0,count].grid(True)
+        axarr[0,count].text(DISTANCE2CCD+0.6*D_range,N_theo+2.3,all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        axarr[0,count].set_xlabel('Distance to CCD [mm]',fontsize=16)
+        axarr[0,count].set_ylabel('Grooves per mm',fontsize=16)
+        # plot diffs vs Ds
+        axarr[1,count].plot(Ds,diffs,'b-',lw=2)
+        axarr[1,count].plot([optimal_D,optimal_D],[np.min(diffs),np.max(diffs)],'r-',lw=2)
+        axarr[1,count].plot([np.min(Ds),np.max(Ds)],[1,1],'k--',lw=2)
+        #axarr[1,count].scatter([N_theo],[optimal_D],s=200,color='r')
+        axarr[1,count].set_xlim([np.min(Ds),np.max(Ds)])
+        axarr[1,count].set_ylim([np.min(diffs),np.max(diffs)])
+        axarr[1,count].grid(True)
+        axarr[1,count].set_xlabel('Distance to CCD [mm]',fontsize=16)
+        axarr[1,count].set_ylabel('Difference to $N_{\mathrm{theo}}$ [grooves per mm]',fontsize=16)
+        axarr[1,count].plot([optimal_D_inf,optimal_D_inf],[np.min(diffs),np.max(diffs)],'k--',lw=2)
+        axarr[1,count].plot([optimal_D_sup,optimal_D_sup],[np.min(diffs),np.max(diffs)],'k--',lw=2)
+        axarr[1,count].fill_between([optimal_D_inf,optimal_D_sup],[np.min(diffs),np.min(diffs)],[np.max(diffs),np.max(diffs)],color='red',alpha=0.2)
+        axarr[1,count].text(DISTANCE2CCD+0.6*D_range,2,all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        count += 1
+        print '-------------------------------'  
+    distances_mean = np.mean(distances)
+    distances_mean_err = np.sqrt(np.mean(np.array(distances_err)**2))
+    print 'Average distance to CCD : %.2f +/- %.2f mm (%.2f percent)' % (distances_mean,distances_mean_err,100*distances_mean_err/distances_mean)
+
+    plt.show()
+    return(distances_mean,distances_mean_err)
+
+
+def GratingResolution_OneOrder(thecorrspectra,thex0,all_images,all_filt,left_edge=1200,right_edge=1600,guess=[10,1400,200],bounds=(-np.inf,np.inf)):
+    print 'H-alpha filter center: %.1fnm ' % (HALPHA_CENTER*1e6)
+    print 'H-alpha filter width: %.1fnm\n' % (HALPHA_WIDTH*1e6)
+
+    Ns = []
+    N_errs = []
+    for index in range(len(thecorrspectra)):
+        print all_filt[index]
+        # dispersion axis analysis
+        spectra = thecorrspectra[index]
+        popt, pcov = EmissionLineFit(spectra,left_edge,right_edge,guess=guess,bounds=bounds)
+        x0 = popt[1]
+        # compute N
+        deltaX = np.abs(x0 - thex0[index])
+        theta = np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD)
+        N = np.sin(theta)/HALPHA_CENTER
+        Ns.append(N)
+        # compute N uncertainty 
+        theta = np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD+DISTANCE2CCD_ERR)
+        N_up = np.sin(theta)/HALPHA_CENTER
+        theta = np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD-DISTANCE2CCD_ERR)
+        N_low = np.sin(theta)/HALPHA_CENTER
+        N_err = 0.5*np.abs(N_up-N_low)
+        N_errs.append(N_err)
+        # look at finesse
+        fwhm_line = np.abs(popt[2])*2.355
+        g = Grating(N,label=all_filt[index])
+        res = g.grating_resolution(deltaX)
+        finesse = HALPHA_CENTER/(res*fwhm_line*1e-6-HALPHA_WIDTH)
+        # transverse profile analysis
+        yprofile=np.copy(all_images[index])[:,int(x0)]
+        popt2, pcov2 = EmissionLineFit(yprofile,0,len(yprofile),[np.max(yprofile),0.5*len(yprofile),10])
+        fwhm_profile = np.abs(popt2[2])*2.355
+        finesse_profile = HALPHA_CENTER*1e6/(res*fwhm_profile)
+    
+        print 'N=%.1f +/- %.1f lines/mm\t H-alpha FWHM=%.1fpix with res=%.3fnm/pix : FWHM=%.1fnm\t ie finesse=%.1f' % (N,N_err,fwhm_line,res,res*fwhm_line,finesse)
+        print 'Transverse profile FWHM=%.1fpix ' % (fwhm_profile)
+        print '-------------------------------'
+    return(Ns,N_errs)
+
+
+
+def GratingResolution_TwoOrder(thecorrspectra,all_images,all_filt,leftorder_edges=[100,400],rightorder_edges=[1200,1600],guess=[[10,200,100],[10,1400,200]],bounds=(-np.inf,np.inf)):
+    print 'H-alpha filter center: %.1fnm ' % (HALPHA_CENTER*1e6)
+    print 'H-alpha filter width: %.1fnm\n' % (HALPHA_WIDTH*1e6)
+
+    Ns = []
+    N_errs = []
+    for index in range(len(thecorrspectra)):
+        # dispersion axis analysis
+        spectra = thecorrspectra[index]
+        popt, pcov = EmissionLineFit(spectra,leftorder_edges[0],leftorder_edges[1],guess[0],bounds)
+        x0_left = popt[1]
+        popt2, pcov = EmissionLineFit(spectra,rightorder_edges[0],rightorder_edges[1],guess[1],bounds)
+        x0_right = popt2[1]
+        deltaX = 0.5*np.abs(x0_left-x0_right)
+        # compute N
+        theta = np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD)
+        N = np.sin(theta)/HALPHA_CENTER
+        Ns.append(N)
+        # compute N uncertainty 
+        theta = np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD+DISTANCE2CCD_ERR)
+        N_up = np.sin(theta)/HALPHA_CENTER
+        theta = np.arctan2(deltaX*PIXEL2MM,DISTANCE2CCD-DISTANCE2CCD_ERR)
+        N_low = np.sin(theta)/HALPHA_CENTER
+        N_err = 0.5*np.abs(N_up-N_low)
+        N_errs.append(N_err)
+        # look at finesse
+        g = Grating(N,label=all_filt[index])
+        res = g.grating_resolution(deltaX)
+        # right
+        fwhm_line_right = np.abs(popt2[2])*2.355
+        finesse_right = HALPHA_CENTER/(res*fwhm_line_right*1e-6-HALPHA_WIDTH)
+        # left
+        fwhm_line_left = np.abs(popt[2])*2.355
+        finesse_left = HALPHA_CENTER/(res*fwhm_line_left*1e-6-HALPHA_WIDTH)
+        # transverse profile analysis
+        # right
+        yprofile=np.copy(all_images[index])[:,int(x0_right)]
+        popt2, pcov2 = EmissionLineFit(yprofile,0,len(yprofile),[np.max(yprofile),0.5*len(yprofile),10])
+        fwhm_profile_right = np.abs(popt2[2])*2.355
+        finesse_profile_right = HALPHA_CENTER*1e6/(res*fwhm_profile_right)
+        # left
+        yprofile=np.copy(all_images[index])[:,int(x0_left)]
+        popt2, pcov2 = EmissionLineFit(yprofile,0,len(yprofile),[np.max(yprofile),0.5*len(yprofile),10])
+        fwhm_profile_left = np.abs(popt2[2])*2.355
+        finesse_profile_left = HALPHA_CENTER*1e6/(res*fwhm_profile_left)
+    
+        print all_filt[index]
+        print 'N=%.1f +/- %.1f lines/mm' % (N,N_err)
+        print 'Right order: H-alpha FWHM=%.1fpix with res=%.2gnm/pix : FWHM=%.1fnm\t ie finesse=%.1f' % (fwhm_line_right,res,res*fwhm_line_right,finesse_right)
+        print 'Left  order: H-alpha FWHM=%.1fpix with res=%.2gnm/pix : FWHM=%.1fnm\t ie finesse=%.1f' % (fwhm_line_left,res,res*fwhm_line_left,finesse_left)
+        print 'Transverse profile FWHM :  %.1fpix (right)  %.1fpix (left)' % (fwhm_profile_right, fwhm_profile_left)
+        print '-------------------------------'
+    return(Ns,N_errs)
+
+
+def CalibrateSpectra(spectra,redshift,thex0,all_titles,object_name,all_filt,xlim=(1000,1800),target=None):
+    """
+    CalibrateSpectra show the right part of spectrum with identified lines
+    =====================
+    """
+    NBSPEC=len(spectra)
+    
+    if target is not None :
+        target.load_spectra()
+    
+    left_cut = xlim[0]
+    right_cut = xlim[1]
+
+    f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
+    for index in np.arange(0,NBSPEC):
+
+        spec = spectra[index][left_cut:right_cut]
+        ######## convert pixels to wavelengths #########
+        print all_filt[index]
+        holo = Hologram(all_filt[index])
+        #holo = Grating(Ns[index])
+        print '-----------------------------------------------------'
+        pixels = np.arange(left_cut,right_cut,1)-int(thex0[index])
+        lambdas = holo.grating_pixel_to_lambda(pixels)
+        
+        axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 QSO spectrum')
+    
+        plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=False)
+        if target is not None :
+            for isp,sp in enumerate(target.spectra):
+                if isp==0 or isp==2 : continue
+                axarr[index].plot(target.wavelengths[isp],0.3*sp*spec.max()/np.max(sp),label='NED spectrum %d' % isp,lw=2)
+
+        ######## set plot
+        axarr[index].set_title(all_titles[index])
+        axarr[index].annotate(all_filt[index],xy=(0.95,0.9),xytext=(0.95,0.9),verticalalignment='top', horizontalalignment='right',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
+        axarr[index].legend(fontsize=16,loc='best')
+        axarr[index].set_xlabel('Wavelength [nm]', fontsize=16)
+        axarr[index].grid(True)
+        axarr[index].set_ylim(0.,spec.max()*1.2)
+        #axarr[index].set_xlim(xlim)
+    plt.show()
