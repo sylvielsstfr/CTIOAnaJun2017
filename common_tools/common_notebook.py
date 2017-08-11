@@ -20,6 +20,7 @@ from scipy import ndimage
 from datetime import datetime, timedelta
 from mpl_toolkits.mplot3d import Axes3D
 import scipy.signal
+from IPython.display import Image
 
 import bottleneck as bn  # numpy's masked median is slow...really slow (in version 1.8.1 and lower)
 
@@ -213,8 +214,7 @@ def ComputeStatImages(all_images,fwhm=10,threshold=300,sigma=10.0,iters=5):
     return img_mean,img_median,img_std,img_sources
 
 
-
-def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000):
+def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000,mask_saturated=False):
     """
     ShowCenterImages: Show the raw images without background subtraction
     ==============
@@ -234,6 +234,9 @@ def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,ob
         theimage=all_images[index]
         image_cut=np.copy(theimage[max(0,y0-deltay):min(IMSIZE,y0+deltay),max(0,x0-deltax):min(IMSIZE,x0+deltax)])
         croped_images.append(image_cut)
+        if mask_saturated :
+            bad_pixels = np.where(image_cut>MAXADU)
+            image_cut[bad_pixels] = np.nan
         #aperture=CircularAperture([positions_central[index]], r=100.)
         im=axarr[iy,ix].imshow(image_cut,cmap='rainbow',vmin=vmin,vmax=vmax,aspect='auto',origin='lower',interpolation='None')
         axarr[iy,ix].set_title(all_titles[index])
@@ -442,7 +445,7 @@ def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NB
     
 
 
-def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_name, NBIMGPERROW=2, lambda_threshold = -20, deg_threshold = 20, width_cut = 20, right_edge = 1600):
+def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_name, NBIMGPERROW=2, lambda_threshold = -20, deg_threshold = 20, width_cut = 20, right_edge = 1600,margin_cut=1):
     """
     ComputeRotationAngle
     ====================
@@ -482,13 +485,16 @@ def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_n
         Hxx, Hxy, Hyy = hessian_matrix(data, sigma=3, order = 'xy')
         lambda_plus = 0.5*( (Hxx+Hyy) + np.sqrt( (Hxx-Hyy)**2 +4*Hxy*Hxy) )
         lambda_minus = 0.5*( (Hxx+Hyy) - np.sqrt( (Hxx-Hyy)**2 +4*Hxy*Hxy) )
+        theta = 0.5*np.arctan2(2*Hxy,Hyy-Hxx)*180/np.pi
                 
+        # remobe the margins
+        lambda_minus = lambda_minus[margin_cut:-margin_cut,margin_cut:-margin_cut]
+        lambda_plus = lambda_plus[margin_cut:-margin_cut,margin_cut:-margin_cut]
+        theta = theta[margin_cut:-margin_cut,margin_cut:-margin_cut]
 
         mask = np.where(lambda_minus>lambda_threshold)
         #lambda_mask = np.copy(lambda_minus)
         #lambda_mask[mask]=np.nan
-
-        theta = 0.5*np.arctan2(2*Hxy,Hyy-Hxx)*180/np.pi
         theta_mask = np.copy(theta)
         theta_mask[mask]=np.nan
 
@@ -870,10 +876,14 @@ def ShowSpectrumProfile(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xl
         axarr[iy,ix].plot(spectra[index],'r-')
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(True)
-        axarr[iy,ix].set_ylim(0.,spectra[index][:1800].max()*1.2)
+        axarr[iy,ix].set_ylim(0.,spectra[index][:IMSIZE].max()*1.2)
         if xlim is not None :
-            axarr[iy,ix].set_xlim(xlim)
-            axarr[iy,ix].set_ylim(0.,spectra[index][xlim[0]:xlim[1]].max()*1.2)
+            if type(xlim) is not list :
+                axarr[iy,ix].set_xlim(xlim)
+                axarr[iy,ix].set_ylim(0.,spectra[index][xlim[0]:xlim[1]].max()*1.2)
+            else :
+                axarr[iy,ix].set_xlim(xlim[index])
+                axarr[iy,ix].set_ylim(0.,spectra[index][xlim[index][0]:xlim[index][1]].max()*1.2)                
         axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
         if vertical_lines is not None :
             axarr[iy,ix].axvline(vertical_lines[index],color='k',linestyle='--',lw=2)
@@ -908,28 +918,34 @@ def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2
     NBSPEC=len(spectra)
     MAXIMGROW=(NBSPEC-1) / NBIMGPERROW +1
     
-    left_edge = xlim[0]
-    right_edge = xlim[1]
-    xs = np.arange(left_edge,right_edge,1)
     
     f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
     f.tight_layout()
     for index in np.arange(0,NBSPEC):
         ix=index%NBIMGPERROW
         iy=index/NBIMGPERROW
-        
-        popt, pcov = EmissionLineFit(spectra[index],left_edge,right_edge,guess=guess)
-        
+
+        if type(xlim[0]) is list :
+            left_edge = int(xlim[index][0])
+            right_edge = int(xlim[index][1])
+            guess[1] = 0.5*(left_edge+right_edge)
+        else :
+            left_edge = int(xlim[0])
+            right_edge = int(xlim[1])
+        xs = np.arange(left_edge,right_edge,1)
         right_spectrum = spectra[index][left_edge:right_edge]
         axarr[iy,ix].plot(xs,right_spectrum,'r-',lw=2)
-        axarr[iy,ix].plot(xs,gauss(xs,*popt),'b-')
+        if right_edge - left_edge > 10 :
+            popt, pcov = EmissionLineFit(spectra[index],left_edge,right_edge,guess=guess)
+        
+            axarr[iy,ix].plot(xs,gauss(xs,*popt),'b-')
+            axarr[iy,ix].axvline(popt[1],color='b',linestyle='-',lw=2)    
+            print '%s:\t gaussian center x=%.2f+/-%.2f' % (all_filt[index],popt[1],np.sqrt(pcov[1,1]))
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(True)
         axarr[iy,ix].set_ylim(0.,right_spectrum.max()*1.2)
         axarr[iy,ix].set_xlim(left_edge,right_edge)
         axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
-        print '%s:\t gaussian center x=%.2f+/-%.2f' % (all_filt[index],popt[1],np.sqrt(pcov[1,1]))
-        axarr[iy,ix].axvline(popt[1],color='b',linestyle='-',lw=2)    
         if vertical_lines is not None :
             axarr[iy,ix].axvline(vertical_lines[index],color='k',linestyle='--',lw=2)    
     title='Spectrum 1D profile and background Up/Down for {}'.format(object_name)

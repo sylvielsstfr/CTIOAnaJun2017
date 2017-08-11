@@ -158,7 +158,7 @@ print 'Grating %d grooves/mm' % N
 
 
 
-delta_ra = -200*PIXEL2ARCSEC*ARCSEC2RADIANS
+delta_ra = -300*PIXEL2ARCSEC*ARCSEC2RADIANS
 wavelengths = 1e-6*np.arange(400,1000,100)
 wavelengths = np.arange(HALPHA_CENTER-3*HALPHA_WIDTH,HALPHA_CENTER+3*HALPHA_WIDTH,0.5e-6)
 for w in wavelengths:
