@@ -33,6 +33,7 @@ HALPHA = {'lambda':656.3,'atmospheric':False,'label':'$H\\alpha$','pos':[0.007,0
 HBETA = {'lambda': 486.3,'atmospheric':False,'label':'$H\\beta$','pos':[0.007,0.02]} 
 HGAMMA = {'lambda':434.0,'atmospheric':False,'label':'$H\\gamma$','pos':[0.007,0.02]} 
 HDELTA = {'lambda': 410.2,'atmospheric':False,'label':'$H\\delta$','pos':[0.007,0.02]}
+OIII = {'lambda': 500.7,'atmospheric':False,'label':'$O_{III}$','pos':[0.007,0.02]}
 CII1 =  {'lambda': 723.5,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
 CII2 =  {'lambda': 711.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
 CIV =  {'lambda': 706.0,'atmospheric':False,'label':'$C_{IV}$','pos':[-0.02,0.92]}
@@ -43,7 +44,7 @@ HEI =  {'lambda': 587.5,'atmospheric':False,'label':'$He_{I}$','pos':[0.007,0.02
 HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.02]}
 O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
 H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}
-LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII]
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII]
 
 
 DATA_DIR = "../../common_tools/data/"
@@ -58,7 +59,9 @@ def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,hydrogen_only=False,c
         l = line['lambda']*(1+redshift)
         if line['atmospheric']: color = color_atmospheric
         ax.axvline(l,lw=2,color=color)
-        ax.annotate(line['label'],xy=((l-xlim[0])/(xlim[1]-xlim[0])+line['pos'][0],line['pos'][1]),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
+        xpos = (l-xlim[0])/(xlim[1]-xlim[0])+line['pos'][0]
+        if xpos > 0 and xpos < 1 :
+            ax.annotate(line['label'],xy=(xpos,line['pos'][1]),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
 
 def build_hologram(order0_position,order1_position,theta_tilt,lambda_plot=256000):
     # wavelength in nm, hologram porduced at 639nm
@@ -727,7 +730,8 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         holo = Hologram(all_filt[index])
         print '-----------------------------------------------------'
         pixels = np.arange(left_cut,right_cut,1)-thex0[index]
-        lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)    
+        lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
+        axarr[index].set_xlim(lambdas[0],lambdas[-1])
         axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
         plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=False)
         if target is not None :
@@ -736,11 +740,11 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
                 axarr[index].plot(target.wavelengths[isp],0.3*sp*spec.max()/np.max(sp),label='NED spectrum %d' % isp,lw=2)
         ######## set plot
         axarr[index].set_title(all_titles[index])
-        axarr[index].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
+        axarr[index].annotate(all_filt[index],xy=(0.05,0.8),xytext=(0.05,0.8),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
         axarr[index].legend(fontsize=16,loc='best')
         axarr[index].set_xlabel('Wavelength [nm]', fontsize=16)
         axarr[index].grid(True)
-        axarr[index].set_ylim(0.,spec.max()*1.2)
+        axarr[index].set_ylim(spec.min(),spec.max()*1.2)
         #axarr[index].set_xlim(xlim)
     if dir_top_images is not None :
         figfilename=os.path.join(dir_top_images,'calibrated_spectrum_profile.pdf')
