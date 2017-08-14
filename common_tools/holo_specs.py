@@ -719,12 +719,12 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
     
     if target is not None :
         target.load_spectra()
-    
+
     left_cut = xlim[0]
-    right_cut = xlim[1]
 
     f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
     for index in np.arange(0,NBSPEC):
+        right_cut = min(len(spectra[index]),xlim[1])
         spec = spectra[index][left_cut:right_cut]
         ######## convert pixels to wavelengths #########
         holo = Hologram(all_filt[index])
