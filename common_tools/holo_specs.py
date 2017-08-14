@@ -707,7 +707,7 @@ def GratingResolution_TwoOrder(thecorrspectra,all_images,all_filt,leftorder_edge
     return(Ns,N_errs)
 
 
-def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1):
+def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,dir_top_images=None):
     """
     CalibrateSpectra show the right part of spectrum with identified lines
     =====================
@@ -727,7 +727,6 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         holo = Hologram(all_filt[index])
         print '-----------------------------------------------------'
         pixels = np.arange(left_cut,right_cut,1)-thex0[index]
-        print holo.N(order0_positions[index])
         lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)    
         axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
         plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=False)
@@ -743,6 +742,9 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         axarr[index].grid(True)
         axarr[index].set_ylim(0.,spec.max()*1.2)
         #axarr[index].set_xlim(xlim)
+    if dir_top_images is not None :
+        figfilename=os.path.join(dir_top_images,'calibrated_spectrum_profile.pdf')
+        plt.savefig(figfilename) 
     plt.show()
 
 
