@@ -5,6 +5,7 @@ from scipy import interpolate
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from tools import *
+from scipy.signal import argrelextrema
 
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
@@ -56,12 +57,96 @@ def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,hydrogen_only=False,c
         if not atmospheric_lines and line['atmospheric']: continue
         if hydrogen_only and '$H\\' not in line['label'] : continue
         color = color_atomic
-        l = line['lambda']*(1+redshift)
+        l = line['lambda']
+        if not line['atmospheric'] : l = l*(1+redshift)
         if line['atmospheric']: color = color_atmospheric
         ax.axvline(l,lw=2,color=color)
         xpos = (l-xlim[0])/(xlim[1]-xlim[0])+line['pos'][0]
         if xpos > 0 and xpos < 1 :
             ax.annotate(line['label'],xy=(xpos,line['pos'][1]),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
+
+def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=2,atmospheric_lines=True,hydrogen_only=False,ax=None,verbose=False):
+    lmin = lambdas[0]
+    lmax = lambdas[-1]
+    peak_look = 7 # half range to look for local maximum in pixels
+    peak_size = 4 # half size of the peak to fit in pixels
+    bgd_width = 3 # size of the peak sides to use to fit spectrum base line
+    baseline_prior = 3 # gaussian prior on base line fit
+    lambda_shifts = []
+    snrs = []
+    for LINE in LINES:
+        if not atmospheric_lines and LINE['atmospheric']: continue
+        if hydrogen_only and '$H\\' not in LINE['label'] : continue
+        # wavelength of the line
+        l = LINE['lambda']
+        if not LINE['atmospheric'] : l = l*(1+redshift)
+        l_index, l_lambdas = find_nearest(lambdas,l)
+        if l_index < peak_look or l_index > len(lambdas)-peak_look : continue
+        # look for local extrema to detect emission or absorption line
+        line_strategy = np.greater  # look for emission line
+        bgd_strategy = np.less
+        if not emission_spectrum or LINE['atmospheric']:
+            line_strategy = np.less # look for absorption line
+            bgd_strategy = np.greater
+        index = range(l_index-peak_look,l_index+peak_look)
+        maxm = argrelextrema(spec[index], line_strategy)
+        if len(maxm[0])==0 : continue
+        peak_index = l_index - peak_look + maxm[0][0]
+        if len(maxm[0])>1 :
+            test = -1e20
+            for m in maxm[0]:
+                if spec[l_index - peak_look + m] > test :
+                    peak_index = l_index - peak_look + m
+        # look for first local minima around the local maximum
+        index_inf = peak_index - 1
+        while index_inf > max(0,peak_index - 3*peak_look) :
+            test_index = range(index_inf,peak_index)
+            minm = argrelextrema(spec[test_index], bgd_strategy)
+            if len(minm[0]) > 0 :
+                index_inf = index_inf + minm[0][0] 
+                break
+            else :
+                index_inf -= 1
+        index_sup = peak_index + 1
+        while index_sup < min(len(spec)-1,peak_index + 3*peak_look) :
+            test_index = range(peak_index,index_sup)
+            minm = argrelextrema(spec[test_index], bgd_strategy)
+            if len(minm[0]) > 0 :
+                index_sup = peak_index + minm[0][0] 
+                break
+            else :
+                index_sup += 1
+        #index = range(peak_index-peak_size,peak_index+peak_size)
+        index = range(index_inf-bgd_width,index_sup+bgd_width)
+        if np.abs(index_sup-index_inf) < 2*peak_size : continue
+        # first guess for the base line
+        bgd_index = index[:bgd_width]+index[-bgd_width:]
+        line_popt, line_pcov = fit_line(lambdas[bgd_index],spec[bgd_index])
+        # fit local maximum with a gaussian + line
+        guess = [spec[peak_index],lambdas[peak_index],3,line_popt[0],line_popt[1]]
+        bounds = [(-np.inf,lambdas[index_inf],0,line_popt[0]-baseline_prior*np.sqrt(line_pcov[0][0]),line_popt[1]-baseline_prior*np.sqrt(line_pcov[1][1])), (2*np.max(spec[index]),lambdas[index_sup],np.inf,line_popt[0]+baseline_prior*np.sqrt(line_pcov[0][0]), line_popt[1]+baseline_prior*np.sqrt(line_pcov[1][1]))  ]
+        popt, pcov = fit_gauss_and_bgd(lambdas[index],spec[index],guess=guess, bounds=bounds)
+        peak_pos = popt[1]
+        # SNR computation
+        noise_level = np.std(spec[index]-gauss(lambdas[index],popt[0],popt[1],popt[2]))
+        signal_level = popt[0]
+        snr = np.abs(signal_level / noise_level)
+        if snr < snr_minlevel : continue
+        # FWHM
+        fwhm = np.abs(popt[2])*2.355
+        if verbose : print 'Line %s at %.2fnm: peak detected at %.2fnm with FWHM=%.2fnm and SNR=%.2f' % (LINE["label"],l,peak_pos,fwhm,snr)
+        if ax is not None :
+            ax.plot(lambdas[index],gauss_and_bgd(lambdas[index],*popt),lw=3,color='b')
+            #ax.plot(lambdas[index],line(lambdas[index],popt[3],popt[4]),lw=3,color='k',linestyle='--')
+            #ax.plot(lambdas[index],line(lambdas[index],*line_popt),lw=3,color='g',linestyle='--')
+            ax.axvline(peak_pos,lw=2,color='b',linestyle='--')
+        # wavelength shift between tabulate and observed lines
+        if LINE['atmospheric'] : continue
+        lambda_shifts.append(peak_pos-l)
+        snrs.append(snr)
+    shift =  np.average(lambda_shifts,weights=snrs)
+    #if verbose : print 'Mean shift: %.2fnm (weighted by SNRs, no atmospheric lines)' % shift
+    return shift
 
 def build_hologram(order0_position,order1_position,theta_tilt,lambda_plot=256000):
     # wavelength in nm, hologram porduced at 639nm
@@ -710,7 +795,7 @@ def GratingResolution_TwoOrder(thecorrspectra,all_images,all_filt,leftorder_edge
     return(Ns,N_errs)
 
 
-def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,dir_top_images=None):
+def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,emission_spectrum=False,atmospheric_lines=True,verbose=False,dir_top_images=None):
     """
     CalibrateSpectra show the right part of spectrum with identified lines
     =====================
@@ -727,13 +812,19 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         right_cut = min(len(spectra[index]),xlim[1])
         spec = spectra[index][left_cut:right_cut]
         ######## convert pixels to wavelengths #########
-        holo = Hologram(all_filt[index])
-        print '-----------------------------------------------------'
+        holo = Hologram(all_filt[index],verbose=verbose)
+        if verbose : print '-----------------------------------------------------'
         pixels = np.arange(left_cut,right_cut,1)-thex0[index]
         lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
+        lambda_shift = 1e20
+        while lambda_shift > 0.1 :
+            lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,ax=None,verbose=False)
+            lambdas -= lambda_shift
+        lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,ax=axarr[index],verbose=verbose)
+        if verbose : print '-----------------------------------------------------'
         axarr[index].set_xlim(lambdas[0],lambdas[-1])
         axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
-        plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=False)
+        plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=atmospheric_lines)
         if target is not None :
             for isp,sp in enumerate(target.spectra):
                 if isp==0 or isp==2 : continue
