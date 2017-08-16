@@ -35,6 +35,7 @@ from skimage.feature import hessian_matrix
 from tools import *
 from scan_holo import *
 from targets import *
+from fwhm_profiles import *
 
 def init_notebook():
     print 'ccdproc version',ccdproc.__version__

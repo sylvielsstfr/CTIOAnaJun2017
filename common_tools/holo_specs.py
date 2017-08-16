@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from tools import *
 from scipy.signal import argrelextrema
+from astropy.table import Table
 
 # CCD characteristics
 IMSIZE = 2048 # size of the image in pixel
@@ -46,6 +47,7 @@ HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.
 O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
 H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}
 LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII]
+LINES = sorted(LINES, key=lambda x: x['lambda'])
 
 
 DATA_DIR = "../../common_tools/data/"
@@ -53,30 +55,47 @@ DATA_DIR = "../../common_tools/data/"
 
 def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,hydrogen_only=False,color_atomic='g',color_atmospheric='b',fontsize=16):
     xlim = ax.get_xlim()
-    for line in LINES:
-        if not atmospheric_lines and line['atmospheric']: continue
-        if hydrogen_only and '$H\\' not in line['label'] : continue
+    for LINE in LINES:
+        if hydrogen_only :
+            if not atmospheric_lines :
+                if LINE['atmospheric'] : continue
+                if '$H\\' not in LINE['label'] : continue
+            else :
+                if not LINE['atmospheric'] and '$H\\' not in LINE['label'] : continue
+        else :
+            if not atmospheric_lines and LINE['atmospheric'] : continue
+        #if not atmospheric_lines and line['atmospheric']: continue
+        #if hydrogen_only and '$H\\' not in line['label'] : continue
         color = color_atomic
-        l = line['lambda']
-        if not line['atmospheric'] : l = l*(1+redshift)
-        if line['atmospheric']: color = color_atmospheric
+        l = LINE['lambda']
+        if not LINE['atmospheric'] : l = l*(1+redshift)
+        if LINE['atmospheric']: color = color_atmospheric
         ax.axvline(l,lw=2,color=color)
-        xpos = (l-xlim[0])/(xlim[1]-xlim[0])+line['pos'][0]
+        xpos = (l-xlim[0])/(xlim[1]-xlim[0])+LINE['pos'][0]
         if xpos > 0 and xpos < 1 :
-            ax.annotate(line['label'],xy=(xpos,line['pos'][1]),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
+            ax.annotate(LINE['label'],xy=(xpos,LINE['pos'][1]),rotation=90,ha='left',va='bottom',xycoords='axes fraction',color=color,fontsize=fontsize)
 
-def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=2,atmospheric_lines=True,hydrogen_only=False,ax=None,verbose=False):
-    lmin = lambdas[0]
-    lmax = lambdas[-1]
+def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,atmospheric_lines=True,hydrogen_only=False,ax=None,verbose=False):
     peak_look = 7 # half range to look for local maximum in pixels
-    peak_size = 4 # half size of the peak to fit in pixels
-    bgd_width = 3 # size of the peak sides to use to fit spectrum base line
-    baseline_prior = 3 # gaussian prior on base line fit
+    if hydrogen_only : peak_look = 15
+    bgd_width = 10 # size of the peak sides to use to fit spectrum base line
+    baseline_prior = 1 # gaussian prior on base line fit
     lambda_shifts = []
     snrs = []
+    index_list = []
+    guess_list = []
+    bounds_list = []
+    lines_list = []
     for LINE in LINES:
-        if not atmospheric_lines and LINE['atmospheric']: continue
-        if hydrogen_only and '$H\\' not in LINE['label'] : continue
+        if hydrogen_only :
+            if not atmospheric_lines :
+                if LINE['atmospheric'] : continue
+                if '$H\\' not in LINE['label'] : continue
+            else :
+                if not LINE['atmospheric'] and '$H\\' not in LINE['label'] : continue
+        else :
+            if not atmospheric_lines and LINE['atmospheric'] : continue
+        #if not((atmospheric_lines and LINE['atmospheric']) or (hydrogen_only and '$H\\' in LINE['label'])) : continue
         # wavelength of the line
         l = LINE['lambda']
         if not LINE['atmospheric'] : l = l*(1+redshift)
@@ -89,14 +108,25 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=2,
             line_strategy = np.less # look for absorption line
             bgd_strategy = np.greater
         index = range(l_index-peak_look,l_index+peak_look)
-        maxm = argrelextrema(spec[index], line_strategy)
-        if len(maxm[0])==0 : continue
-        peak_index = l_index - peak_look + maxm[0][0]
-        if len(maxm[0])>1 :
-            test = -1e20
-            for m in maxm[0]:
-                if spec[l_index - peak_look + m] > test :
-                    peak_index = l_index - peak_look + m
+        extrema = argrelextrema(spec[index], line_strategy)
+        if len(extrema[0])==0 : continue
+        peak_index = index[0] + extrema[0][0]
+        # if several extrema, look for the greatest
+        if len(extrema[0])>1 :
+            if line_strategy == np.greater :
+                test = -1e20
+                for m in extrema[0]:
+                    idx = index[0] + m
+                    if spec[idx] > test :
+                        peak_index = idx
+                        test = spec[idx]
+            elif line_strategy == np.less :
+                test = 1e20
+                for m in extrema[0]:
+                    idx = index[0] + m
+                    if spec[idx] < test :
+                        peak_index = idx
+                        test = spec[idx]
         # look for first local minima around the local maximum
         index_inf = peak_index - 1
         while index_inf > max(0,peak_index - 3*peak_look) :
@@ -116,36 +146,101 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=2,
                 break
             else :
                 index_sup += 1
-        #index = range(peak_index-peak_size,peak_index+peak_size)
-        index = range(index_inf-bgd_width,index_sup+bgd_width)
-        if np.abs(index_sup-index_inf) < 2*peak_size : continue
+        index = range(max(0,index_inf-bgd_width),min(len(lambdas),index_sup+bgd_width))
+        # guess and bounds to fit this line
+        guess = [0,1,0*abs(spec[peak_index]),lambdas[peak_index],3]
+        bounds = [[-np.inf,-np.inf,-np.inf,lambdas[index_inf],0], [np.inf,np.inf,2*np.max(spec[index]),lambdas[index_sup],np.inf]  ]
+        if line_strategy == np.less :
+            bounds[1][2] = 0
+            guess[2] = - 0*spec[peak_index]
+        else :
+            bounds[0][2] = 0
+        index_list.append(index)
+        lines_list.append(LINE)
+        guess_list.append(guess)
+        bounds_list.append(bounds)
+    # Now gather lines together if index ranges overlap
+    idx = 0
+    merges = [[0]]
+    while idx < len(index_list) - 1 :
+        idx = merges[-1][-1]
+        if idx == len(index_list)-1 : break
+        if index_list[idx][-1] > index_list[idx+1][0] :
+            merges[-1].append(idx+1)
+        else :
+            merges.append([idx+1])
+            idx += 1
+    new_index_list = []
+    new_guess_list = []
+    new_bounds_list = []
+    new_lines_list = []
+    for merge in merges :
+        new_index_list.append([])
+        new_guess_list.append([])
+        new_bounds_list.append([[],[]])
+        new_lines_list.append([])
+        for i in merge :
+            if i == merge[0] :
+                new_guess_list[-1] += guess_list[i][:2]
+                new_bounds_list[-1][0] += bounds_list[i][0][:2]
+                new_bounds_list[-1][1] += bounds_list[i][1][:2]
+            new_index_list[-1] += index_list[i]
+            new_guess_list[-1] += guess_list[i][2:]
+            new_bounds_list[-1][0] += bounds_list[i][0][2:]
+            new_bounds_list[-1][1] += bounds_list[i][1][2:]
+            new_lines_list[-1].append(lines_list[i])
+        new_index_list[-1] = sorted(list(set(new_index_list[-1])))
+    rows = []
+    for k in range(len(new_index_list)):
         # first guess for the base line
+        index = new_index_list[k]
+        guess = new_guess_list[k]
+        bounds = new_bounds_list[k]
         bgd_index = index[:bgd_width]+index[-bgd_width:]
         line_popt, line_pcov = fit_line(lambdas[bgd_index],spec[bgd_index])
+        guess[0] = line_popt[0]
+        guess[1] = line_popt[1]
+        bounds[0][0] = line_popt[0]-baseline_prior*np.sqrt(line_pcov[0][0])
+        bounds[0][1] = line_popt[1]-baseline_prior*np.sqrt(line_pcov[1][1])
+        bounds[1][0] = line_popt[0]+baseline_prior*np.sqrt(line_pcov[0][0])
+        bounds[1][1] = line_popt[1]+baseline_prior*np.sqrt(line_pcov[1][1])
         # fit local maximum with a gaussian + line
-        guess = [spec[peak_index],lambdas[peak_index],3,line_popt[0],line_popt[1]]
-        bounds = [(-np.inf,lambdas[index_inf],0,line_popt[0]-baseline_prior*np.sqrt(line_pcov[0][0]),line_popt[1]-baseline_prior*np.sqrt(line_pcov[1][1])), (2*np.max(spec[index]),lambdas[index_sup],np.inf,line_popt[0]+baseline_prior*np.sqrt(line_pcov[0][0]), line_popt[1]+baseline_prior*np.sqrt(line_pcov[1][1]))  ]
-        popt, pcov = fit_gauss_and_bgd(lambdas[index],spec[index],guess=guess, bounds=bounds)
-        peak_pos = popt[1]
-        # SNR computation
-        noise_level = np.std(spec[index]-gauss(lambdas[index],popt[0],popt[1],popt[2]))
-        signal_level = popt[0]
-        snr = np.abs(signal_level / noise_level)
-        if snr < snr_minlevel : continue
-        # FWHM
-        fwhm = np.abs(popt[2])*2.355
-        if verbose : print 'Line %s at %.2fnm: peak detected at %.2fnm with FWHM=%.2fnm and SNR=%.2f' % (LINE["label"],l,peak_pos,fwhm,snr)
+        popt, pcov = fit_multigauss_and_bgd(lambdas[index],spec[index],guess=guess, bounds=bounds)
+        base_line = spec[index]
+        for j in range(len(new_lines_list[k])) :
+            base_line -= gauss(lambdas[index],*popt[2+3*j:2+3*j+3])
+        #noise_level = np.std(base_line)
+        noise_level = np.std(spec[bgd_index]-multigauss_and_bgd(lambdas[bgd_index],*popt))
+        #print base_line, noise_level
+        for j in range(len(new_lines_list[k])) :
+            LINE = new_lines_list[k][j]
+            l = LINE['lambda']
+            if not LINE['atmospheric'] : l = l*(1+redshift)
+            peak_pos = popt[2+3*j+1]
+            # SNR computation
+            signal_level = popt[2+3*j]
+            snr = np.abs(signal_level / noise_level)
+            if snr < snr_minlevel : continue
+            # FWHM
+            FWHM = np.abs(popt[2+3*j+2])*2.355
+            #if verbose : print 'Line %s at %.1fnm: peak detected at %.1fnm (delta=%.1fnm) with FWHM=%.1fnm and SNR=%.1f' % (LINE["label"],l,peak_pos,peak_pos-l,FWHM,snr)
+            rows.append((LINE["label"],l,peak_pos,peak_pos-l,FWHM,snr))
+            # wavelength shift between tabulate and observed lines
+            #if LINE['atmospheric'] : continue
+            lambda_shifts.append(peak_pos-l)
+            snrs.append(snr)
         if ax is not None :
-            ax.plot(lambdas[index],gauss_and_bgd(lambdas[index],*popt),lw=3,color='b')
-            #ax.plot(lambdas[index],line(lambdas[index],popt[3],popt[4]),lw=3,color='k',linestyle='--')
-            #ax.plot(lambdas[index],line(lambdas[index],*line_popt),lw=3,color='g',linestyle='--')
-            ax.axvline(peak_pos,lw=2,color='b',linestyle='--')
-        # wavelength shift between tabulate and observed lines
-        if LINE['atmospheric'] : continue
-        lambda_shifts.append(peak_pos-l)
-        snrs.append(snr)
-    shift =  np.average(lambda_shifts,weights=snrs)
-    #if verbose : print 'Mean shift: %.2fnm (weighted by SNRs, no atmospheric lines)' % shift
+            ax.plot(lambdas[index],multigauss_and_bgd(lambdas[index],*popt),lw=2,color='b')
+            ax.plot(lambdas[index],line(lambdas[index],popt[0],popt[1]),lw=2,color='b',linestyle='--')
+            #ax.plot(lambdas[index],line(lambdas[index],*line_popt),lw=2,color='g',linestyle='--')
+            #ax.axvline(peak_pos,lw=2,color='b',linestyle='--')
+    if len(rows) > 0 :
+        t = Table(rows=rows,names=('Line','Tabulated','Detected','Shift','FWHM','SNR'),dtype=('a10','f4','f4','f4','f4','f4'))
+        for col in t.colnames[1:-1] : t[col].unit = 'nm'
+        if verbose : print t
+        shift =  np.average(lambda_shifts,weights=np.array(snrs)**2)
+    else :
+        shift = 0
     return shift
 
 def build_hologram(order0_position,order1_position,theta_tilt,lambda_plot=256000):
@@ -268,17 +363,19 @@ def find_order01_positions(holo_center,N_interp,theta_interp,verbose=True):
 
 class Grating():
     def __init__(self,N,label="",verbose=False):
-        self.N = lambda x: N
-        #self.N = N # lines per mm
+        self.N_input = N
         self.N_err = 1
         self.label = label
         self.load_files(verbose=verbose)
+
+    def N(self,x) :
+        return self.N_input
 
     def load_files(self,verbose=False):
         filename = DATA_DIR+self.label+"/N.txt"
         if os.path.isfile(filename):
             a = np.loadtxt(filename)
-            self.N = lambda x: a[0]
+            self.N_input = a[0]
             self.N_err = a[1]
         filename = DATA_DIR+self.label+"/hologram_center.txt"
         if os.path.isfile(filename):
@@ -341,10 +438,17 @@ class Hologram(Grating):
         self.N_x = None
         self.N_y = None
         self.N_data = None
-        self.N = GROOVES_PER_MM
         self.lambda_plot = lambda_plot
         self.load_specs(verbose=verbose)
 
+    def N(self,x):
+        N = GROOVES_PER_MM
+        if x[0] < np.min(self.N_x) or x[0] > np.max(self.N_x) or x[1] < np.min(self.N_y) or x[1] > np.max(self.N_y) :
+            N = self.N_fit(x[0],x[1])
+        else :
+            N = self.N_interp(x)[0]
+        return N
+    
     def load_specs(self,verbose=True):
         if verbose : print 'Load hologram %s:' % self.label
         filename = DATA_DIR+self.label+"/hologram_grooves_per_mm.txt"
@@ -352,15 +456,17 @@ class Hologram(Grating):
             a = np.loadtxt(filename)
             self.N_x, self.N_y, self.N_data = a.T
             N_interp = interpolate.interp2d(self.N_x, self.N_y, self.N_data, kind='cubic')
-            self.N = lambda x : N_interp(x[0],x[1])
+            self.N_fit = fit_poly2d(self.N_x,self.N_y, self.N_data, degree=2) 
+            self.N_interp = lambda x : N_interp(x[0],x[1])
         else :
             filename = DATA_DIR+self.label+"/N.txt"
             if os.path.isfile(filename):
-                a = np.loadtxt(filename)
-                self.N = lambda x: a[0]
-                self.N_err = a[1]
+                a = np.loadtxt(filename)            
+                self.N_interp = lambda x : a[0]
+                self.N_fit = lambda x,y : a[0]
             else :
-                self.N = lambda x : GROOVES_PER_MM
+                self.N_interp = lambda x : GROOVES_PER_MM
+                self.N_fit = lambda x,y : GROOVES_PER_MM
         filename = DATA_DIR+self.label+"/hologram_center.txt"
         if os.path.isfile(filename):
             lines = [line.rstrip('\n') for line in open(filename)]
@@ -383,37 +489,10 @@ class Hologram(Grating):
             print 'Plate center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.plate_center[0],self.plate_center[1],self.theta_tilt)
             print 'Hologram center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.holo_center[0],self.holo_center[1],self.theta_tilt)
             #print 'N = %.2f +/- %.2f grooves/mm' % (self.N, self.N_err)
-        self.order0_position, self.order1_position, self.AB = find_order01_positions(self.holo_center,self.N,self.theta,verbose=verbose)
+        self.order0_position, self.order1_position, self.AB = find_order01_positions(self.holo_center,self.N_interp,self.theta,verbose=verbose)
         #if verbose :
         #    print 'At order 0 position: N=%.2f grooves/mm and theta=%.2f degrees' % (self.N(self.order0_position),self.theta(self.order0_position))
         self.hologram_shape = build_hologram(self.order0_position,self.order1_position,self.theta_tilt,lambda_plot=self.lambda_plot)
-            
-    def old_load_specs(self):
-        filename = DATA_DIR+self.label+"/N.txt"
-        if os.path.isfile(filename):
-            a = np.loadtxt(filename)
-            self.N = a[0]
-            self.N_err = a[1]
-        print 'N = %.2f +/- %.2f grooves/mm' % (self.N, self.N_err)
-        filename = DATA_DIR+self.label+"/hologram_center.txt"
-        if os.path.isfile(filename):
-            lines = [line.rstrip('\n') for line in open(filename)]
-            self.holo_center = map(float,lines[1].split(' ')[:2])
-            self.theta_tilt = float(lines[1].split(' ')[2])
-        else :
-            self.holo_center = [0.5*IMSIZE,0.5*IMSIZE]
-            self.theta_tilt = 0
-            return
-        print 'Hologram center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.holo_center[0],self.holo_center[1],self.theta_tilt)
-        self.plate_center = [0.5*IMSIZE+PLATE_CENTER_SHIFT_X/PIXEL2MM,0.5*IMSIZE+PLATE_CENTER_SHIFT_Y/PIXEL2MM] 
-        print 'Plate center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.plate_center[0],self.plate_center[1],self.theta_tilt)
-        self.x_lines, self.line1, self.line2 = neutral_lines(self.holo_center[0],self.holo_center[1],self.theta_tilt)
-        self.order0_position, self.order1_position, self.AB = order01_positions(self.holo_center[0],self.holo_center[1],self.theta_tilt)
-        filename = DATA_DIR+self.label+"/rotation_angle_map.txt"
-        if os.path.isfile(filename):
-            self.rotation_angle_map = np.loadtxt(filename)
-            self.rotation_angle_map_x = np.loadtxt(DATA_DIR+self.label+"/rotation_angle_map_x.txt")
-            self.rotation_angle_map_y = np.loadtxt(DATA_DIR+self.label+"/rotation_angle_map_y.txt")
             
 
 
@@ -795,48 +874,58 @@ def GratingResolution_TwoOrder(thecorrspectra,all_images,all_filt,leftorder_edge
     return(Ns,N_errs)
 
 
-def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,emission_spectrum=False,atmospheric_lines=True,verbose=False,dir_top_images=None):
+def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,emission_spectrum=False,atmospheric_lines=True,hydrogen_only=False,verbose=False,dir_top_images=None):
     """
     CalibrateSpectra show the right part of spectrum with identified lines
     =====================
     """
     NBSPEC=len(spectra)
-    
     if target is not None :
         target.load_spectra()
-
-    left_cut = xlim[0]
-
     f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
     for index in np.arange(0,NBSPEC):
-        right_cut = min(len(spectra[index]),xlim[1])
+        if isinstance(xlim[0], (list, tuple, np.ndarray)) :
+            left_cut = xlim[index][0]
+            right_cut = min(len(spectra[index]),xlim[index][1])
+        else :
+            left_cut = xlim[0]
+            right_cut = min(len(spectra[index]),xlim[1])
         spec = spectra[index][left_cut:right_cut]
         ######## convert pixels to wavelengths #########
         holo = Hologram(all_filt[index],verbose=verbose)
         if verbose : print '-----------------------------------------------------'
         pixels = np.arange(left_cut,right_cut,1)-thex0[index]
         lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
+        ###### detect emission/absorption lines and calibrate pixel/lambda ##### 
+        shifts = []
         lambda_shift = 1e20
-        while lambda_shift > 0.1 :
-            lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,ax=None,verbose=False)
+        counts = 0
+        while abs(lambda_shift) > 0.1 :
+            lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=False)
             lambdas -= lambda_shift
-        lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,ax=axarr[index],verbose=verbose)
-        if verbose : print '-----------------------------------------------------'
+            shifts.append(lambda_shift)
+            counts += 1
+            if len(shifts)>2 :
+                if abs(shifts[-1]+shifts[-2]) < 0.1 : break
+            if counts > 30 : break
+        if verbose : print 'Wavelenght total shift: %.2fnm (after %d steps)' % (np.sum(shifts),len(shifts))
         axarr[index].set_xlim(lambdas[0],lambdas[-1])
         axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
-        plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=atmospheric_lines)
+        plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only)
+        lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=axarr[index],verbose=verbose)
+        if verbose : print '-----------------------------------------------------'
+        ######## add target spectrum #######
         if target is not None :
             for isp,sp in enumerate(target.spectra):
                 if isp==0 or isp==2 : continue
                 axarr[index].plot(target.wavelengths[isp],0.3*sp*spec.max()/np.max(sp),label='NED spectrum %d' % isp,lw=2)
-        ######## set plot
+        ######## set plot #######
         axarr[index].set_title(all_titles[index])
         axarr[index].annotate(all_filt[index],xy=(0.05,0.8),xytext=(0.05,0.8),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
         axarr[index].legend(fontsize=16,loc='best')
         axarr[index].set_xlabel('Wavelength [nm]', fontsize=16)
         axarr[index].grid(True)
         axarr[index].set_ylim(spec.min(),spec.max()*1.2)
-        #axarr[index].set_xlim(xlim)
     if dir_top_images is not None :
         figfilename=os.path.join(dir_top_images,'calibrated_spectrum_profile.pdf')
         plt.savefig(figfilename) 
