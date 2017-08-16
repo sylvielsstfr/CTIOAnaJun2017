@@ -77,9 +77,11 @@ def plot_atomic_lines(ax,redshift=0,atmospheric_lines=True,hydrogen_only=False,c
 
 def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,atmospheric_lines=True,hydrogen_only=False,ax=None,verbose=False):
     peak_look = 7 # half range to look for local maximum in pixels
-    if hydrogen_only : peak_look = 15
-    bgd_width = 10 # size of the peak sides to use to fit spectrum base line
-    baseline_prior = 1 # gaussian prior on base line fit
+    bgd_width = 7 # size of the peak sides to use to fit spectrum base line
+    if hydrogen_only :
+        peak_look = 15
+        bgd_width = 15
+    baseline_prior = 3 # gaussian prior on base line fit
     lambda_shifts = []
     snrs = []
     index_list = []
