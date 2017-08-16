@@ -212,7 +212,7 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
         for j in range(len(new_lines_list[k])) :
             base_line -= gauss(lambdas[index],*popt[2+3*j:2+3*j+3])
         #noise_level = np.std(base_line)
-        noise_level = np.std(spec[bgd_index]-multigauss_and_bgd(lambdas[bgd_index],*popt))
+        noise_level = np.std(spec[index]-multigauss_and_bgd(lambdas[index],*popt))
         #print base_line, noise_level
         for j in range(len(new_lines_list[k])) :
             LINE = new_lines_list[k][j]
