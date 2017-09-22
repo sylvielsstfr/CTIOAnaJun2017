@@ -25,7 +25,8 @@ from astropy.io import ascii
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import interp1d
 
-path_CTIOtransm='/Users/dagoret-campagnesylvie/MacOsX/LSST/MyWork/GitHub/CTIOAnaJun2017/spectrumsim/CTIOThroughput'
+home = os.environ['HOME']+'/'  
+path_CTIOtransm=home+'MacOSX/GitHub/LSST/CTIOAnaJun2017/spectrumsim/CTIOThroughput'
 
 #
 filename_qe = "qecurve.txt"  
