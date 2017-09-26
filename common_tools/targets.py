@@ -2,7 +2,8 @@ import numpy as np
 import sys, os
 from astropy import units as units
 from astropy.coordinates import SkyCoord, Angle
-import pyfits
+#import pyfits
+import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt
 
 import pysynphot as S
