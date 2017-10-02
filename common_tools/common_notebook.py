@@ -248,7 +248,7 @@ def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,ob
             xpos = max(0,target_pos[index][0]-max(0,x0-deltax))
             ypos = max(0,target_pos[index][1]-max(0,y0-deltay))
             s = 2*min(image_cut.shape)
-            axarr[iy,ix].scatter(xpos,ypos,s=s,edgecolors='k',marker='o',facecolors='none')
+            axarr[iy,ix].scatter(xpos,ypos,s=s,edgecolors='k',marker='o',facecolors='none',linewidths=2)
     title='Cut Images of {}'.format(object_name)
     plt.suptitle(title,size=16) 
     return croped_images
