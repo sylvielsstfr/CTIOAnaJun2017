@@ -12,6 +12,7 @@ from astropy.modeling import models
 from astropy.stats import sigma_clipped_stats
 from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
+from astropy.modeling import models, fitting
 
 import ccdproc
 
@@ -37,6 +38,11 @@ from scan_holo import *
 from targets import *
 from fwhm_profiles import *
 
+# Definitions of some constants
+#------------------------------------------------------------------------------
+Filt_names= ['dia Ron400', 'dia Thor300', 'dia HoloPhP', 'dia HoloPhAg', 'dia HoloAmAg', 'dia Ron200','Unknown']
+
+#-------------------------------------------------------------------------------
 def init_notebook():
     print 'ccdproc version',ccdproc.__version__
     print 'bottleneck version',bn.__version__
@@ -52,7 +58,7 @@ def init_notebook():
     plt.rcParams.update(params)
 
     print os.getcwd()
-
+#-------------------------------------------------------------------------------
 
 
 
@@ -90,7 +96,7 @@ def MakeFileList(dirlist_all,MIN_IMGNUMBER=0,MAX_IMGNUMBER=1e10,SelectTagRe='',S
     sorted_files=filelist_fitsimages[sorted_indexes]
                     
     return sorted_numbers,sorted_files
-
+#-------------------------------------------------------------------------------
 
 def BuildImages(sorted_filenames,sorted_numbers,object_name):
     """
@@ -137,7 +143,7 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
         
     return all_dates,all_airmass,all_images,all_titles,all_header,all_expo,all_filt
 
-
+#------------------------------------------------------------------------------
 
 def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
     """
@@ -158,6 +164,8 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
 
+#------------------------------------------------------------------------------
+    
 def ShowHistograms(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,bins=100,range=(-50,10000),downsampling=1,verbose=False):
     """
     ShowHistograms
@@ -185,7 +193,8 @@ def ShowHistograms(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,bins
     title='histograms of images {}  '.format(object_name)
     plt.suptitle(title,size=16)        
 
-
+#-----------------------------------------------------------------------------
+    
 def ComputeStatImages(all_images,fwhm=10,threshold=300,sigma=10.0,iters=5):
     """
     ComputeStatImages: 
@@ -214,7 +223,7 @@ def ComputeStatImages(all_images,fwhm=10,threshold=300,sigma=10.0,iters=5):
         index+=1
     return img_mean,img_median,img_std,img_sources
 
-
+#--------------------------------------------------------------------------------
 def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000,mask_saturated=False,target_pos=None):
     """
     ShowCenterImages: Show the raw images without background subtraction
@@ -253,7 +262,8 @@ def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,ob
     plt.suptitle(title,size=16) 
     return croped_images
 
-
+#-------------------------------------------------------------------------------
+    
 def ComputeMedY(data):
     """
     Compute the median of Y vs X to find later the angle of rotation
@@ -270,7 +280,8 @@ def ComputeMedY(data):
             med=np.sum(the_y)/the_ysum
             the_medianY[ix]=med
     return the_medianY
-
+#--------------------------------------------------------------------------------
+    
 def ComputeAveY(data):
     """
     Compute the average of Y vs X to find later the angle of rotation
@@ -290,7 +301,7 @@ def ComputeAveY(data):
 
 
 
-
+#--------------------------------------------------------------------------------
 
 
 def ComputeRotationAngle(all_images,thex0,they0,all_titles,object_name):
@@ -367,7 +378,7 @@ def ComputeRotationAngle(all_images,thex0,they0,all_titles,object_name):
     
     
     return param_a,param_b
-
+#---------------------------------------------------------------------------------------------
 
 def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NBIMGPERROW=2, lambda_threshold = -20, deg_threshold = 20, width_cut = 20, right_edge = 1600,margin_cut=1):
     """
@@ -449,7 +460,7 @@ def ComputeRotationAngleHessian(all_images,thex0,they0,all_titles,object_name,NB
     
     return param_theta
     
-
+#-----------------------------------------------------------------------------------
 
 def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_name, NBIMGPERROW=2, lambda_threshold = -20, deg_threshold = 20, width_cut = 20, right_edge = 1600,margin_cut=1):
     """
@@ -540,7 +551,7 @@ def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_n
         
     return param_theta
     
-
+#------------------------------------------------------------------------------------------
 
 def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2,vmin=0,vmax=1000,oversample_factor=6):
     """
@@ -583,6 +594,7 @@ def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2,vmi
     
     return all_rotated_images
 
+#--------------------------------------------------------------------------------------
 
 def subplots_adjust(*args, **kwargs):
     """
@@ -608,6 +620,7 @@ def subplots_adjust(*args, **kwargs):
     fig.subplots_adjust(*args, **kwargs)
     draw_if_interactive()
 
+#----------------------------------------------------------------------------------
 
 def ShowOneOrder(all_images,all_titles,x0,object_name,all_expo,NBIMGPERROW=2):
     """
@@ -638,7 +651,7 @@ def ShowOneOrder(all_images,all_titles,x0,object_name,all_expo,NBIMGPERROW=2):
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)
 
-
+#--------------------------------------------------------------------------------
 
 def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW=2,DeltaX=1000,w=10,ws=[10,20],right_edge=1800,ylim=None):
     """
@@ -686,7 +699,8 @@ def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW
     plt.suptitle(title,size=16)   
     return they0
 
-
+#--------------------------------------------------------------------------------
+    
 def ExtractSpectra(they0,all_images,all_titles,object_name,all_expo,w=10,ws=80,right_edge=1800):
     """
     ShowTransverseProfile: Show the raw images without background subtraction
@@ -731,7 +745,7 @@ def ExtractSpectra(they0,all_images,all_titles,object_name,all_expo,w=10,ws=80,r
     return thespectra,thespectraUp,thespectraDown
 
 
-
+#---------------------------------------------------------------------------------
 
 def ShowRightOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top_images,NBIMGPERROW=2):
     """
@@ -768,7 +782,7 @@ def ShowRightOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_to
     
     #plt.savefig(figfilename)  
 
-
+#------------------------------------------------------------------------------------
 
 def ShowLeftOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top_images,NBIMGPERROW=2):
     """
@@ -804,6 +818,7 @@ def ShowLeftOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top
     figfilename=os.path.join(dir_top_images,'leftorder.pdf')
     #plt.savefig(figfilename)  
 
+#-----------------------------------------------------------------------------------
 
 def CleanBadPixels(spectraUp,spectraDown):
     
@@ -829,6 +844,7 @@ def CleanBadPixels(spectraUp,spectraDown):
         
     return Clean_Up, Clean_Do,Clean_Av
 
+#-----------------------------------------------------------------------------------
 
 def ShowLongitBackground(spectra,spectraUp,spectraDown,spectraAv,all_titles,all_filt,object_name,NBIMGPERROW=2,right_edge=1800):
     """
@@ -852,6 +868,8 @@ def ShowLongitBackground(spectra,spectraUp,spectraDown,spectraAv,all_titles,all_
         axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
     title='Longitudinal background Up/Down'.format(object_name)
     plt.suptitle(title,size=16)
+
+#---------------------------------------------------------------------------------
     
 def CorrectSpectrumFromBackground(spectra, background):
     """
@@ -866,6 +884,8 @@ def CorrectSpectrumFromBackground(spectra, background):
         corrected_spectra.append(corrspec)
     return corrected_spectra
 
+#--------------------------------------------------------------------------------
+    
 def ShowSpectrumProfile(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xlim=None,vertical_lines=None):
     """
     ShowSpectrumProfile: Show the raw images without background subtraction
@@ -896,7 +916,8 @@ def ShowSpectrumProfile(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xl
     title='Spectrum 1D profile and background Up/Down for {}'.format(object_name)
     plt.suptitle(title,size=16)
 
-
+#----------------------------------------------------------------------------------------
+    
 def SpectrumAmplitudeRatio(spectra):
     """
     SpectrumAmplitudeRatio: ratio of amplitudes
@@ -915,6 +936,8 @@ def SpectrumAmplitudeRatio(spectra):
         ratio_list.append(ratio) 
         
     return ratio_list
+
+#-----------------------------------------------------------------------------------------
 
 def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xlim=(1200,1600),guess=[10,1400,200],vertical_lines=None):
     """
@@ -957,4 +980,358 @@ def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2
     title='Spectrum 1D profile and background Up/Down for {}'.format(object_name)
     plt.suptitle(title,size=16)
     
+#-------------------------------------------------------------------------------------------
+#  Sylvie : October 2017
+#---------------------------------------------------------------------------------------
+    
+def get_filt_idx(listoffilt):
+    """
+    get_filt_idx::
+    -------------    
+        sort the index of the image according the disperser used.
+        it assumes the filter is called "dia".
+        The diserser names are pre-defined in the array Filt_names.
+        
+        input: 
+            - listoffilt : list of filter-disperser name from the image header
+        output:
+            - filt0_idx
+            - filt1_idx
+            - filt2_idx
+            - filt3_idx
+            - filt4_idx
+            - filt5_idx
+            - filt6_idx
+            for each kind of disperser, the list index in the listoffilt
+      
+    """
+    
+    filt0_idx=[]
+    filt1_idx=[]
+    filt2_idx=[]
+    filt3_idx=[]
+    filt4_idx=[]
+    filt5_idx=[]
+    filt6_idx=[]
+    
+    index=0
+    for filt in listoffilt:
+        if filt == 'dia Ron400':
+            filt0_idx.append(index)
+        elif filt == 'dia Thor300':
+            filt1_idx.append(index)
+        elif filt == 'dia HoloPhP':
+            filt2_idx.append(index)
+        elif filt == 'dia HoloPhAg':
+            filt3_idx.append(index)
+        elif filt == 'dia HoloAmAg':
+            filt4_idx.append(index)
+        elif filt == 'dia Ron200':
+            filt5_idx.append(index)
+        else :
+            print ' common_notebook::get_filt_idx unknown:  filter-disperser ',filt
+            filt6_idx.append(index)
+    
+        index+=1
+    
+    filt0_idx=np.array(filt0_idx)
+    filt1_idx=np.array(filt1_idx)
+    filt2_idx=np.array(filt2_idx)
+    filt3_idx=np.array(filt3_idx)
+    filt4_idx=np.array(filt4_idx)
+    filt5_idx=np.array(filt5_idx)
+    
+    return filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx
+
+#------------------------------------------------------------------------------------
+def guess_init_fit(theimage,xmin=0,xmax=-1,ymin=0,ymax=-1):
+    """
+    guess_init_fit::
+    ---------------
+        quick search of a local maximum in an image
+        
+        input:
+            - theimage : 2D numpy array
+            - xmin,xmax,ymin,ymax : the subrange where to search the maximum
+        output:
+            -x,y coordinate where the maximum has been found in the original coordinates of the
+            image
+    """
+    cropped_image=np.copy(theimage[ymin:ymax,xmin:xmax])
+    
+    profile_y=np.sum(cropped_image,axis=1)
+    profile_x=np.sum(cropped_image,axis=0)
+     
+    theidxmax=np.where(profile_x==profile_x.max())
+    theidymax=np.where(profile_y==profile_y.max())
+    
+    return xmin+theidxmax[0][0],ymin+theidymax[0][0]
+#-----------------------------------------------------------------------------
+    
+def check_bad_guess(xy_guess,filt_idx, sigma_cut=10.):
+    """
+    function check_bad_guess(xy_guess,filt_idx)
+    
+    check is the x or y position are too far from the series of other x,y postion for a given disperser
+    
+    input :
+       xy_guess : the x or the y values to be tested
+       filt_idx, the list of identifiers of a given disperser
+       sigma_cut : typical distance accepted from the group
+       
+    output:
+       the_mean : average position
+       the_std. : std deviation
+       the_bad_idx : the list of identiers that are at more than 3 sigma 
+    """
+    
+    # typical dispersion
+    
+    # extract of (x,y) from the set of disperser id 
+    the_guess=xy_guess[filt_idx]
+    
+    # average and distance from the filt_idx group
+    the_mean=np.median(the_guess)
+    the_std=np.std(the_guess-the_mean)
+    
+    the_bad=np.where( np.abs(the_guess-the_mean)> 3.*sigma_cut)
+    
+    the_bad_idx=filt_idx[the_bad]
+    
+    return int(the_mean),int(the_std),the_bad_idx
+#-----------------------------------------------------------------------------
+def remove_from_bad(arr,index_to_remove):
+    """
+    remove_from_bad(arr,index_to_remove)
+    ------------------------------------
+    
+    Remove the index_to_reove from array arr
+    
+    input:
+        - array arr
+        - index_to_remove 
+        
+    output:
+        - the array with the index_to_remove removed
+        
+    """
+    
+    newarr=arr
+    set_rank_to_remove=np.where(arr==index_to_remove)[0]
+    if len(set_rank_to_remove)!=0:
+        rank_to_remove=set_rank_to_remove[0]
+        newarr=np.delete(arr,rank_to_remove)
+    return newarr
+#-------------------------------------------------------------------------------
+    
+
+def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx=None,filt6_idx=None):
+    """
+    guess_central_position:
+    ----------------------
+    Guess the central position of the star
+    
+    input:
+        - listofimages: list of images
+        - DeltaX,DeltaY : [xmin,xmax] and [ymin,ymax] region in which we expect center
+        - dwc :width around the region
+        - filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx : set of indexes
+    
+    output :
+         x_guess,y_guess : coordinate of the central star in the frame of the raw image
+    """
+
+    
+    # Step 1 : do the 2D guassian fit
+    
+    x_guess = [] 
+    y_guess = []
+    index=0
+
+    # loop on images
+    for theimage in listofimages:
+               
+        index+=1
+        
+        
+        # try to find a maximum in the region specified here
+        # we expect the central star be found at x0c, y0c
+        # overwrite x0c and y0c here !!!!!
+        x0c,y0c=guess_init_fit(theimage,DeltaX[0],DeltaX[1],DeltaY[0],DeltaY[1])
+        
+        # sub-image around the maximum found at center
+        # the coordinate of the lower left corner is (x0c-dwc,y0c-dwc) in original coordinate
+        sub_image=np.copy(theimage[y0c-dwc:y0c+dwc,x0c-dwc:x0c+dwc]) # make a sub-image
+    
+        # init the gaussian fit
+        NY=sub_image.shape[0]
+        NX=sub_image.shape[1]
+        y, x = np.mgrid[:NY,:NX]
+        z=sub_image[y,x]
+    
+        # we expect the central star is at the center of the subimage
+        x_mean=NX/2
+        y_mean=NY/2
+        z_max=z[y_mean,x_mean]
+    
+        # do the gaussian fit
+        p_init = models.Gaussian2D(amplitude=z_max,x_mean=x_mean,y_mean=y_mean)
+        fit_p = fitting.LevMarLSQFitter()
+    
+        p = fit_p(p_init, x, y, z)
+    
+        x_fit= p.x_mean
+        y_fit= p.y_mean
+        z_fit= p.amplitude
+    
+       
+    
+        # put the center found by fit in the original image coordinate system
+        #--------------------------------------------------------------------
+        
+        x_star_original=x0c-dwc+x_fit
+        y_star_original=y0c-dwc+y_fit
+        
+        x_guess.append(x_star_original)
+        y_guess.append(y_star_original)
+        
+        #if index%5==0 :
+        print index-1,': (x_guess,y_guess)=',x_star_original,y_star_original
+
+    x_guess=np.array(x_guess)
+    y_guess=np.array(y_guess)
+    
+    
+    # Step 2 : check if the fit is creazy 
+    # if so, use the average center for the given disperser
+    
+    print 'Check fit quality :: '
+    print ' ==========================='
+    
+    # find bad ids for filter 1 and correct for 
+        
+        
+    # filter 0        
+    aver_x0,std_x0,bad_idx_x0=check_bad_guess(x_guess,filt0_idx)
+    if (bad_idx_x0.shape[0] != 0):
+        print 'bad filt 0 x : ',bad_idx_x0
+        x_guess[bad_idx_x0]=aver_x0    # do the correction
+    
+    aver_y0,std_y0,bad_idx_y0=check_bad_guess(y_guess,filt0_idx)
+    if (bad_idx_y0.shape[0] != 0):
+        print 'bad filt 0 y : ',bad_idx_y0
+        y_guess[bad_idx_y0]=aver_y0    # do the correction     
+        
+
+    # filter 1        
+    aver_x1,std_x1,bad_idx_x1=check_bad_guess(x_guess,filt1_idx)
+    if (bad_idx_x1.shape[0] != 0):
+        print 'bad filt 1 x : ',bad_idx_x1
+        
+        # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
+        idx_to_remove=0
+        print 'remove from bad idx x1 : ',idx_to_remove
+        bad_idx_x1=remove_from_bad(bad_idx_x1,idx_to_remove)           
+        print 'new bad filt 1 x : ',bad_idx_x1
+        x_guess[bad_idx_x1]=aver_x1    # do the correction
+    
+    aver_y1,std_y1,bad_idx_y1=check_bad_guess(y_guess,filt1_idx)
+    if (bad_idx_y1.shape[0] != 0):
+        
+        print 'bad filt 1 y : ',bad_idx_y1
+         # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
+        idx_to_remove=0        
+        print 'remove from bad idx y1 : ',idx_to_remove
+        bad_idx_y1=remove_from_bad(bad_idx_y1,idx_to_remove)           
+        print 'new bad filt 1 y : ',bad_idx_y1
+        
+        y_guess[bad_idx_y1]=aver_y1    # do the correction
+    
+ 
+    # filter 2        
+    aver_x2,std_x2,bad_idx_x2=check_bad_guess(x_guess,filt2_idx)
+    if (bad_idx_x2.shape[0] != 0):
+        print 'bad filt 2 x : ',bad_idx_x2
+        x_guess[bad_idx_x2]=aver_x2    # do the correction
+    
+    aver_y2,std_y2,bad_idx_y2=check_bad_guess(y_guess,filt2_idx)
+    if (bad_idx_y2.shape[0] != 0):
+        print 'bad filt 2 y : ',bad_idx_y2
+        y_guess[bad_idx_y2]=aver_y2    # do the correction
+        
+        
+    # filter 3        
+    aver_x3,std_x3,bad_idx_x3=check_bad_guess(x_guess,filt3_idx)
+    if (bad_idx_x3.shape[0] != 0):
+        print 'bad bad filt 3 x : ',bad_idx_x3
+        x_guess[bad_idx_x3]=aver_x3    # do the correction
+    
+    aver_y3,std_y3,bad_idx_y3=check_bad_guess(y_guess,filt3_idx)
+    if (bad_idx_y3.shape[0] != 0):
+        print 'bad filt 3 y : ',bad_idx_y3
+        y_guess[bad_idx_y3]=aver_y3    # do the correction
+        
+    # filter 4        
+    aver_x4,std_x4,bad_idx_x4=check_bad_guess(x_guess,filt4_idx)
+    if (bad_idx_x4.shape[0] != 0):
+        print 'bad filt 4 x : ',bad_idx_x4
+        x_guess[bad_idx_x4]=aver_x4    # do the correction
+    
+    aver_y4,std_y4,bad_idx_y4=check_bad_guess(y_guess,filt4_idx)
+    if (bad_idx_y4.shape[0] != 0):
+        print 'bad filt 4 y : ',bad_idx_y4
+        y_guess[bad_idx_y4]=aver_y4    # do the correction        
+ 
+    
+    # filter 5 
+    if filt5_idx != None and filt5_idx.shape[0] != 0:       
+        aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
+        if (bad_idx_x5.shape[0] != 0):
+            print 'bad filt 5 x : ',bad_idx_x5
+            x_guess[bad_idx_x5]=aver_x5    # do the correction
+    
+        aver_y5,std_y5,bad_idx_y5=check_bad_guess(y_guess,filt5_idx)
+        if (bad_idx_y5.shape[0] != 0):
+            print 'bad filt 5 y : ',bad_idx_y5
+            y_guess[bad_idx_y5]=aver_y5    # do the correction  
+            
+        # filter 6 
+    if filt6_idx != None and filt6_idx.shape[0] != 0:       
+        aver_x6,std_x6,bad_idx_x6=check_bad_guess(x_guess,filt6_idx)
+        if (bad_idx_x6.shape[0] != 0):
+            print 'bad filt 6 x : ',bad_idx_x6
+            x_guess[bad_idx_x6]=aver_x6    # do the correction
+    
+        aver_y6,std_y6,bad_idx_y6=check_bad_guess(y_guess,filt6_idx)
+        if (bad_idx_y6.shape[0] != 0):
+            print 'bad filt 6 y : ',bad_idx_y6
+            y_guess[bad_idx_y6]=aver_y6    # do the correction  
+    
+    
+    return x_guess,y_guess
+
+#-----------------------------------------------------------------------------------
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+
+    values, weights -- Numpy ndarrays with the same shape.
+    
+    For example for the PSF
+    
+    x=pixel number
+    y=Intensity in pixel
+    
+    values-x
+    weights=y=f(x)
+    
+    """
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)  # Fast and numerically precise
+    return (average, np.sqrt(variance))
+
+#---------------------------------------------------------------------------------
+
+
+
     
