@@ -1381,7 +1381,7 @@ def check_central_star(all_images,x_star0,y_star0,all_titles,all_filt,Dx=100,Dy=
     
         f, (ax1, ax2,ax3) = plt.subplots(1,3, figsize=(20,4))
 
-        ax1.imshow(sub_image,vmin=0,vmax=10000,cmap='rainbow')
+        ax1.imshow(sub_image,origin='lower',vmin=0,vmax=10000,cmap='rainbow')
         ax1.plot([avX],[avY],'ko')
         ax1.grid(True)
         ax1.set_xlabel('X - pixel')
