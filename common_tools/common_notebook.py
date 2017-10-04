@@ -1332,6 +1332,86 @@ def weighted_avg_and_std(values, weights):
 
 #---------------------------------------------------------------------------------
 
+def check_central_star(all_images,x_star0,y_star0,all_titles,all_filt,Dx=100,Dy=50):
+    """
+    check_central_star(all_images,x_star0,y_star0,all_titles)
+    --------------------------------------------------------
+    
+    Try to localize very precisely the order 0 central star.
+    We calculate the average, by giving the very high weigh to the pixels having 
+    a great intentity. (power 4 of the intensity)
+    
+    input:
+    - all_images : the list of images
+    - x_star0, y_star_0 : original guess of the central star, not very accurate within Dx,Dy
+    - all_titles, all_filt : info for the title
+    - Dx,Dy : range allowed aroud the original central star (do not include dispersed spectrum wing)
+    
+    output : arrays of accurate X and Y positions
+    
+    
+    """
+    index=0
+    
+    x_star = []
+    y_star = []
+    
+    for image in all_images:
+        x0=int(x_star0[index])
+        y0=int(y_star0[index])
+        sub_image=np.copy(image[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
+        NX=sub_image.shape[1]
+        NY=sub_image.shape[0]
+        
+        profile_X=np.sum(sub_image,axis=0)
+        profile_Y=np.sum(sub_image,axis=1)
+        X_=np.arange(NX)
+        Y_=np.arange(NY)
+    
+        profile_X_max=np.max(profile_X)*1.2
+        profile_Y_max=np.max(profile_Y)*1.2
+    
+        avX,sigX=weighted_avg_and_std(X_,profile_X**4) ### better if weight squared
+        avY,sigY=weighted_avg_and_std(Y_,profile_Y**4) ### really avoid plateau contribution
+        #print index,'\t',avX,avY,'\t',sigX,sigY
+    
+        f, (ax1, ax2,ax3) = plt.subplots(1,3, figsize=(20,4))
+
+        ax1.imshow(sub_image,vmin=0,vmax=10000,cmap='rainbow')
+        ax1.plot([avX],[avY],'ko')
+        ax1.grid(True)
+        ax1.set_xlabel('X - pixel')
+        ax1.set_ylabel('Y - pixel')
+    
+        ax2.plot(X_,profile_X,'r-',lw=2)
+        ax2.plot([avX,avX],[0,profile_X_max],'b-',lw=2)
+        ax2.grid(True)
+        ax2.set_xlabel('X - pixel')
+        
+        ax3.plot(Y_,profile_Y,'r-',lw=2)
+        ax3.plot([avY,avY],[0,profile_Y_max],'b-',lw=2)
+        ax3.grid(True)
+        ax3.set_xlabel('Y - pixel')
+        
+    
+        thetitle="{} : {} , {} ".format(index,all_titles[index],all_filt[index])
+        f.suptitle(thetitle, fontsize=16)
+    
+        theX=x0-Dx+avX
+        theY=y0-Dy+avY
+        
+        x_star.append(theX)
+        y_star.append(theY)
+    
+    
+        index+=1
+        
+    x_star=np.array(x_star)
+    y_star=np.array(y_star)
+        
+    return x_star,y_star
+#----------------------------------------------------------------------------------------
+
 
 
     
