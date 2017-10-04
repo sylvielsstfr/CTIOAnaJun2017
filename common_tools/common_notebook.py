@@ -1359,6 +1359,10 @@ def check_central_star(all_images,x_star0,y_star0,all_titles,all_filt,Dx=100,Dy=
     for image in all_images:
         x0=int(x_star0[index])
         y0=int(y_star0[index])
+        
+        old_x0=x0-(x0-Dx)
+        old_y0=y0-(y0-Dy)
+        
         sub_image=np.copy(image[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
         NX=sub_image.shape[1]
         NY=sub_image.shape[0]
@@ -1384,14 +1388,21 @@ def check_central_star(all_images,x_star0,y_star0,all_titles,all_filt,Dx=100,Dy=
         ax1.set_ylabel('Y - pixel')
     
         ax2.plot(X_,profile_X,'r-',lw=2)
-        ax2.plot([avX,avX],[0,profile_X_max],'b-',lw=2)
+        ax2.plot([old_x0,old_x0],[0,profile_X_max],'y-',label='old',lw=2)
+        ax2.plot([avX,avX],[0,profile_X_max],'b-',label='new',lw=2)
+        
+        
         ax2.grid(True)
         ax2.set_xlabel('X - pixel')
+        ax2.legend(loc=1)
         
         ax3.plot(Y_,profile_Y,'r-',lw=2)
-        ax3.plot([avY,avY],[0,profile_Y_max],'b-',lw=2)
+        ax3.plot([old_y0,old_y0],[0,profile_Y_max],'y-',label='old',lw=2)
+        ax3.plot([avY,avY],[0,profile_Y_max],'b-',label='new',lw=2)
+        
         ax3.grid(True)
         ax3.set_xlabel('Y - pixel')
+        ax3.legend(loc=1)
         
     
         thetitle="{} : {} , {} ".format(index,all_titles[index],all_filt[index])
