@@ -1783,31 +1783,39 @@ def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_tit
     # wavelength calibration
     X_Size_Pixels=np.arange(0,reduc_image.shape[1])
     Y_Size_Pixels=np.arange(0,reduc_image.shape[0]) 
+    # transverse size in pixel
     DY_Size_Pixels=Y_Size_Pixels-yy0
-   
+    NDY_C=int( float(DY_Size_Pixels.shape[0])/2.)
    
     grating_name=all_filt[index].replace('dia ','')
-    holo = Hologram(grating_name,verbose=True)
+    holo = Hologram(grating_name,verbose=False)
     lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
     
     all_Yprofile = []
     all_fwhm = []
     
+    # loop on wavelength bands
     for band in np.arange(NBANDS):
         iband=band
         w1=wlmin[iband]
         w2=wlmax[iband]
         Xpixel_range=np.where(np.logical_and(lambdas>w1,lambdas<w2))[0]
+        
         sub_image=np.copy(reduc_image[:,Xpixel_range])
+        # transverse profile
         sub_yprofile=np.sum(sub_image,axis=1)
         sub_yprofile_background=np.median(sub_yprofile)
         sub_yprofile_clean=sub_yprofile-sub_yprofile_background
         
         mean,sig=weighted_avg_and_std(DY_Size_Pixels,np.abs(sub_yprofile_clean))
+        tmin=NDY_C-15
+        tmax=NDY_C+15
+        mean_2,sig_2=weighted_avg_and_std(DY_Size_Pixels[tmin:tmax],np.abs(sub_yprofile_clean[tmin:tmax]))
+        
         
         all_Yprofile.append(sub_yprofile_clean)
-        label="$\lambda$ = {:3.0f}-{:3.0f}nm, $fwhm=$ {:2.1f} pix".format(w1,w2,2.36*sig)
-        all_fwhm.append(2.36*sig)
+        label="$\lambda$ = {:3.0f}-{:3.0f}nm, $fwhm=$ {:2.1f} pix".format(w1,w2,2.36*sig_2)
+        all_fwhm.append(2.36*sig_2)
         plt.plot(DY_Size_Pixels,sub_yprofile_clean,'-',label=label,lw=2)
         
     plt.title(thetitle) 
