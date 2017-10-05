@@ -38,6 +38,12 @@ from scan_holo import *
 from targets import *
 from fwhm_profiles import *
 
+import math as m
+
+from matplotlib.backends.backend_pdf import PdfPages   
+
+
+
 # Definitions of some constants
 #------------------------------------------------------------------------------
 Filt_names= ['dia Ron400', 'dia Thor300', 'dia HoloPhP', 'dia HoloPhAg', 'dia HoloAmAg', 'dia Ron200','Unknown']
@@ -1421,7 +1427,1249 @@ def check_central_star(all_images,x_star0,y_star0,all_titles,all_filt,Dx=100,Dy=
     y_star=np.array(y_star)
         
     return x_star,y_star
-#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+#  Ana2DShapeSpectra
+#------------------------------------------------------------------------------------------------------------    
+
+def ShowOneContour(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
+    --------------
+    
+    Show contour lines of 2D spectrum for one image
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: the image 
+    
+    """
+    plt.figure(figsize=(15,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    YMIN=-15
+    YMAX=15
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    
+    #center is approximately the one on the original raw image (may be changed)
+    #x0=int(all_pointing[index][0])
+    x0=int(thex0[index])
+   
+    
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+    
+    # refine center in X,Y
+    star_region_X=full_image[:,x0-star_halfwidth:x0+star_halfwidth]
+    
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+    
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    x0=int(avX+x0-star_halfwidth)
+      
+    
+    # find the center in Y on the spectrum
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    # cut the image in vertical and normalise by exposition time
+    reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    # calibration in wavelength
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=True)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+        
+
+    X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+    T=np.transpose(reduc_image)
+        
+        
+    plt.contourf(X, Y, reduc_image, 20, alpha=.75, cmap='jet',origin='lower')
+    C = plt.contour(X, Y, reduc_image , 20, colors='black', linewidth=.5,origin='lower')
+        
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+            plt.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+            plt.text(line['lambda'],YMAX-3,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+    
+    
+    
+    plt.axis([X.min(), X.max(), Y.min(), Y.max()]); plt.grid(True)
+    plt.title(all_titles[index])
+    plt.grid(color='white', ls='solid')
+    plt.text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('pixels')
+    plt.ylim(YMIN,YMAX)
+    plt.xlim(0.,1200.)
+    plt.savefig(figfilename)
+    
+#-------------------------------------------------------------------------------------------------------------------------------
+
+
+def ShowOneOrder_contour(all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneOrder_contour:      
+    ====================
+    
+    Show the contour lines of 2D-Spectrum order +1 for each images
+
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: 
+        all the image in a pdf file 
+    
+    """
+    NBIMGPERROW=2
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    
+    YMIN=-10
+    YMAX=10
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    title='Images of {}'.format(object_name)
+    
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    for index in np.arange(0,NBIMAGES):
+        
+      
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+         
+        
+        
+        #center is approximately the one on the original raw image (may be changed)  
+        x0=int(thex0[index])
+    
+        
+        # Extract the image    
+        full_image=np.copy(all_images[index])
+        
+        # refine center in X,Y
+        star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+        profile_X=np.sum(star_region_X,axis=0)
+        profile_Y=np.sum(star_region_X,axis=1)
+        
+        NX=profile_X.shape[0]
+        NY=profile_Y.shape[0]
+
+        X_=np.arange(NX)
+        Y_=np.arange(NY)
+    
+        avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+        avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+        x0=int(avX+x0-star_halfwidth)
+       
+        
+    
+        # find the center in Y
+        yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+        y0=np.where(yprofile==yprofile.max())[0][0]
+       
+        
+        
+
+        # cut the image to have right spectrum (+1 order)
+        # the origin is the is the star center
+        reduc_image=np.copy(full_image[y0-20:y0+20,x0:spec_index_max])/all_expo[index] 
+        reduc_image[:,0:100]=0  # erase central star
+    
+   
+    
+        X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+        Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+        
+        Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+        # calibration of wavelength
+        grating_name=all_filt[index].replace('dia ','')
+        holo = Hologram(grating_name,verbose=False)
+        lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+       
+    
+        X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+        T=np.transpose(reduc_image)
+                   
+        
+        
+        axarr[iy,ix].contourf(X, Y, reduc_image, 10, alpha=.75, cmap='jet')
+        C = axarr[iy,ix].contour(X, Y, reduc_image , 10, colors='black', linewidth=.5)
+        
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],YMAX-3,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); 
+        axarr[iy,ix].grid(True)
+        axarr[iy,ix].set_title(all_titles[index])
+    
+        axarr[iy,ix].grid(color='white', ls='solid')
+        axarr[iy,ix].text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('pixels')
+        axarr[iy,ix].set_ylim(YMIN,YMAX)
+        axarr[iy,ix].set_xlim(0.,1100.)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            print "pdf Page written ",PageNum
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    print "Final pdf Page written ",PageNum
+    f.show()
+    pp.close()  
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+    
+def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowManyTransverseSpectrum:
+    ---------------------------
+    
+    Show the transverse profile in different wavelength bands. Notice the background is subtracted to have a correct
+    FWHM calculation
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: 
+        - the image of transverse spectra
+    
+    """
+    
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    # bands in wavelength
+    wlmin=np.array([400,500,600,700,800,900.])
+    wlmax=np.array([500,600,700,800,900,1000.])
+    
+    #wlmin=np.array([400,450,500,550,600,650,700,750,800,850,900,950])
+    #wlmax=np.array([450,500,550,600,650,700,750,800,850,900,950,1000])
+    
+    # titles
+    thetitle=all_titles[index]+' '+all_filt[index]
+    
+    NBANDS=wlmin.shape[0]
+    
+    figfilename=os.path.join(dir_top_img,figname)  
+    plt.figure(figsize=(16,6))
+       
+    
+    #center is approximately the one on the original raw image (may be changed)  
+    x0=int(thex0[index])
+    
+        
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+        
+    # refine center in X,Y
+    star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+        
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    # redefine x0, star center
+    x0=int(avX+x0-star_halfwidth)
+       
+     # subsample of the image (left part)
+    reduc_image=full_image[:,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+   
+     
+      
+    ## find the     
+    yprofile=np.sum(reduc_image,axis=1)
+    yy0=np.where(yprofile==yprofile.max())[0][0]    
+        
+    
+    # wavelength calibration
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0]) 
+    DY_Size_Pixels=Y_Size_Pixels-yy0
+   
+   
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=True)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    
+    all_Yprofile = []
+    all_fwhm = []
+    
+    for band in np.arange(NBANDS):
+        iband=band
+        w1=wlmin[iband]
+        w2=wlmax[iband]
+        Xpixel_range=np.where(np.logical_and(lambdas>w1,lambdas<w2))[0]
+        sub_image=np.copy(reduc_image[:,Xpixel_range])
+        sub_yprofile=np.sum(sub_image,axis=1)
+        sub_yprofile_background=np.median(sub_yprofile)
+        sub_yprofile_clean=sub_yprofile-sub_yprofile_background
+        
+        mean,sig=weighted_avg_and_std(DY_Size_Pixels,np.abs(sub_yprofile_clean))
+        
+        all_Yprofile.append(sub_yprofile_clean)
+        label="$\lambda$ = {:3.0f}-{:3.0f}nm, $fwhm=$ {:2.1f} pix".format(w1,w2,2.36*sig)
+        all_fwhm.append(2.36*sig)
+        plt.plot(DY_Size_Pixels,sub_yprofile_clean,'-',label=label,lw=2)
+        
+    plt.title(thetitle) 
+    plt.grid(color='grey', ls='solid')
+    plt.legend(loc=1)
+    plt.xlim(-30.,30.)
+    plt.savefig(figfilename)
+    
+    all_fwhm=np.array(all_fwhm)
+    wl_average=np.average([wlmin,wlmax],axis=0)
+    
+    return wl_average,all_fwhm
+
+
+#--------------------------------------------------------------------------------------------------------------
+    
+def ShowLongitudinalSpectraSelection(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowLongitudinalSpectraSelection::
+        
+        The goal is to compare the spectrum shape when varying the transverse selection width.
+        Notice  background subtraction is performed
+    
+        input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+        output: 
+        - the image of longitudinal spectra for different transverse selection width
+    
+    
+    """
+    plt.figure(figsize=(15,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    # different selection width
+    #--------------------------
+    wsel_set=np.array([1.,3.,5.,7.,10.])
+    NBSEL=wsel_set.shape[0]
+    
+
+    figfilename=os.path.join(dir_top_img,figname)         
+    thetitle=all_titles[index]+' '+all_filt[index]   
+    
+    #--------------
+    #center is approximately the one on the original raw image (may be changed)  
+    x0=int(thex0[index])
+    
+        
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+        
+    # refine center in X,Y
+    star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+        
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    # redefine x0, star center
+    x0=int(avX+x0-star_halfwidth)
+
+    
+    
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=True)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    
+    all_longitudinal_profile = []
+    all_max = []
+    for thewsel in wsel_set:
+                
+        y_indexsel=np.where(np.abs(Transverse_Pixel_Size)<=thewsel)[0]
+                
+        
+        longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
+        
+        longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
+        
+        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        
+        
+        all_max.append(np.max(longitudinal_profile1d_nobkg))
+        
+        all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
+        
+        thelabel=' abs(y) < {} '.format(thewsel)
+        
+        plt.plot(lambdas,longitudinal_profile1d,'-',label=thelabel,lw=2)
+        
+    all_max=np.array(all_max)
+    themax=np.max(all_max)
+    
+    YMIN=0.
+    YMAX=1.2*themax
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+            plt.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+            plt.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+    
+    
+    plt.title(thetitle)
+   
+    
+    plt.grid(color='grey', ls='solid')
+    #plt.text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('Intensity')
+    
+    plt.xlim(0.,1200.)
+    plt.ylim(0.,YMAX)
+    plt.legend(loc=1)
+    plt.savefig(figfilename)
+    
+    
+#--------------------------------------------------------------------------------------------------------------------------------------
+def ShowOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+        
+    """
+    ShowOneAbsorptionLine:
+    ----------------------
+    
+    Shows the O2 absorption line as a quality test of the disperser.
+    Notice  background subtraction is performed
+    
+        input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+        output: 
+        - the image of longitudinal spectra around O2 abs fine for different transverse width
+
+    """
+    
+    # define O2 line
+    O2WL1=740
+    O2WL2=750
+    O2WL3=782
+    O2WL4=790
+    
+    #current analysis for O2
+    wl1=O2WL1
+    wl2=O2WL2
+    wl3=O2WL3
+    wl4=O2WL4
+    
+    plt.figure(figsize=(10,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    #different transverse width
+    wsel_set=np.array([1.,3.,5.,7.,10.])
+    NBSEL=wsel_set.shape[0]
+    
+    
+    figfilename=os.path.join(dir_top_img,figname)     
+    thetitle=all_titles[index]+' '+all_filt[index]   
+    #
+    #--------------
+    #center is approximately the one on the original raw image (may be changed)  
+    x0=int(thex0[index])
+    
+        
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+        
+    # refine center in X,Y
+    star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+        
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    # redefine x0, star center
+    x0=int(avX+x0-star_halfwidth)
+
+    
+    
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    
+    
+    # wavelength calibration
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=False)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    
+    
+    
+        # 1 container of full 1D Spectra
+    all_longitudinal_profile = []
+    for thewsel in wsel_set:                
+        y_indexsel=np.where(np.abs(Transverse_Pixel_Size)<=thewsel)[0]      
+        longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
+        longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
+        
+        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        
+        
+        all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
+        
+        
+        
+    # 2 bins of the region around abs line    
+    selected_indexes=np.where(np.logical_and(lambdas>=wl1,lambdas<=wl4))        
+    wl_cut=lambdas[selected_indexes]
+    
+    # 3 continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(lambdas>=wl1,lambdas<=wl2),np.logical_and(lambdas>=wl3,lambdas<wl4)))
+    wl_cont=lambdas[continuum_indexes]
+    
+    
+    # 3 extract sub-spectrum
+    all_absline_profile = []
+    all_cont_profile = []
+    fit_line_x=np.linspace(wl1,wl4,50)
+    idx=0
+    for thewsel in wsel_set: 
+        full_spec=all_longitudinal_profile[idx]
+        spec_cut=full_spec[selected_indexes]
+        all_absline_profile.append(spec_cut)
+        
+        spec_cont=full_spec[continuum_indexes]
+        z_cont_fit=np.polyfit(wl_cont, spec_cont,1)
+        pol_cont_fit=np.poly1d(z_cont_fit)        
+        fit_line_y=pol_cont_fit(fit_line_x)
+        all_cont_profile.append(fit_line_y)        
+        idx+=1
+    # 4 plot
+    idx=0
+    for thewsel in wsel_set: 
+        thelabel='abs(y) < {} '.format(thewsel)
+        plt.plot(wl_cut,all_absline_profile[idx],'-',label=thelabel,lw=2)
+        plt.plot(fit_line_x,all_cont_profile[idx],'k:')
+        idx+=1
+    
+    
+    
+    plt.title(thetitle)
+   
+    
+    plt.grid(color='grey', ls='solid')
+    #plt.text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('Intensity')
+    
+    plt.xlim(wl1,wl4+20)
+    #plt.ylim(0.,YMAX)
+    plt.legend(loc=1)
+    plt.savefig(figfilename)
+
+#-------------------------------------------------------------------------------------------------------------------
+    
+    
+
+def ShowOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    
+    ShowOneEquivWidth:
+    -----------------
+    
+        Shows the O2 equivalent width as a quality test of the disperser
+        Notice  background substraction done
+        
+        input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+        output: 
+        - the plot of equivalent width around O2 abs fine for different transverse widt
+    
+    """
+    
+    O2WL1=740
+    O2WL2=750
+    O2WL3=782
+    O2WL4=790
+    
+    wl1=O2WL1
+    wl2=O2WL2
+    wl3=O2WL3
+    wl4=O2WL4
+    
+    plt.figure(figsize=(10,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    # transverse width selection
+    wsel_set=np.array([1.,3.,5.,7.,10.])
+    NBSEL=wsel_set.shape[0]
+     
+    figfilename=os.path.join(dir_top_img,figname)       
+    thetitle=all_titles[index]+' '+all_filt[index]   
+    
+    
+  
+    #--------------
+    #center is approximately the one on the original raw image (may be changed)  
+    x0=int(thex0[index])
+    
+        
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+        
+    # refine center in X,Y
+    star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+        
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    # redefine x0, star center
+    x0=int(avX+x0-star_halfwidth)
+
+    
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    
+    # wavelength calibration
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=True)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    
+    # 1 container of full 1D Spectra
+    all_longitudinal_profile = []
+    for thewsel in wsel_set:                
+        y_indexsel=np.where(np.abs(Transverse_Pixel_Size)<=thewsel)[0]      
+        longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
+        longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
+        
+        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        
+        all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
+        
+        
+    # 2 bins of the region around abs line    
+    selected_indexes=np.where(np.logical_and(lambdas>=wl1,lambdas<=wl4))        
+    wl_cut=lambdas[selected_indexes]
+    
+    # 3 continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(lambdas>=wl1,lambdas<=wl2),np.logical_and(lambdas>=wl3,lambdas<wl4)))
+    wl_cont=lambdas[continuum_indexes]
+    
+    
+    # 3 extract sub-spectrum
+    all_absline_profile = []
+    all_cont_profile = []
+    all_ratio = []
+    fit_line_x=np.linspace(wl1,wl4,50)
+    idx=0
+    for thewsel in wsel_set: 
+        full_spec=all_longitudinal_profile[idx]
+        spec_cut=full_spec[selected_indexes]
+        all_absline_profile.append(spec_cut)
+        
+        spec_cont=full_spec[continuum_indexes]
+        z_cont_fit=np.polyfit(wl_cont, spec_cont,1)
+        pol_cont_fit=np.poly1d(z_cont_fit)        
+        fit_line_y=pol_cont_fit(fit_line_x)
+        full_continum=pol_cont_fit(wl_cut) 
+        ratio=spec_cut/full_continum
+        all_cont_profile.append(fit_line_y)
+        all_ratio.append(ratio)        
+        idx+=1
+    # 4 plot
+    idx=0
+    for thewsel in wsel_set:
+        thelabel='abs(y) < {} '.format(thewsel)
+        plt.plot(wl_cut,all_ratio[idx],'-',label=thelabel,lw=2)
+        idx+=1
+
+    
+    plt.title(thetitle)
+   
+    
+    plt.grid(color='grey', ls='solid')
+    #plt.text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('Equivalent Width')
+    
+    plt.xlim(wl1,wl4+20)
+    #plt.ylim(0.,YMAX)
+    plt.legend(loc=1)
+    plt.savefig(figfilename)
+    
+    
+#---------------------------------------------------------------------------------------------
+
+
+def ComputeEquivalentWidth(wl,spec,wl1,wl2,wl3,wl4):
+    """
+    ComputeEquivalentWidth : compute the equivalent width must be computed
+    
+    input:
+        wl : array of wavelength
+        spec: array of wavelength
+        
+        wl1,wl2,wl3,wl4 : range of wavelength
+    
+    
+    
+    """
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+     
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,1)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+
+    # compute bin size in the band
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                                  
+    
+    # calculation of equivalent width    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()    
+    
+    return equivalent_width
+
+
+#-----------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------------------------------
+def CalculateOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+        
+    """
+    CalculateOneAbsorptionLine:
+    ----------------------
+    
+    Shows the O2 absorption line as a quality test of the disperser.
+    Notice  background subtraction is performed
+    
+        input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+        output: 
+        - the image of longitudinal spectra around O2 abs fine for different transverse width
+
+    """
+    
+    # define O2 line
+    O2WL1=740
+    O2WL2=750
+    O2WL3=782
+    O2WL4=790
+    
+    #current analysis for O2
+    wl1=O2WL1
+    wl2=O2WL2
+    wl3=O2WL3
+    wl4=O2WL4
+    
+    plt.figure(figsize=(12,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    #different transverse width
+    wsel_set=np.array([1.,3.,5.,7.,10.])
+    NBSEL=wsel_set.shape[0]
+    
+    
+    figfilename=os.path.join(dir_top_img,figname)     
+    thetitle=all_titles[index]+' '+all_filt[index]   
+    #
+    #--------------
+    #center is approximately the one on the original raw image (may be changed)  
+    x0=int(thex0[index])
+    
+        
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+        
+    # refine center in X,Y
+    star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+        
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    # redefine x0, star center
+    x0=int(avX+x0-star_halfwidth)
+
+    
+    
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    
+    
+    # wavelength calibration
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=False)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    
+    
+    
+        # 1 container of full 1D Spectra
+    all_longitudinal_profile = []
+    all_eqw=[]
+    for thewsel in wsel_set:                
+        y_indexsel=np.where(np.abs(Transverse_Pixel_Size)<=thewsel)[0]      
+        longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
+        longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
+        
+        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        eqw=ComputeEquivalentWidth(lambdas,longitudinal_profile1d_nobkg,wl1,wl2,wl3,wl4)
+        all_eqw.append(eqw)
+        all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
+        
+        
+        
+    # 2 bins of the region around abs line    
+    selected_indexes=np.where(np.logical_and(lambdas>=wl1,lambdas<=wl4))        
+    wl_cut=lambdas[selected_indexes]
+    
+    # 3 continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(lambdas>=wl1,lambdas<=wl2),np.logical_and(lambdas>=wl3,lambdas<wl4)))
+    wl_cont=lambdas[continuum_indexes]
+    
+    
+    # 3 extract sub-spectrum
+    all_absline_profile = []
+    all_cont_profile = []
+    fit_line_x=np.linspace(wl1,wl4,50)
+    idx=0
+    for thewsel in wsel_set: 
+        full_spec=all_longitudinal_profile[idx]
+        spec_cut=full_spec[selected_indexes]
+        all_absline_profile.append(spec_cut)
+        
+        spec_cont=full_spec[continuum_indexes]
+        z_cont_fit=np.polyfit(wl_cont, spec_cont,1)
+        pol_cont_fit=np.poly1d(z_cont_fit)        
+        fit_line_y=pol_cont_fit(fit_line_x)
+        all_cont_profile.append(fit_line_y)        
+        idx+=1
+    # 4 plot
+    idx=0
+    for thewsel in wsel_set: 
+        thelabel='abs(y) < {} ; EQW={:2.2f} nm '.format(thewsel,all_eqw[idx])
+        plt.plot(wl_cut,all_absline_profile[idx],'-',label=thelabel,lw=2)
+        plt.plot(fit_line_x,all_cont_profile[idx],'k:')
+        idx+=1
+    
+    
+    
+    plt.title(thetitle)
+   
+    
+    plt.grid(color='grey', ls='solid')
+    #plt.text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('Intensity')
+    
+    plt.xlim(wl1,wl4+40)
+    #plt.ylim(0.,YMAX)
+    plt.legend(loc=1)
+    plt.savefig(figfilename)
+
+#-------------------------------------------------------------------------------------------------------------------
+
+
+def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    
+    ShowOneEquivWidth:
+    -----------------
+    
+        Shows the O2 equivalent width as a quality test of the disperser
+        Notice  background substraction done
+        
+        input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+        output: 
+        - the plot of equivalent width around O2 abs fine for different transverse widt
+    
+    """
+    
+    O2WL1=740
+    O2WL2=750
+    O2WL3=782
+    O2WL4=790
+    
+    wl1=O2WL1
+    wl2=O2WL2
+    wl3=O2WL3
+    wl4=O2WL4
+    
+    plt.figure(figsize=(12,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    # transverse width selection
+    wsel_set=np.array([1.,3.,5.,7.,10.])
+    NBSEL=wsel_set.shape[0]
+     
+    figfilename=os.path.join(dir_top_img,figname)       
+    thetitle=all_titles[index]+' '+all_filt[index]   
+    
+    
+  
+    #--------------
+    #center is approximately the one on the original raw image (may be changed)  
+    x0=int(thex0[index])
+    
+        
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+        
+    # refine center in X,Y
+    star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+        
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    # redefine x0, star center
+    x0=int(avX+x0-star_halfwidth)
+
+    
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    
+    # wavelength calibration
+    grating_name=all_filt[index].replace('dia ','')
+    holo = Hologram(grating_name,verbose=True)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    
+    # 1 container of full 1D Spectra
+    all_longitudinal_profile = []
+    all_eqw=[]
+    for thewsel in wsel_set:                
+        y_indexsel=np.where(np.abs(Transverse_Pixel_Size)<=thewsel)[0]      
+        longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
+        longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
+        
+        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        eqw=ComputeEquivalentWidth(lambdas,longitudinal_profile1d_nobkg,wl1,wl2,wl3,wl4)
+        all_eqw.append(eqw)
+        all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
+        
+        
+    # 2 bins of the region around abs line    
+    selected_indexes=np.where(np.logical_and(lambdas>=wl1,lambdas<=wl4))        
+    wl_cut=lambdas[selected_indexes]
+    
+    # 3 continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(lambdas>=wl1,lambdas<=wl2),np.logical_and(lambdas>=wl3,lambdas<wl4)))
+    wl_cont=lambdas[continuum_indexes]
+    
+    
+    # 3 extract sub-spectrum
+    all_absline_profile = []
+    all_cont_profile = []
+    all_ratio = []
+    fit_line_x=np.linspace(wl1,wl4,50)
+    idx=0
+    for thewsel in wsel_set: 
+        full_spec=all_longitudinal_profile[idx]
+        spec_cut=full_spec[selected_indexes]
+        all_absline_profile.append(spec_cut)
+        
+        spec_cont=full_spec[continuum_indexes]
+        z_cont_fit=np.polyfit(wl_cont, spec_cont,1)
+        pol_cont_fit=np.poly1d(z_cont_fit)        
+        fit_line_y=pol_cont_fit(fit_line_x)
+        full_continum=pol_cont_fit(wl_cut) 
+        ratio=spec_cut/full_continum
+        all_cont_profile.append(fit_line_y)
+        all_ratio.append(ratio)        
+        idx+=1
+    # 4 plot
+    idx=0
+    for thewsel in wsel_set:
+        #thelabel='abs(y) < {} '.format(thewsel)
+        thelabel='abs(y) < {} ; EQW={:2.2f} nm '.format(thewsel,all_eqw[idx])
+        plt.plot(wl_cut,all_ratio[idx],'-',label=thelabel,lw=2)
+        idx+=1
+
+    
+    plt.title(thetitle)
+   
+    
+    plt.grid(color='grey', ls='solid')
+    #plt.text(100,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('Equivalent Width')
+    
+    plt.xlim(wl1,wl4+40)
+    #plt.ylim(0.,YMAX)
+    plt.legend(loc=1)
+    plt.savefig(figfilename)
+    
+    
+#---------------------------------------------------------------------------------------------
+
+
+
+
+
 
 
 
