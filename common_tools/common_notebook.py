@@ -118,6 +118,8 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
     all_header = []
     all_expo = []
     all_filt = []
+    all_filt1 = []
+    all_filt2 = []
    
     NBFILES=sorted_filenames.shape[0]
 
@@ -132,6 +134,9 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
         airmass = header['AIRMASS']
         expo = header['EXPTIME']
         filters = header['FILTERS']
+        filter1 = header['FILTER1']
+        filter2 = header['FILTER2']
+        
     
         num=sorted_numbers[idx]
         title=object_name+" z= {:3.2f} Nb={}".format(float(airmass),num)
@@ -145,9 +150,12 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
         all_header.append(header)
         all_expo.append(expo)
         all_filt.append(filters)
+        all_filt1.append(filter1)
+        all_filt2.append(filter2)
+        
         hdu_list.close()
         
-    return all_dates,all_airmass,all_images,all_titles,all_header,all_expo,all_filt
+    return all_dates,all_airmass,all_images,all_titles,all_header,all_expo,all_filt,all_filt1,all_filt2
 
 #------------------------------------------------------------------------------
 
@@ -167,6 +175,8 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(color='white', ls='solid')
         axarr[iy,ix].text(5.,5,all_filt[index],verticalalignment='bottom', horizontalalignment='left',color='yellow', fontweight='bold',fontsize=16)
+        thetitle="{}".format(index)
+        axarr[iy,ix].set_title(thetitle)
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
 
@@ -1022,17 +1032,17 @@ def get_filt_idx(listoffilt):
     
     index=0
     for filt in listoffilt:
-        if filt == 'dia Ron400':
+        if filt == 'dia Ron400' or filt == 'RG715 Ron400' or  filt == 'FGB37 Ron400':
             filt0_idx.append(index)
-        elif filt == 'dia Thor300':
+        elif filt == 'dia Thor300' or filt == 'RG715 Thor300' or  filt == 'FGB37 Thor300':
             filt1_idx.append(index)
-        elif filt == 'dia HoloPhP':
+        elif filt == 'dia HoloPhP' or filt == 'RG715 HoloPhP' or  filt == 'FGB37 HoloPhP':
             filt2_idx.append(index)
-        elif filt == 'dia HoloPhAg':
+        elif filt == 'dia HoloPhAg' or filt == 'RG715 HoloPhAg' or  filt == 'FGB37 HoloPhAg':
             filt3_idx.append(index)
-        elif filt == 'dia HoloAmAg':
+        elif filt == 'dia HoloAmAg' or filt == 'RG715 HoloAmAg' or  filt == 'FGB37 HoloAmAg':
             filt4_idx.append(index)
-        elif filt == 'dia Ron200':
+        elif filt == 'dia Ron200' or filt == 'RG715 Ron200' or  filt == 'FGB37 Ron200':
             filt5_idx.append(index)
         else :
             print ' common_notebook::get_filt_idx unknown:  filter-disperser ',filt
@@ -1046,6 +1056,7 @@ def get_filt_idx(listoffilt):
     filt3_idx=np.array(filt3_idx)
     filt4_idx=np.array(filt4_idx)
     filt5_idx=np.array(filt5_idx)
+    filt6_idx=np.array(filt6_idx)
     
     return filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx
 
@@ -1131,7 +1142,7 @@ def remove_from_bad(arr,index_to_remove):
 #-------------------------------------------------------------------------------
     
 
-def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx=None,filt6_idx=None):
+def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx):
     """
     guess_central_position:
     ----------------------
@@ -1295,19 +1306,19 @@ def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,fi
     
     # filter 5
     if filt5_idx.shape[0]>0:  
-        if filt5_idx != None and filt5_idx.shape[0] != 0:       
-            aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
-            if (bad_idx_x5.shape[0] != 0):
-                print 'bad filt 5 x : ',bad_idx_x5
-                x_guess[bad_idx_x5]=aver_x5    # do the correction
+          
+        aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
+        if (bad_idx_x5.shape[0] != 0):
+            print 'bad filt 5 x : ',bad_idx_x5
+            #x_guess[bad_idx_x5]=aver_x5    # do the correction
     
         aver_y5,std_y5,bad_idx_y5=check_bad_guess(y_guess,filt5_idx)
         if (bad_idx_y5.shape[0] != 0):
             print 'bad filt 5 y : ',bad_idx_y5
-            y_guess[bad_idx_y5]=aver_y5    # do the correction  
+            #y_guess[bad_idx_y5]=aver_y5    # do the correction  
             
     # filter 6 
-    if filt6_idx != None and filt6_idx.shape[0] != 0:       
+    if filt6_idx.shape[0]> 0:       
         aver_x6,std_x6,bad_idx_x6=check_bad_guess(x_guess,filt6_idx)
         if (bad_idx_x6.shape[0] != 0):
             print 'bad filt 6 x : ',bad_idx_x6
