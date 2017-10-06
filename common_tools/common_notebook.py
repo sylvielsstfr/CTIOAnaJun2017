@@ -1061,6 +1061,28 @@ def get_filt_idx(listoffilt):
     return filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx
 
 #------------------------------------------------------------------------------------
+def get_disperser_filtname(filt):
+    """
+    
+    """
+    if filt == 'dia Ron400' or filt == 'RG715 Ron400' or  filt == 'FGB37 Ron400':
+        return 'Ron400'
+    elif filt == 'dia Thor300' or filt == 'RG715 Thor300' or  filt == 'FGB37 Thor300':
+        return 'Thor300'
+    elif filt == 'dia HoloPhP' or filt == 'RG715 HoloPhP' or  filt == 'FGB37 HoloPhP':
+        return 'HoloPhP'
+    elif filt == 'dia HoloPhAg' or filt == 'RG715 HoloPhAg' or  filt == 'FGB37 HoloPhAg':
+        return 'HoloPhAg'
+    elif filt == 'dia HoloAmAg' or filt == 'RG715 HoloAmAg' or  filt == 'FGB37 HoloAmAg':
+        return 'HoloAmAg'
+    elif filt == 'dia Ron200' or filt == 'RG715 Ron200' or  filt == 'FGB37 Ron200':
+            return 'HoloRon400'
+    else :
+        print ' common_notebook::get_filt_idx unknown:  filter-disperser ',filt
+    return 'unknown'
+    
+
+#------------------------------------------------------------------------------------
 def guess_init_fit(theimage,xmin=0,xmax=-1,ymin=0,ymax=-1):
     """
     guess_init_fit::
