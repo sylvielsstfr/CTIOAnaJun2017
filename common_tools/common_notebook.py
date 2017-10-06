@@ -1808,8 +1808,10 @@ def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_tit
         sub_yprofile_clean=sub_yprofile-sub_yprofile_background
         
         mean,sig=weighted_avg_and_std(DY_Size_Pixels,np.abs(sub_yprofile_clean))
-        tmin=NDY_C-15
-        tmax=NDY_C+15
+        
+        # cut the tails not to bias the FWHM
+        tmin=NDY_C-12
+        tmax=NDY_C+12
         mean_2,sig_2=weighted_avg_and_std(DY_Size_Pixels[tmin:tmax],np.abs(sub_yprofile_clean[tmin:tmax]))
         
         
@@ -1817,6 +1819,8 @@ def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_tit
         label="$\lambda$ = {:3.0f}-{:3.0f}nm, $fwhm=$ {:2.1f} pix".format(w1,w2,2.36*sig_2)
         all_fwhm.append(2.36*sig_2)
         plt.plot(DY_Size_Pixels,sub_yprofile_clean,'-',label=label,lw=2)
+        plt.title("Transverse size for different wavelength")
+        plt.xlabel("Y - pixel")
         
     plt.title(thetitle) 
     plt.grid(color='grey', ls='solid')
@@ -1861,6 +1865,8 @@ def ShowLongitudinalSpectraSelection(index,all_images,all_pointing,thex0,they0,a
     spec_index_min=100  # cut the left border
     spec_index_max=1900 # cut the right border
     star_halfwidth=70
+    central_star_cut=100
+    
     
     # different selection width
     #--------------------------
@@ -1903,7 +1909,7 @@ def ShowLongitudinalSpectraSelection(index,all_images,all_pointing,thex0,they0,a
     y0=np.where(yprofile==yprofile.max())[0][0]
 
     reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
-    reduc_image[:,0:100]=0  # erase central star
+    reduc_image[:,0:central_star_cut]=0  # erase central star
     
     X_Size_Pixels=np.arange(0,reduc_image.shape[1])
     Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
@@ -1911,7 +1917,7 @@ def ShowLongitudinalSpectraSelection(index,all_images,all_pointing,thex0,they0,a
     
     
     grating_name=all_filt[index].replace('dia ','')
-    holo = Hologram(grating_name,verbose=True)
+    holo = Hologram(grating_name,verbose=False)
     lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
     
     all_longitudinal_profile = []
@@ -1920,22 +1926,27 @@ def ShowLongitudinalSpectraSelection(index,all_images,all_pointing,thex0,they0,a
                 
         y_indexsel=np.where(np.abs(Transverse_Pixel_Size)<=thewsel)[0]
                 
-        
+        # extract longitudinal profile
         longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
-        
         longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
         
-        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        #compute the background between 100-150 pixel
+        magnitude_bkg=np.median(longitudinal_profile1d[central_star_cut:central_star_cut+50])
+        longitudinal_profile1d_bkg=np.copy(longitudinal_profile1d)
+        longitudinal_profile1d_bkg[:]=magnitude_bkg
+        longitudinal_profile1d_bkg[0:central_star_cut]=0
+        
+        
+        # longitudinal background with background subtraction
         longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
         
         
         all_max.append(np.max(longitudinal_profile1d_nobkg))
-        
         all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
         
         thelabel=' abs(y) < {} '.format(thewsel)
         
-        plt.plot(lambdas,longitudinal_profile1d,'-',label=thelabel,lw=2)
+        plt.plot(lambdas,longitudinal_profile1d_nobkg,'-',label=thelabel,lw=2)
         
     all_max=np.array(all_max)
     themax=np.max(all_max)
@@ -2007,6 +2018,7 @@ def ShowOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_titles,o
     spec_index_min=100  # cut the left border
     spec_index_max=1900 # cut the right border
     star_halfwidth=70
+    central_star_cut=100 # erease central region
     
     #different transverse width
     wsel_set=np.array([1.,3.,5.,7.,10.])
@@ -2048,7 +2060,7 @@ def ShowOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_titles,o
     y0=np.where(yprofile==yprofile.max())[0][0]
 
     reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
-    reduc_image[:,0:100]=0  # erase central star
+    reduc_image[:,0:central_star_cut]=0  # erase central star
     
     X_Size_Pixels=np.arange(0,reduc_image.shape[1])
     Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
@@ -2070,8 +2082,17 @@ def ShowOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_titles,o
         longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
         longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
         
-        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        
+        #compute the background between 100-150 pixel
+        magnitude_bkg=np.median(longitudinal_profile1d[central_star_cut:central_star_cut+50])
+        longitudinal_profile1d_bkg=np.copy(longitudinal_profile1d)
+        longitudinal_profile1d_bkg[:]=magnitude_bkg
+        longitudinal_profile1d_bkg[0:central_star_cut]=0
+        
+        
+        # longitudinal background with background subtraction
         longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        
         
         
         all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
@@ -2171,6 +2192,7 @@ def ShowOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,objec
     spec_index_min=100  # cut the left border
     spec_index_max=1900 # cut the right border
     star_halfwidth=70
+    central_star_cut=100
     
     # transverse width selection
     wsel_set=np.array([1.,3.,5.,7.,10.])
@@ -2212,7 +2234,7 @@ def ShowOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,objec
     y0=np.where(yprofile==yprofile.max())[0][0]
 
     reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
-    reduc_image[:,0:100]=0  # erase central star
+    reduc_image[:,0:central_star_cut]=0  # erase central star
     
     X_Size_Pixels=np.arange(0,reduc_image.shape[1])
     Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
@@ -2231,7 +2253,14 @@ def ShowOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,objec
         longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
         longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
         
-        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        
+        #compute the background between 100-150 pixel
+        magnitude_bkg=np.median(longitudinal_profile1d[central_star_cut:central_star_cut+50])
+        longitudinal_profile1d_bkg=np.copy(longitudinal_profile1d)
+        longitudinal_profile1d_bkg[:]=magnitude_bkg
+        longitudinal_profile1d_bkg[0:central_star_cut]=0
+        
+        # do bkg substraction
         longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
         
         all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
@@ -2388,6 +2417,7 @@ def CalculateOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_tit
     spec_index_min=100  # cut the left border
     spec_index_max=1900 # cut the right border
     star_halfwidth=70
+    central_star_cut=100
     
     #different transverse width
     wsel_set=np.array([1.,3.,5.,7.,10.])
@@ -2429,7 +2459,7 @@ def CalculateOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_tit
     y0=np.where(yprofile==yprofile.max())[0][0]
 
     reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
-    reduc_image[:,0:100]=0  # erase central star
+    reduc_image[:,0:central_star_cut]=0  # erase central star
     
     X_Size_Pixels=np.arange(0,reduc_image.shape[1])
     Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
@@ -2452,7 +2482,14 @@ def CalculateOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_tit
         longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
         longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
         
-        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        
+        #compute the background between 100-150 pixel
+        magnitude_bkg=np.median(longitudinal_profile1d[central_star_cut:central_star_cut+50])
+        longitudinal_profile1d_bkg=np.copy(longitudinal_profile1d)
+        longitudinal_profile1d_bkg[:]=magnitude_bkg
+        longitudinal_profile1d_bkg[0:central_star_cut]=0
+        
+        # bkg subtraction
         longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
         eqw=ComputeEquivalentWidth(lambdas,longitudinal_profile1d_nobkg,wl1,wl2,wl3,wl4)
         all_eqw.append(eqw)
@@ -2552,6 +2589,7 @@ def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,
     spec_index_min=100  # cut the left border
     spec_index_max=1900 # cut the right border
     star_halfwidth=70
+    central_star_cut=100
     
     # transverse width selection
     wsel_set=np.array([1.,3.,5.,7.,10.])
@@ -2593,7 +2631,7 @@ def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,
     y0=np.where(yprofile==yprofile.max())[0][0]
 
     reduc_image=full_image[y0-20:y0+20,x0:spec_index_max]/all_expo[index] 
-    reduc_image[:,0:100]=0  # erase central star
+    reduc_image[:,0:central_star_cut]=0  # erase central star
     
     X_Size_Pixels=np.arange(0,reduc_image.shape[1])
     Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
@@ -2613,8 +2651,16 @@ def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,
         longitudinal_profile2d=np.copy(reduc_image[y_indexsel,:])
         longitudinal_profile1d=np.sum(longitudinal_profile2d,axis=0)
         
-        longitudinal_profile1d_bkg=np.median(longitudinal_profile1d[100:150])
+        #compute the background between 100-150 pixel
+        magnitude_bkg=np.median(longitudinal_profile1d[central_star_cut:central_star_cut+50])
+        longitudinal_profile1d_bkg=np.copy(longitudinal_profile1d)
+        longitudinal_profile1d_bkg[:]=magnitude_bkg
+        longitudinal_profile1d_bkg[0:central_star_cut]=0
+        
+        # bkg subtraction
         longitudinal_profile1d_nobkg=longitudinal_profile1d-longitudinal_profile1d_bkg
+        
+        #eqw calculation
         eqw=ComputeEquivalentWidth(lambdas,longitudinal_profile1d_nobkg,wl1,wl2,wl3,wl4)
         all_eqw.append(eqw)
         all_longitudinal_profile.append(longitudinal_profile1d_nobkg)
