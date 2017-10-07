@@ -1469,6 +1469,36 @@ def check_central_star(all_images,x_star0,y_star0,all_titles,all_filt,Dx=100,Dy=
 #  Ana2DShapeSpectra
 #------------------------------------------------------------------------------------------------------------    
 
+def Pixel_To_Lambdas(grating_name,X_Size_Pixels,pointing,verboseflag):
+    """
+    Pixel_To_Lambdas:
+    -----------------
+    
+    Convert pixels into wavelengths
+    
+    input:
+        - grating_name : name of the disperser in calibration tools (Hologram Class)
+        - X_Size_Pixels : array of pixels numbers
+        - all_pointing : position of order 0 in original raw image
+        - verboseflag : Verbose flag for Hologram Class
+        
+    output
+        - lambdas : return wavelengths
+    
+    """
+    
+    if grating_name=='Ron200':
+        holo = Hologram('Ron400',verbose=verboseflag)
+    else:    
+        holo = Hologram(grating_name,verbose=verboseflag)
+    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,pointing)
+    if grating_name=='Ron200':
+        lambdas=lambdas*2.
+    return lambdas
+#-------------------------------------------------------------------------------------------
+        
+
+
 def ShowOneContour(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
     """
     ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
@@ -1543,13 +1573,16 @@ def ShowOneContour(index,all_images,all_pointing,thex0,they0,all_titles,object_n
     # calibration in wavelength
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=True)
-    else:    
-        holo = Hologram(grating_name,verbose=True)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
+    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],True)
+    
+    #if grating_name=='Ron200':
+    #    holo = Hologram('Ron400',verbose=True)
+    #else:    
+    #    holo = Hologram(grating_name,verbose=True)
+    #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    #if grating_name=='Ron200':
+    #    lambdas=lambdas*2.
         
 
     X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
@@ -1693,14 +1726,15 @@ def ShowOneOrder_contour(all_images,all_pointing,thex0,they0,all_titles,object_n
         # calibration of wavelength
         #grating_name=all_filt[index].replace('dia ','')
         grating_name=get_disperser_filtname(all_filt[index])
+        lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
         
-        if grating_name=='Ron200':
-            holo = Hologram('Ron400',verbose=False)
-        else:    
-            holo = Hologram(grating_name,verbose=False)
-        lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-        if grating_name=='Ron200':
-            lambdas=lambdas*2.
+        #if grating_name=='Ron200':
+        #     holo = Hologram('Ron400',verbose=False)
+        #else:    
+        #    holo = Hologram(grating_name,verbose=False)
+        #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+        #if grating_name=='Ron200':
+        #    lambdas=lambdas*2.
         
     
         X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
@@ -1840,17 +1874,9 @@ def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_tit
    
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
     
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=False)
-    else:    
-        holo = Hologram(grating_name,verbose=False)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
-    
-    
-    
+      
 
     
     all_Yprofile = []
@@ -1980,15 +2006,9 @@ def ShowLongitudinalSpectraSelection(index,all_images,all_pointing,thex0,they0,a
     
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
     
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=False)
-    else:    
-        holo = Hologram(grating_name,verbose=False)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
-    
+   
   
     
     all_longitudinal_profile = []
@@ -2142,14 +2162,9 @@ def ShowOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_titles,o
     # wavelength calibration
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
     
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=False)
-    else:    
-        holo = Hologram(grating_name,verbose=False)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
+    
         
     
     
@@ -2323,16 +2338,9 @@ def ShowOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,objec
     # wavelength calibration
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
     
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=False)
-    else:    
-        holo = Hologram(grating_name,verbose=False)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
-    
- 
+  
     
     # 1 container of full 1D Spectra
     all_longitudinal_profile = []
@@ -2558,15 +2566,8 @@ def CalculateOneAbsorptionLine(index,all_images,all_pointing,thex0,they0,all_tit
     # wavelength calibration
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
-    
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=False)
-    else:    
-        holo = Hologram(grating_name,verbose=False)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
-    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+     
     
     
     
@@ -2738,15 +2739,7 @@ def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,
     # wavelength calibration
     #grating_name=all_filt[index].replace('dia ','')
     grating_name=get_disperser_filtname(all_filt[index])
-    
-    if grating_name=='Ron200':
-        holo = Hologram('Ron400',verbose=False)
-    else:    
-        holo = Hologram(grating_name,verbose=False)
-    lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
-    if grating_name=='Ron200':
-        lambdas=lambdas*2.
-    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
     
 
     
