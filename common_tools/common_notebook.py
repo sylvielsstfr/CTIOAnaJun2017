@@ -1164,7 +1164,7 @@ def remove_from_bad(arr,index_to_remove):
 #-------------------------------------------------------------------------------
     
 
-def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx):
+def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx,check_quality_flag=False,sigmapix_quality_cut=10):
     """
     guess_central_position:
     ----------------------
