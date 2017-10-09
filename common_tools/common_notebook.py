@@ -156,8 +156,78 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
         hdu_list.close()
         
     return all_dates,all_airmass,all_images,all_titles,all_header,all_expo,all_filt,all_filt1,all_filt2
+#-------------------------------------------------------------------------------------------
+    
+def BuildRawSpec(sorted_filenames,sorted_numbers,object_name):
+    """
+    BuildRawSpec
+    ===============
+    """
 
-#------------------------------------------------------------------------------
+    all_dates = []
+    all_airmass = []
+    all_leftspectra = []
+    all_rightspectra = []
+    all_totleftspectra = []
+    all_totrightspectra = []
+    all_titles = []
+    all_header = []
+    all_expo = []
+    all_filt= []
+    all_filt1 = []
+    all_filt2 = []
+    all_elecgain = []
+   
+    NBFILES=sorted_filenames.shape[0]
+
+    for idx in range(NBFILES):  
+        
+        file=sorted_filenames[idx]    
+        
+        hdu_list=fits.open(file)
+        header=hdu_list[0].header
+        #print header
+        date_obs = header['DATE-OBS']
+        airmass = header['AIRMASS']
+        expo = header['EXPTIME']
+        num=sorted_numbers[idx]
+        filters = header['FILTERS']
+        filter1 = header['FILTER1']
+        filter2 = header['FILTER2']
+        
+        
+        title=object_name+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        gain = 0.25*(float(header['GTGAIN11'])+float(header['GTGAIN12'])+float(header['GTGAIN21'])+float(header['GTGAIN22']))
+        
+        # now reads the spectra
+        
+        table_data=hdu_list[1].data
+        
+        left_spectrum=table_data.field('RawLeftSpec')
+        right_spectrum=table_data.field('RawRightSpec')
+        tot_left_spectrum=table_data.field('TotLeftSpec')
+        tot_right_spectrum=table_data.field('TotRightSpec')
+        
+        all_dates.append(date_obs)
+        all_airmass.append(float(airmass))
+        all_leftspectra.append(left_spectrum)
+        all_rightspectra.append(right_spectrum)
+        all_totleftspectra.append(tot_left_spectrum)
+        all_totrightspectra.append(tot_right_spectrum)
+        all_titles.append(title)
+        all_header.append(header)
+        all_expo.append(expo)
+        all_filt.append(filters)
+        all_filt1.append(filter1)
+        all_filt2.append(filter2)
+        all_elecgain.append(gain)
+        hdu_list.close()
+        
+    return all_dates,all_airmass,all_titles,all_header,all_expo,all_leftspectra,all_rightspectra,all_totleftspectra,all_totrightspectra,all_filt,all_filt1,all_filt2,all_elecgain
+
+
+
+#--------------------------------------------------------------------------------------------
 
 def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
     """
@@ -440,7 +510,7 @@ def ShowOneOrder_contourinPDF(all_images,all_titles,thex0,they0,object_name,all_
     pp.close()
 #-------------------------------------------------------------------------------------------------------------------------------------  
     
-def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,dir_top_img,all_filt,date,figname,w=10,Dist=50,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
     """
     ShowTransverseProfile: Show the raw images without background subtraction
     =====================
@@ -470,11 +540,11 @@ def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,
     
 
     ############       Criteria for spectrum region selection #####################
-    DeltaX=1000
-    w=10
-    ws=80
-    Dist=3*w
-    right_edge = 1800
+    #DeltaX=1000
+    #w=10
+    #ws=80
+    #Dist=3*w
+    
     ##############################################################################
     
     # containers
@@ -524,9 +594,18 @@ def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,
         #y0 = they0[index]
         #im=axarr[iy,ix].imshow(data,vmin=-10,vmax=50)
         axarr[iy,ix].semilogy(yprofile,color='blue',lw=2)
+        
         axarr[iy,ix].semilogy([y0,y0],[ymin,ymax],'r-',lw=2)
+        
         axarr[iy,ix].semilogy([y0-w,y0-w],[ymin,ymax],'k-')
         axarr[iy,ix].semilogy([y0+w,y0+w],[ymin,ymax],'k-')
+        
+        axarr[iy,ix].semilogy([y0-w-Dist,y0-w-Dist],[ymin,ymax],'g-')
+        axarr[iy,ix].semilogy([y0+w-Dist,y0+w-Dist],[ymin,ymax],'g-')
+        
+        axarr[iy,ix].semilogy([y0-w+Dist,y0-w+Dist],[ymin,ymax],'g-')
+        axarr[iy,ix].semilogy([y0+w+Dist,y0+w+Dist],[ymin,ymax],'g-')
+        
         thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
         axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
         
@@ -4191,9 +4270,147 @@ def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,
 
 
 
+def ShowExtrSpectrainPDF(all_spectra,all_totspectra,all_titles,object_name,dir_top_img,all_filt,date,figname,NBIMGPERROW=2):
+    """
+    ShowExtrSpectrainPDF: Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBSPEC=len(all_spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    titlepage='Raw 1D Spectra 1D for {}, date : {}'.format(object_name,date)
+    
+    
+    
+    # loop on spectra  
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+    
+  
+        spectrum=all_spectra[index]
+        totspectrum=all_totspectra[index]
+        axarr[iy,ix].plot(spectrum,'r-',lw=2)
+        axarr[iy,ix].plot(totspectrum,'k:',lw=2)
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+      
+        max_y_to_plot=spectrum[:].max()*1.2
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+#---------------------------------------------------------------------------------------------------------    
 
+def CALSPECAbsLineIdentificationinPDF(spectra,pointing,all_titles,object_name,dir_top_images,all_filt,date,figname,tagname,NBIMGPERROW=2):
+    """
+    CALSPECAbsLineIdentification show the right part of spectrum with identified lines
+    =====================
+    """
+    
+    
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_images,figname)
+   
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    titlepage='WL calibrated 1D Spectra 1D for obj : {} date :{}'.format(object_name,date)
+    
+    
+    all_wl= []  # containers for wavelength
+    
+    
+    for index in np.arange(0,NBSPEC):
+        
+             
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+             
+        
+        spec = spectra[index]
+        
+        # calibrate
+        grating_name=get_disperser_filtname(all_filt[index])
+        X_Size_Pixels=np.arange(spec.shape[0])
+        lambdas = Pixel_To_Lambdas(grating_name,X_Size_Pixels,pointing[index],False)
+        
+        
+        all_wl.append(lambdas)
+        
+        #plot
+        axarr[iy,ix].plot(lambdas,spec,'r-',lw=2,label=tagname)
+    
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        
+        #axarr[iy,ix].text(600.,spec.max()*1.1, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+        axarr[iy,ix].legend(loc='best',fontsize=16)
+        axarr[iy,ix].set_xlabel('Wavelength [nm]', fontsize=16)
+        axarr[iy,ix].grid(True)
+        axarr[iy,ix].set_ylim(0.,spec.max()*1.2)
+        axarr[iy,ix].set_xlim(np.min(lambdas),np.max(lambdas))
+        axarr[iy,ix].set_xlim(0,1200.)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()   
+   
+    return all_wl
 
-
+#---------------------------------------------------------------------------------------------
 
 
     
