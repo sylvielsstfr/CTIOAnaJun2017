@@ -175,8 +175,11 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(color='white', ls='solid')
         axarr[iy,ix].text(5.,5,all_filt[index],verticalalignment='bottom', horizontalalignment='left',color='yellow', fontweight='bold',fontsize=16)
+        
         thetitle="{}".format(index)
         axarr[iy,ix].set_title(thetitle)
+    cax = f.add_axes([0.9, 0.1, 0.03, 0.8])
+    f.colorbar(im, cax=cax)
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
     
@@ -199,7 +202,7 @@ def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date 
     
     
     # fig file specif
-    NBIMGROWPERPAGE=10  # number of rows per pages
+    NBIMGROWPERPAGE=5  # number of rows per pages
     PageNum=0          # page counter
     
     figfilename=os.path.join(dir_top_img,'intput_images.pdf')
@@ -220,7 +223,7 @@ def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date 
         
         
         if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
-            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,2*NBIMGROWPERPAGE))
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
             f.suptitle(title,size=20)
             
         # index of image in the page    
@@ -242,10 +245,13 @@ def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date 
         im=axarr[iy,ix].imshow(image,origin='lower',cmap='rainbow',vmin=vmin,vmax=vmax)
         axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
         axarr[iy,ix].grid(color='white', ls='solid')
+      
         #axarr[iy,ix].text(1000.,275.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
         
         # save a new page
         if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            cax = f.add_axes([0.9, 0.1, 0.03, 0.8])
+            f.colorbar(im, cax=cax)
             PageNum+=1  # increase page Number
             f.savefig(pp, format='pdf')
             f.show()
