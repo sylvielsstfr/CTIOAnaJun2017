@@ -179,9 +179,1361 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
         axarr[iy,ix].set_title(thetitle)
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
-
-#------------------------------------------------------------------------------
     
+#--------------------------------------------------------------------------------------------------------------------------    
+
+
+
+#--------------------------------------------------------------------------------------------------------------------------
+def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date ,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowRawImages: Show the raw images without background subtraction
+    ==============
+    write images in pdf
+    """
+    
+     
+   
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=10  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,'intput_images.pdf')
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    title='Images of {}, date : {}'.format(object_name,date)
+    
+    #spec_index_min=100  # cut the left border
+    #spec_index_max=1900 # cut the right border
+    #star_halfwidth=70
+
+    #thex0 = []  # container of central position
+  
+    #f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
+    #f.tight_layout()
+    for index in np.arange(0,NBIMAGES):
+        
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,2*NBIMGROWPERPAGE))
+            f.suptitle(title,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        #ix=index%NBIMGPERROW
+        #iy=index/NBIMGPERROW
+        image = all_images[index][:,0:right_edge]
+        
+        #xprofile=np.sum(image,axis=0)
+        #x0=np.where(xprofile==xprofile.max())[0][0]
+        #thex0.append(x0)
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        
+        im=axarr[iy,ix].imshow(image,origin='lower',cmap='rainbow',vmin=vmin,vmax=vmax)
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        axarr[iy,ix].grid(color='white', ls='solid')
+        #axarr[iy,ix].text(1000.,275.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+  
+    
+
+
+
+#--------------------------------------------------------------------------------------------------------------------------
+ 
+ 
+def ShowOneOrderinPDF(all_images,all_titles,thex0,they0,object_name,all_expo,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowRawImages: Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70
+    
+    
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    title='Images of {}, date : {}'.format(object_name,date)
+    
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    for index in np.arange(0,NBIMAGES):
+        
+        
+        x0=int(thex0[index])
+        y0=int(they0[index])
+        
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+                
+        full_image=np.copy(all_images[index])
+        
+        
+        if(all_expo[index]<=0 ): #special case of the first image
+            reduc_image=full_image[y0-20:y0+20,x0+150:spec_index_max]  
+        else:
+            reduc_image=full_image[y0-20:y0+20,x0+150:spec_index_max]/all_expo[index] 
+            
+        themax=reduc_image.flatten().max()    
+            
+        X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))       
+        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=vmin,vmax=themax*0.5)    # pcolormesh is impracticalble in pdf file 
+        
+        
+        #im = axarr[iy,ix].imshow(reduc_image,origin='lower', cmap='rainbow',vmin=0,vmax=100)    
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+    
+        axarr[iy,ix].grid(color='white', ls='solid')
+        #axarr[iy,ix].text(700,2.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            print "pdf Page written ",PageNum
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    print "Final pdf Page written ",PageNum
+    f.show()
+    pp.close()
+  
+    
+#------------------------------------------------------------------------------------------------------------------
+def ShowOneOrder_contourinPDF(all_images,all_titles,thex0,they0,object_name,all_expo,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowRawImages_contour: Show the raw images without background subtraction
+    ==============
+    """
+   
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70
+    
+    
+   
+    figfilename=os.path.join(dir_top_img,figname)  
+    titlepage='Images of {}, date : {}'.format(object_name,date)
+
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    for index in np.arange(0,NBIMAGES):
+        
+        
+        x0=int(thex0[index])
+        y0=int(they0[index])
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+                
+        
+        full_image=np.copy(all_images[index])
+        
+      
+      
+        
+        if(all_expo[index]<=0 ): #special case of the first image
+            reduc_image=full_image[y0-20:y0+20,x0+150:spec_index_max]  
+        else:
+            reduc_image=full_image[y0-20:y0+20,x0+150:spec_index_max]/all_expo[index] 
+            
+        themax=reduc_image.flatten().max()    
+            
+        X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))  
+        
+        T=np.transpose(reduc_image)
+        
+        #im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=themax*0.5)    # pcolormesh is impracticalble in pdf file 
+        axarr[iy,ix].contourf(X, Y, reduc_image, 8, alpha=.75, cmap='jet')
+        C = axarr[iy,ix].contour(X, Y, reduc_image , 8, colors='black', linewidth=.5)
+        
+            
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+    
+        axarr[iy,ix].grid(color='white', ls='solid')
+        #axarr[iy,ix].text(700,2.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='black', fontweight='bold',fontsize=16)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            print "pdf Page written ",PageNum
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    print "Final pdf Page written ",PageNum
+    f.show()
+    pp.close()
+#-------------------------------------------------------------------------------------------------------------------------------------  
+    
+def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowTransverseProfile: Show the raw images without background subtraction
+    =====================
+    The goal is to see in y, where is the spectrum maximum. Returns they0
+    
+    """
+
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70  
+    
+    
+    titlepage='Spectrum tranverse profile object : {} date : {}'.format(object_name, date)
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    
+
+    ############       Criteria for spectrum region selection #####################
+    DeltaX=1000
+    w=10
+    ws=80
+    Dist=3*w
+    right_edge = 1800
+    ##############################################################################
+    
+    # containers
+    thespectra= []
+    thespectraUp=[]
+    thespectraDown=[]
+    
+    they0 = []  # container for the y value
+    
+    # loop on images
+    #-----------------
+    for index in np.arange(0,NBIMAGES):
+        
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+        
+        
+        x0=int(thex0[index])
+        
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        # only order one
+        data=np.copy(all_images[index])[:,x0+spec_index_min:right_edge]
+        #order 0 and order 1
+        data2=np.copy(all_images[index])[:,0:right_edge]
+
+        # Do not erase central star please
+        #data[:,x0-100:x0+100]=0 ## TURN OFF CENTRAL STAR
+        
+        if(all_expo[index]<=0):            
+            yprofile=np.sum(data,axis=1)
+        else:
+            yprofile=np.sum(data,axis=1)/all_expo[index]
+            
+            
+        ymin=1
+        ymax=yprofile.max()
+        y0=np.where(yprofile==ymax)[0][0]
+        they0.append(y0)
+        
+        #y0 = they0[index]
+        #im=axarr[iy,ix].imshow(data,vmin=-10,vmax=50)
+        axarr[iy,ix].semilogy(yprofile,color='blue',lw=2)
+        axarr[iy,ix].semilogy([y0,y0],[ymin,ymax],'r-',lw=2)
+        axarr[iy,ix].semilogy([y0-w,y0-w],[ymin,ymax],'k-')
+        axarr[iy,ix].semilogy([y0+w,y0+w],[ymin,ymax],'k-')
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        ##########################################################
+        #### Here extract the spectrum around the central star
+        #####   Take the sum un bins along y
+        #############################################################
+        
+        spectrum2D=np.copy(data2[y0-w:y0+w,:])
+        xprofile=np.sum(spectrum2D,axis=0)
+
+        ###-----------------------------------------
+        ### Lateral bands to remove sky background
+        ### ---------------------------------------
+        
+        # region Up at average distance Dist of width 2*w
+        spectrum2DUp=np.copy(data2[y0-w+Dist:y0+w+Dist,:])
+        xprofileUp=np.median(spectrum2DUp,axis=0)*2.*float(w)
+
+        # region Down at average distance -Dist of width 2*w
+        spectrum2DDown=np.copy(data2[y0-w-Dist:y0+w-Dist,:])
+        xprofileDown=np.median(spectrum2DDown,axis=0)*2.*float(w)
+        
+        
+        if(all_expo[index]<=0):
+            thespectra.append(xprofile)
+            thespectraUp.append(xprofileUp)
+            thespectraDown.append(xprofileDown)
+        else:  ################## HERE I NORMALISE WITH EXPO TIME ####################################
+            thespectra.append(xprofile/all_expo[index])
+            thespectraUp.append(xprofileUp/all_expo[index]) 
+            thespectraDown.append(xprofileDown/all_expo[index]) 
+
+        #axarr[iy,ix].set_title(all_titles[index])
+        axarr[iy,ix].grid(True)
+    
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+  
+    
+    return thespectra,thespectraUp,thespectraDown,they0    
+#------------------------------------------------------------------------------------------------------------
+def ShowLongitBackgroundinPDF(spectra,spectraUp,spectraDown,spectraAv,all_titles,object_name,dir_top_images,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    Show the background to be removed to the spectrum
+    
+    Implemented to write in a pdf file
+    
+    """
+    NBSPEC=len(spectra)
+    MAXIMGROW=max(2,m.ceil(NBSPEC/NBIMGPERROW))
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    figfilename=os.path.join(dir_top_images,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    titlepage='Longitudinal background Up/Down for obj : {} date : {} '.format(object_name,date)
+    
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70
+    
+    for index in np.arange(0,NBSPEC):
+        
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        # plot what is wanted
+        axarr[iy,ix].plot(spectra[index],'r-')
+        axarr[iy,ix].plot(spectraUp[index],'b-')
+        axarr[iy,ix].plot(spectraDown[index],'g-')
+        axarr[iy,ix].plot(spectraAv[index],'m-')
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        axarr[iy,ix].grid(True)
+        
+        star_pos=np.where(spectra[index][:spec_index_max]==spectra[index][:spec_index_max].max())[0][0]
+        max_y_to_plot=(spectra[index][star_pos+star_halfwidth:spec_index_max]).max()*1.2
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        #axarr[iy,ix].text(spec_index_min,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+        
+        
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+    
+    
+#-----------------------------------------------------------------------------------------------------------------------
+
+def ShowTheBackgroundProfileUpDowninPDF(spectra,spectra2,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70
+    
+    
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    MAXIMGROW=max(2,m.ceil(NBSPEC/NBIMGPERROW))
+   
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    titlepage='Spectrum 1D background profiles up dand down and av for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+    
+    
+    #f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
+    #f.tight_layout()
+    for index in np.arange(0,NBSPEC):
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        axarr[iy,ix].plot(spectra[index],'r-')
+        axarr[iy,ix].plot(spectra2[index],'b-')
+        #axarr[iy,ix].plot(spectra3[index],'g-')
+        
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+        
+        
+        star_pos=np.where(spectra[index][:spec_index_max]==spectra[index][:spec_index_max].max())[0][0]
+        max_y_to_plot=(spectra[index][star_pos+star_halfwidth:spec_index_max]).max()*1.5
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        #axarr[iy,ix].text(spec_index_min,max_y_to_plot*1.1/1.5, all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        
+        
+        # save the pdf page at the botton end of the page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+   
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def ShowTheBackgroundProfileinPDF(spectra,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70
+    
+    
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    MAXIMGROW=max(2,m.ceil(NBSPEC/NBIMGPERROW))
+   
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    titlepage='Spectrum 1D background profile for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+    
+    
+    #f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
+    #f.tight_layout()
+    for index in np.arange(0,NBSPEC):
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        axarr[iy,ix].plot(spectra[index],'r-')
+        
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+        
+        
+        star_pos=np.where(spectra[index][:spec_index_max]==spectra[index][:spec_index_max].max())[0][0]
+        max_y_to_plot=(spectra[index][star_pos+star_halfwidth:spec_index_max]).max()*1.5
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        #axarr[iy,ix].text(spec_index_min,max_y_to_plot*1.1/1.5, all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        
+        
+        # save the pdf page at the botton end of the page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+   
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+    
+            
+
+#-----------------------------------------------------------------------------------------------------------------------
+    
+def ShowCorrectedSpectrumProfileinPDF(spectra,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    star_halfwidth=70
+    
+    
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    MAXIMGROW=max(2,m.ceil(NBSPEC/NBIMGPERROW))
+   
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    titlepage='Spectrum 1D profile for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+    
+    
+    #f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
+    #f.tight_layout()
+    for index in np.arange(0,NBSPEC):
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        axarr[iy,ix].plot(spectra[index],'r-')
+        
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+        
+        
+        star_pos=np.where(spectra[index][:spec_index_max]==spectra[index][:spec_index_max].max())[0][0]
+        max_y_to_plot=(spectra[index][star_pos+star_halfwidth:spec_index_max]).max()*1.5
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        #axarr[iy,ix].text(spec_index_min,max_y_to_plot*1.1/1.5, all_filt[index],verticalalignment='top', horizontalalignment='center',color='blue',fontweight='bold', fontsize=20)
+        
+        
+        # save the pdf page at the botton end of the page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+   
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+    
+#---------------------------------------------------------------------------------------------------------------------        
+    
+def ShowSpectrumRightProfileinPDF(spectra,thex0,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    
+   
+    
+    titlepage='Right spectra for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+        
+    for index in np.arange(0,NBSPEC):
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        x0=int(thex0[index])
+        cut_spectra=np.copy(spectra[index][x0:])
+        cut_spectra_order1=np.copy(spectra[index][x0+100:])
+        
+                           
+        axarr[iy,ix].plot(cut_spectra,'r-')
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        axarr[iy,ix].grid(True)
+        
+        max_y_to_plot=cut_spectra_order1.max()*1.2
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        #axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+    
+        # save the pdf page at the botton end of the page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+    
+
+    
+
+#---------------------------------------------------------------------------------------------------------------------
+
+def ShowSpectrumLeftProfileinPDF(spectra,thex0,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    ShowSpectrumProfile: Show the raw images without background subtraction
+    =====================
+    """
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=right_edge # cut the right border
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    titlepage='Left spectra for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+   
+    for index in np.arange(0,NBSPEC):
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        x0=int(thex0[index])
+        
+        cut_spectra=np.copy(spectra[index][:x0])
+        cut_spectra_orderm1=np.copy(spectra[index][:x0-spec_index_min])
+        
+       
+  
+        axarr[iy,ix].plot(cut_spectra,'r-')
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+        
+        
+        max_y_to_plot=cut_spectra_orderm1.max()*1.2
+        
+                
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+
+        axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        # save the pdf page at the botton end of the page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+    
+#----------------------------------------------------------------------------------------------------------------------
+
+def Find_CentralStar_positioninPDF(spectra,thex0,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    
+    Find_CentralStar_position
+    =========================
+    
+    Find star postion by gausian fit
+    
+    """
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    titlepage='Central star for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    all_mean = []  # list of mean and sigma for the main central star
+    all_sigma= []
+    
+   
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+    
+        
+        star_index=int(thex0[index])
+        
+        cutspectra=np.copy(spectra[index][star_index-star_halfwidth:star_index+star_halfwidth]) 
+        X=np.arange(cutspectra.shape[0])+star_index-star_halfwidth
+        
+        # fast fit of a gaussian, bidouille
+        
+        x = np.sum(X*cutspectra)/np.sum(cutspectra)
+        width = 0.5*np.sqrt(np.abs(np.sum((X-x)**2*cutspectra)/np.sum(cutspectra)))
+        themax = cutspectra.max()
+        
+        all_mean.append(int(x))
+        all_sigma.append(int(width))
+        
+        fit = lambda t : themax*np.exp(-(t-x)**2/(2*width**2))
+        
+        
+        #print 'mean,width, max =',x,width,themax
+        thelabel='fit m={}, $\sigma$= {}'.format(int(x),int(width))
+        axarr[iy,ix].plot(X,cutspectra,'r-',label='data')
+        axarr[iy,ix].plot(X,fit(X), 'b-',label=thelabel)
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        axarr[iy,ix].grid(True)
+        
+        max_y_to_plot=cutspectra.max()*1.2
+        
+        
+        axarr[iy,ix].set_ylim(0,max_y_to_plot)
+        axarr[iy,ix].legend(loc=1)
+
+        axarr[iy,ix].text(star_index-star_halfwidth/2,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='right',color='blue',fontweight='bold', fontsize=20)
+    
+        # save the pdf page at the botton end of the page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+
+
+
+    return all_mean,all_sigma
+        
+#-------------------------------------------------------------------------------------------------------------------        
+
+def SpectrumAmplitudeRatio(spectra,star_indexes):
+    """
+    SpectrumAmplitudeRatio: ratio of amplitudes
+    =====================
+    """
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=100
+    
+    
+    ratio_list= []
+    
+    NBSPEC=len(spectra)
+    
+    for index in np.arange(0,NBSPEC):
+        star_index=int(star_indexes[index])  # position of star
+        
+        max_right=spectra[index][star_index+star_halfwidth:spec_index_max].max()
+        max_left=spectra[index][spec_index_min:star_index-star_halfwidth].max()
+        
+        ratio=max_right/max_left
+        ratio_list.append(ratio) 
+        
+    return np.array(ratio_list)    
+
+#--------------------------------------------------------------------------------------------
+
+def GetSpectrumBackground(inspectra,start,stop,skybg):
+    '''
+    Return the background    
+    '''
+    cropedbg=inspectra[start:stop]
+    purebg=cropedbg[np.where(cropedbg!=skybg)]  # remove region of the bing star
+    
+    return purebg
+
+#-------------------------------------------------------------------------------------------
+    
+def SeparateSpectra(inspectra,x0):
+    '''
+    Cut the two spectra
+    '''
+    rightspectra=inspectra[x0:]
+    revleftspectra=inspectra[:x0]
+    leftspectra=   revleftspectra[::-1]
+    #rightspectra=rightspectra[np.where(rightspectra>0)]
+    #leftspectra=leftspectra[np.where(leftspectra>0)]
+    
+    return leftspectra,rightspectra
+
+#------------------------------------------------
+def DiffSpectra(spec1,spec2,bg):
+    '''
+    Make the difference of the tow spectra 
+    
+    '''
+    N1=spec1.shape[0]
+    N2=spec2.shape[0]
+    N=np.min([N1,N2])
+    spec1_croped=spec1[0:N]
+    spec2_croped=spec2[0:N]
+    diff_spec=np.average((spec1_croped-spec2_croped)**2)/bg**2
+    return diff_spec  
+
+#---------------------------------------------------------
+def FindCenter(fullspectrum,xmin,xmax,specbg,factor=1):
+    '''
+    - spec1 is left spectra
+    - spec2 is right spectra
+    
+    In case of asymetric orders one can use a multiplication factor
+    '''   
+    all_x0=np.arange(xmin,xmax,1)
+    NBPOINTS=np.shape(all_x0)
+    chi2=np.zeros(NBPOINTS)
+    for idx,x0 in np.ndenumerate(all_x0):
+        spec1,spec2=SeparateSpectra(fullspectrum,x0) #sparate the spectra in two pieces
+        
+        spec1_factor=spec1*factor
+        #chi2[idx]=DiffSpectra(spec1,spec2,specbg)
+        chi2[idx]=DiffSpectra(spec1_factor,spec2,specbg)
+    return all_x0,chi2
+#----------------------------------------------------------
+    
+def SplitSpectrumProfile(spectra,all_titles,object_name,star_indexes,dir_top_img, Thor300_ind,Ron400_ind,Ron200_ind,HoloPhP_ind,HoloPhAg_ind,HoloAmAg_ind):
+    """
+    SplitSpectrumProfile: Split the spectrum in two parts
+    =====================
+    """
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,'split_spectra.pdf')
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    title='Multiple 1D Spectra 1D for '.format(object_name)
+    
+    
+    skybg=1
+    spectra_left=[]  # container for spectra for split mode (left/right symetry)
+    spectra_right=[]
+    
+    spectra_left_2=[] # container for spectra for cut mode (central star positon)
+    spectra_right_2=[]
+    
+   
+    
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        
+        star_index=star_indexes[index]
+
+        if np.any(Thor300_ind == index):
+            factor=Thor300_ratio_av
+        elif np.any(Ron400_ind == index):
+            factor=Ron400_ratio_av
+        elif np.any(Ron200_ind == index):
+            factor=Ron200_ratio_av
+        elif np.any(HoloPhP_ind == index):
+            factor=HoloPhP_ratio_av
+        elif np.any(HoloPhAg_ind == index):
+            factor=HoloPhAg_ratio_av
+        elif np.any(HoloAmAg_ind == index):
+            factor=HoloAmAg_ratio_av
+        else:
+            print "disperser not found "
+            factor=1
+        
+        spectrum_sel=np.copy(spectra[index])
+        
+        spectrum_sel[star_index-star_halfwidth:star_index+star_halfwidth]=0  # erase central star
+        
+        
+        all_candidate_center,all_chi2=FindCenter(spectrum_sel,xmin_center,xmax_center,skybg,factor)
+        
+        indexmin=np.where(all_chi2==all_chi2.min())[0]
+        theorigin=all_candidate_center[indexmin]
+        
+        #print index, theorigin
+        
+        # old split by chi2 min
+        spec1,spec2=SeparateSpectra(spectrum_sel,theorigin[0])
+        
+        spectra_left.append(spec1)
+        spectra_right.append(spec2)
+        
+        # new split by central star position
+        spec3,spec4=SeparateSpectra(spectrum_sel,star_index)
+        
+        spectra_left_2.append(spec3)
+        spectra_right_2.append(spec4)
+        
+        axarr[iy,ix].plot(spec4,'r-',lw=2,label='cut right spec')
+        axarr[iy,ix].plot(spec3*factor,'b-',lw=1,label='renorm cut right left')
+        
+        axarr[iy,ix].plot(spec2,'m-',lw=2,label='split right spec')
+        axarr[iy,ix].plot(spec1*factor,'k-',lw=1,label='renorm split left spec')
+        
+    
+        max_y_to_plot=spec2[:spec_index_max].max()*1.2
+        
+        
+        axarr[iy,ix].legend(loc=1)                  
+        axarr[iy,ix].set_title(all_titles[index])
+        axarr[iy,ix].grid(True)
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+   
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+  
+    
+    return spectra_left,spectra_right,spectra_left_2,spectra_right_2
+
+#--------------------------------------------------------------------------------------------
+    
+
+def SplitSpectrumProfileSimpleinPDF(spectra,thex0,all_titles,object_name,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+    """
+    SplitSpectrumProfile: Split the spectrum in two parts
+    =====================
+    """
+    NBIMGPERROW=2
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+        
+ 
+    titlepage='Left/Right corr spectra for obj: {} , date : {} (backg. rem.)'.format(object_name,date)
+    
+    
+    spectra_left=[] # container for spectra for cut mode (central star positon)
+    spectra_right=[]
+    
+   
+    
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        
+        # found central star
+        star_index=int(thex0[index])
+        
+        spectrum_sel=np.copy(spectra[index])      
+        spectrum_sel[star_index-star_halfwidth:star_index+star_halfwidth]=0  # erase central star
+        
+        
+  
+        # new split by central star position
+        spec1,spec2=SeparateSpectra(spectrum_sel,star_index)
+        
+        spectra_left.append(spec1)
+        spectra_right.append(spec2)
+        
+        axarr[iy,ix].plot(spec2,'r-',lw=2,label='cut right spec')
+        axarr[iy,ix].plot(spec1,'b-',lw=1,label='cut right left')
+        
+    
+        max_y_to_plot=spec2[:spec_index_max].max()*1.2
+        
+        
+        axarr[iy,ix].legend(loc=1)                  
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+   
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+  
+    
+    return spectra_left,spectra_right
+
+#---------------------------------------------------------------------------------------------------------------------
+    
+def CompareSpectrumProfileinPDF(spectra,all_airmass,all_titles,object_name,dir_top_img,all_filt,date,figname,grating_name,list_idx,right_edge = 1900):
+    """
+    CompareSpectrumProfile
+    =====================
+    
+    """
+    
+    
+    
+    
+    titlepage="Compare spectra of {}  at {} with disperser {}".format(object_name,date,grating_name)
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    f, axarr = plt.subplots(1,1,figsize=(10,5))
+    f.suptitle(titlepage,color='blue',fontweight='bold',fontsize=16)
+    
+    NBSPEC=len(spectra)
+    
+    min_z=min(all_airmass)
+    max_z=max(all_airmass)
+    
+    maxim_y_to_plot= []
+
+    texte='airmass : {} - {} '.format(min_z,max_z)
+    
+    for index in np.arange(0,NBSPEC):
+                
+        if index in list_idx:
+            axarr.plot(spectra[index],'r-')
+            maxim_y_to_plot.append(spectra[index].max())
+    
+    max_y_to_plot=max(maxim_y_to_plot)*1.2
+    axarr.set_ylim(0,max_y_to_plot)
+    axarr.text(0.,max_y_to_plot*0.9, texte ,verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    axarr.grid(True)
+    axarr.set_xlabel("pixel",fontweight='bold',fontsize=14)
+    axarr.set_ylabel("ADU",fontweight='bold',fontsize=14)
+    
+        
+    f.savefig(pp, format='pdf')
+    f.show()
+    
+    pp.close()     
+    
+#-----------------------------------------------------------------------------------------------------------------------------    
+    
+
+
+
+
+
+
+    
+#--------------------------------------------------------------------------------------------------------------------
+def ShowRightOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top_images):
+    """
+    ShowRawImages: Show the raw images without background subtraction
+    ==============
+    """
+    NBIMGPERROW=2
+    NBIMAGES=len(all_images)
+    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
+    f.tight_layout()
+    
+    right_edge = 1800
+    
+    for index in np.arange(0,NBIMAGES):
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        full_image=np.copy(all_images[index])[:,0:right_edge]
+        y_0=int(they0[index])
+        x_0=int(thex0[index])
+
+        reduc_image=full_image[y_0-20:y_0+20,x_0+100:right_edge]/all_expo[index]
+        
+        X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))
+        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=100)
+        #axarr[iy,ix].colorbar(im, orientation='vertical')
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
+        
+        axarr[iy,ix].set_title(all_titles[index])
+        
+    
+    title='Right part of spectrum of {} '.format(object_name)
+    plt.suptitle(title,size=16)
+    figfilename=os.path.join(dir_top_images,'rightorder.pdf')
+    
+    #plt.savefig(figfilename)          
+#--------------------------------------------------------------------------------------------
+def ShowLeftOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top_images):
+    """
+    ShowRawImages: Show the raw images without background subtraction
+    ==============
+    """
+    NBIMGPERROW=2
+    NBIMAGES=len(all_images)
+    MAXIMGROW=int(NBIMAGES/NBIMGPERROW)+1
+    #thex0 = []
+    f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,4*MAXIMGROW))
+    f.tight_layout()
+
+    for index in np.arange(0,NBIMAGES):
+        ix=index%NBIMGPERROW
+        iy=index/NBIMGPERROW
+        full_image=np.copy(all_images[index])
+        y_0=int(they0[index])
+        x_0=int(thex0[index])
+        
+        
+        reduc_image=full_image[y_0-20:y_0+20,0:x_0-100]/all_expo[index] 
+
+        X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))
+        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=30)
+        #axarr[iy,ix].colorbar(im, orientation='vertical')
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
+        
+        axarr[iy,ix].set_title(all_titles[index])
+        
+    
+    title='Left part of spectrum of '.format(object_name)
+    plt.suptitle(title,size=16)
+    figfilename=os.path.join(dir_top_images,'leftorder.pdf')
+    #plt.savefig(figfilename)      
+    
+#-------------------------------------------------------------------------------------------------------------------    
 def ShowHistograms(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,bins=100,range=(-50,10000),downsampling=1,verbose=False):
     """
     ShowHistograms
@@ -723,6 +2075,10 @@ def ExtractSpectra(they0,all_images,all_titles,object_name,all_expo,w=10,ws=80,r
     =====================
     The goal is to see in y, where is the spectrum maximum. Returns they0
     
+    - width of the band : 2 * w
+    - Distance of the bad : ws[0]
+    - width of the lateral band 2* ws[1]
+    
     """
     NBIMAGES=len(all_images)
 
@@ -758,7 +2114,7 @@ def ExtractSpectra(they0,all_images,all_titles,object_name,all_expo,w=10,ws=80,r
             thespectraUp.append(xprofileUp/all_expo[index]) 
             thespectraDown.append(xprofileDown/all_expo[index]) 
     
-    return thespectra,thespectraUp,thespectraDown
+    return np.array(thespectra),np.array(thespectraUp),np.array(thespectraDown)
 
 
 #---------------------------------------------------------------------------------
@@ -837,6 +2193,13 @@ def ShowLeftOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top
 #-----------------------------------------------------------------------------------
 
 def CleanBadPixels(spectraUp,spectraDown):
+    """
+    CleanBadPixels
+    --------------
+    
+    Try to remove bad pixels on top/down 
+    
+    """
     
     Clean_Up= []
     Clean_Do = []
