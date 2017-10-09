@@ -31,21 +31,25 @@ HALPHA_CENTER = 655.9e-6 # center of the filter in mm
 HALPHA_WIDTH = 6.4e-6 # width of the filter in mm
 
 # Main emission/absorption lines in nm
-HALPHA = {'lambda':656.3,'atmospheric':False,'label':'$H\\alpha$','pos':[0.007,0.02]}
+HALPHA = {'lambda':656.3,'atmospheric':False,'label':'$H\\alpha$','pos':[-0.016,0.02]}
 HBETA = {'lambda': 486.3,'atmospheric':False,'label':'$H\\beta$','pos':[0.007,0.02]} 
 HGAMMA = {'lambda':434.0,'atmospheric':False,'label':'$H\\gamma$','pos':[0.007,0.02]} 
 HDELTA = {'lambda': 410.2,'atmospheric':False,'label':'$H\\delta$','pos':[0.007,0.02]}
 OIII = {'lambda': 500.7,'atmospheric':False,'label':'$O_{III}$','pos':[0.007,0.02]}
-CII1 =  {'lambda': 723.5,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
-CII2 =  {'lambda': 711.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
-CIV =  {'lambda': 706.0,'atmospheric':False,'label':'$C_{IV}$','pos':[-0.02,0.92]}
-CII3 =  {'lambda': 679.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.007,0.02]}
-CIII1 =  {'lambda': 673.0,'atmospheric':False,'label':'$C_{III}$','pos':[-0.02,0.92]}
+CII1 =  {'lambda': 723.5,'atmospheric':False,'label':'$C_{II}$','pos':[0.005,0.92]}
+CII2 =  {'lambda': 711.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.005,0.02]}
+CIV =  {'lambda': 706.0,'atmospheric':False,'label':'$C_{IV}$','pos':[-0.016,0.92]}
+CII3 =  {'lambda': 679.0,'atmospheric':False,'label':'$C_{II}$','pos':[0.005,0.02]}
+CIII1 =  {'lambda': 673.0,'atmospheric':False,'label':'$C_{III}$','pos':[-0.016,0.92]}
 CIII2 =  {'lambda': 570.0,'atmospheric':False,'label':'$C_{III}$','pos':[0.007,0.02]}
 HEI =  {'lambda': 587.5,'atmospheric':False,'label':'$He_{I}$','pos':[0.007,0.02]}
 HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.02]}
-O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
-H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}
+#O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
+O2 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # libradtran paper fig.3
+O2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
+#H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # 
+H2O = {'lambda': 950,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
+H2O = {'lambda': 970,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
 LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII]
 LINES = sorted(LINES, key=lambda x: x['lambda'])
 
@@ -150,8 +154,9 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
                 index_sup += 1
         index = range(max(0,index_inf-bgd_width),min(len(lambdas),index_sup+bgd_width))
         # guess and bounds to fit this line
+        # min sigma at 1 pixel and max sigma at 10 pixels (half width)
         guess = [0,1,0*abs(spec[peak_index]),lambdas[peak_index],3]
-        bounds = [[-np.inf,-np.inf,-np.inf,lambdas[index_inf],0], [np.inf,np.inf,2*np.max(spec[index]),lambdas[index_sup],np.inf]  ]
+        bounds = [[-np.inf,-np.inf,-np.inf,lambdas[index_inf],1], [np.inf,np.inf,2*np.max(spec[index]),lambdas[index_sup],10]  ] 
         if line_strategy == np.less :
             bounds[1][2] = 0
             guess[2] = - 0*spec[peak_index]
@@ -182,15 +187,21 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
         new_bounds_list.append([[],[]])
         new_lines_list.append([])
         for i in merge :
+            # add the bgd parameters 
             if i == merge[0] :
                 new_guess_list[-1] += guess_list[i][:2]
                 new_bounds_list[-1][0] += bounds_list[i][0][:2]
                 new_bounds_list[-1][1] += bounds_list[i][1][:2]
+            # add the gauss parameters
             new_index_list[-1] += index_list[i]
             new_guess_list[-1] += guess_list[i][2:]
             new_bounds_list[-1][0] += bounds_list[i][0][2:]
             new_bounds_list[-1][1] += bounds_list[i][1][2:]
             new_lines_list[-1].append(lines_list[i])
+        # set central peak bounds at middle of the lines
+        for k in range(len(merge)-1) :
+            new_bounds_list[-1][0][2+3*(k+1)+1]  = 0.5*(new_guess_list[-1][2+3*k+1]+new_guess_list[-1][2+3*(k+1)+1])
+            new_bounds_list[-1][1][2+3*k+1] = 0.5*(new_guess_list[-1][2+3*k+1]+new_guess_list[-1][2+3*(k+1)+1])
         new_index_list[-1] = sorted(list(set(new_index_list[-1])))
     rows = []
     for k in range(len(new_index_list)):
@@ -226,7 +237,7 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
             # FWHM
             FWHM = np.abs(popt[2+3*j+2])*2.355
             #if verbose : print 'Line %s at %.1fnm: peak detected at %.1fnm (delta=%.1fnm) with FWHM=%.1fnm and SNR=%.1f' % (LINE["label"],l,peak_pos,peak_pos-l,FWHM,snr)
-            rows.append((LINE["label"],l,peak_pos,peak_pos-l,FWHM,snr))
+            rows.append((LINE["label"],l,peak_pos,peak_pos-l,FWHM,signal_level,snr))
             # wavelength shift between tabulate and observed lines
             #if LINE['atmospheric'] : continue
             lambda_shifts.append(peak_pos-l)
@@ -237,8 +248,8 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
             #ax.plot(lambdas[index],line(lambdas[index],*line_popt),lw=2,color='g',linestyle='--')
             #ax.axvline(peak_pos,lw=2,color='b',linestyle='--')
     if len(rows) > 0 :
-        t = Table(rows=rows,names=('Line','Tabulated','Detected','Shift','FWHM','SNR'),dtype=('a10','f4','f4','f4','f4','f4'))
-        for col in t.colnames[1:-1] : t[col].unit = 'nm'
+        t = Table(rows=rows,names=('Line','Tabulated','Detected','Shift','FWHM','Amplitude','SNR'),dtype=('a10','f4','f4','f4','f4','f4','f4'))
+        for col in t.colnames[1:-2] : t[col].unit = 'nm'
         if verbose : print t
         shift =  np.average(lambda_shifts,weights=np.array(snrs)**2)
     else :
@@ -364,9 +375,10 @@ def find_order01_positions(holo_center,N_interp,theta_interp,verbose=True):
 
 
 class Grating():
-    def __init__(self,N,label="",verbose=False):
+    def __init__(self,N,label="",D=DISTANCE2CCD,verbose=False):
         self.N_input = N
         self.N_err = 1
+        self.D = D
         self.label = label
         self.load_files(verbose=verbose)
 
@@ -394,7 +406,7 @@ class Grating():
         x0: the order 0 position on the full raw image.
         deltaX: the distance in pixels between order 0 and signal point 
         in the rotated image."""
-        theta = get_refraction_angle(deltaX,x0,D=DISTANCE2CCD)
+        theta = get_refraction_angle(deltaX,x0,D=self.D)
         return( theta )
         
     def refraction_angle_lambda(self,l,x0,order=1):
@@ -419,18 +431,18 @@ class Grating():
         x0: the order 0 position on the full raw image.
         deltaX: the distance in pixels between order 0 and signal point 
         in the rotated image."""
-        delta = get_delta_pix_ortho(deltaX,x0,D=DISTANCE2CCD)*PIXEL2MM
+        delta = get_delta_pix_ortho(deltaX,x0,D=self.D)*PIXEL2MM
         #theta = self.refraction_angle(x,x0,order=order)
-        #res = (np.cos(theta)**3*PIXEL2MM*1e6)/(order*self.N(x0)*DISTANCE2CCD)
-        res = (DISTANCE2CCD**2/pow(DISTANCE2CCD**2+delta**2,1.5))*PIXEL2MM*1e6/(order*self.N(x0))
+        #res = (np.cos(theta)**3*PIXEL2MM*1e6)/(order*self.N(x0)*self.D)
+        res = (self.D**2/pow(self.D**2+delta**2,1.5))*PIXEL2MM*1e6/(order*self.N(x0))
         return(res)
 
 
         
 class Hologram(Grating):
 
-    def __init__(self,label,lambda_plot=256000,verbose=True):
-        Grating.__init__(self,GROOVES_PER_MM,label=label,verbose=False)
+    def __init__(self,label,D=DISTANCE2CCD,lambda_plot=256000,verbose=True):
+        Grating.__init__(self,GROOVES_PER_MM,D=D,label=label,verbose=False)
         self.holo_center = None # center of symmetry of the hologram interferences in pixels
         self.plate_center = None # center of the hologram plate
         self.theta = None # interpolated rotation angle map of the hologram from data in degrees
@@ -885,6 +897,7 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
     if target is not None :
         target.load_spectra()
     f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
+    Ds = []
     for index in np.arange(0,NBSPEC):
         if isinstance(xlim[0], (list, tuple, np.ndarray)) :
             left_cut = xlim[index][0]
@@ -900,17 +913,48 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
         ###### detect emission/absorption lines and calibrate pixel/lambda ##### 
         shifts = []
-        lambda_shift = 1e20
         counts = 0
-        while abs(lambda_shift) > 0.1 :
-            lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=False)
-            lambdas -= lambda_shift
+        #lambda_shift = 1e20
+        #while abs(lambda_shift) > 0.1 :
+        #    lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=False)
+        #    lambdas -= lambda_shift
+        #    shifts.append(lambda_shift)
+        #    counts += 1
+        #    if len(shifts)>2 :
+        #        if abs(shifts[-1]+shifts[-2]) < 0.1 : break
+        #    if counts > 30 : break
+        #if verbose : print 'Wavelenght total shift: %.2fnm (after %d steps)' % (np.sum(shifts),len(shifts))
+        D = DISTANCE2CCD-DISTANCE2CCD_ERR
+        D_step = DISTANCE2CCD_ERR / 4
+        shift = 0
+        while D < DISTANCE2CCD+4*DISTANCE2CCD_ERR and D > DISTANCE2CCD-4*DISTANCE2CCD_ERR and counts < 30 :
+            holo.D = D
+            lambdas_test = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
+            lambda_shift = detect_lines(lambdas_test,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=False)
+            #lambdas -= lambda_shift
             shifts.append(lambda_shift)
             counts += 1
-            if len(shifts)>2 :
-                if abs(shifts[-1]+shifts[-2]) < 0.1 : break
-            if counts > 30 : break
-        if verbose : print 'Wavelenght total shift: %.2fnm (after %d steps)' % (np.sum(shifts),len(shifts))
+            #print counts, D, lambda_shift
+            if abs(lambda_shift)<0.1 :
+                break
+            elif lambda_shift > 2 :
+                D_step = DISTANCE2CCD_ERR 
+            elif 0.5 < lambda_shift < 2 :
+                D_step = DISTANCE2CCD_ERR / 4
+            elif 0 < lambda_shift < 0.5 :
+                D_step = DISTANCE2CCD_ERR / 10
+            elif 0 > lambda_shift > -0.5 :
+                D_step = -DISTANCE2CCD_ERR / 20
+            elif  lambda_shift < -0.5 :
+                D_step = -DISTANCE2CCD_ERR / 6
+            #print counts, D, lambda_shift, D_step, holo.N(order0_positions[index]), order0_positions[index]
+            D += D_step
+        Ds.append(D)
+        shift = np.mean(lambdas_test - lambdas)
+        lambdas = lambdas_test
+        if verbose :
+            print 'Wavelenght total shift: %.2fnm (after %d steps)' % (shift,len(shifts))
+            print '\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR)
         axarr[index].set_xlim(lambdas[0],lambdas[-1])
         axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
         plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only)
@@ -932,6 +976,6 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         figfilename=os.path.join(dir_top_images,'calibrated_spectrum_profile.pdf')
         plt.savefig(figfilename) 
     plt.show()
-
+    return Ds
 
 
