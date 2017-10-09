@@ -934,7 +934,7 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
             #lambdas -= lambda_shift
             shifts.append(lambda_shift)
             counts += 1
-            print counts, D, lambda_shift
+            #print counts, D, lambda_shift
             if abs(lambda_shift)<0.1 :
                 break
             elif lambda_shift > 2 :
@@ -947,16 +947,14 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
                 D_step = -DISTANCE2CCD_ERR / 20
             elif  lambda_shift < -0.5 :
                 D_step = -DISTANCE2CCD_ERR / 6
-            print counts, D, lambda_shift, D_step, holo.N(order0_positions[index]), order0_positions[index]
+            #print counts, D, lambda_shift, D_step, holo.N(order0_positions[index]), order0_positions[index]
             D += D_step
         Ds.append(D)
-        print Ds
         shift = np.mean(lambdas_test - lambdas)
         lambdas = lambdas_test
         if verbose :
             print 'Wavelenght total shift: %.2fnm (after %d steps)' % (shift,len(shifts))
             print '\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR)
-        print shifts
         axarr[index].set_xlim(lambdas[0],lambdas[-1])
         axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
         plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only)
