@@ -208,7 +208,7 @@ def surface_gradient(xx,yy,z,margin=10,plot=False,holo_name='',dir_top_images=No
 def saddle_point(xx,yy,z,interp,margin=10,plot=True,verbose=True,holo_name='',vmin=-0.000025,vmax=0.000025,dir_top_images=None):
     grad = surface_gradient(xx,yy,z,margin=margin,plot=False)
     min_grad = np.min(grad)
-    null_grad = np.where(np.isclose(grad,min_grad))
+    null_grad = np.where(np.isclose(grad,min_grad,rtol=1e-6))
     x_center = xx[null_grad[1]]
     y_center = yy[null_grad[0]]
     theta_tilt = interp([x_center,y_center])
