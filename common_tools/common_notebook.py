@@ -4411,6 +4411,253 @@ def CALSPECAbsLineIdentificationinPDF(spectra,pointing,all_titles,object_name,di
     return all_wl
 
 #---------------------------------------------------------------------------------------------
+# Study Calibrated Spectra
+#---------------------------------------------------------------------------------------------
+def BuildCalibSpec(sorted_filenames,sorted_numbers,object_name):
+    """
+    BuildRawSpec
+    ===============
+    """
 
-
+    all_dates = []
+    all_airmass = []
     
+    all_leftspectra_data = []
+    all_rightspectra_data = []
+    
+    all_leftspectra_data_stat_err = []
+    all_rightspectra_data_stat_err = []
+    
+    all_leftspectra_wl = []
+    all_rightspectra_wl = []
+    all_titles = []
+    all_header = []
+    all_expo = []
+    all_filt = []
+    all_filt1= []
+    all_filt2= []
+   
+    NBFILES=sorted_filenames.shape[0]
+
+    for idx in range(NBFILES):  
+        
+        file=sorted_filenames[idx]    
+        
+        hdu_list=fits.open(file)
+        
+        #hdu_list.info()
+        
+        header=hdu_list[0].header
+        #print header
+        date_obs = header['DATE-OBS']
+        airmass = header['AIRMASS']
+        expo = header['EXPTIME']
+        num=sorted_numbers[idx]
+        title=object_name+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        filters = header['FILTERS']
+        filters1= header['FILTER1']
+        filters2= header['FILTER2']
+        
+        # now reads the spectra
+        
+        table_data=hdu_list[1].data
+        
+        #cols = hdu_list[1].columns
+        #cols.info()
+        #print hdu_list[1].columns
+        #cols.names
+  
+        #col1=fits.Column(name='CalibLeftSpecWL',format='E',array=theleftwl_cut[idx[0]])
+        #col2=fits.Column(name='CalibLeftSpecData',format='E',array=theleftspectrum_cut[idx[0]])
+        #col3=fits.Column(name='CalibLeftSpecSim',format='E',array=theleftsimspec_cut[idx[0]])
+        #col4=fits.Column(name='CalibRightSpecWL',format='E',array=therightwl_cut[idx[0]])
+        #col5=fits.Column(name='CalibRightSpecData',format='E',array=therightspectrum_cut[idx[0]])
+        #col6=fits.Column(name='CalibRightSpecSim',format='E',array=therightsimspec_cut[idx[0]])
+    
+    
+        left_spectrum_wl=table_data.field('CalibLeftSpecWL')
+        left_spectrum_data=table_data.field('CalibLeftSpec')
+        left_spectrum_data_stat_err=table_data.field('CalibStatErrorLeftSpec')
+        
+        right_spectrum_wl=table_data.field('CalibRightSpecWL')
+        right_spectrum_data=table_data.field('CalibRightSpec')
+        right_spectrum_data_stat_err=table_data.field('CalibStatErrorRightSpec')
+       
+        
+ 
+        
+        
+        all_dates.append(date_obs)
+        all_airmass.append(float(airmass))
+        
+        all_leftspectra_data.append(left_spectrum_data)
+        all_rightspectra_data.append(right_spectrum_data)
+        
+        all_leftspectra_wl.append(left_spectrum_wl)
+        all_rightspectra_wl.append(right_spectrum_wl)
+        
+        all_leftspectra_data_stat_err.append(left_spectrum_data_stat_err)
+        all_rightspectra_data_stat_err.append(right_spectrum_data_stat_err)
+        
+        all_titles.append(title)
+        all_header.append(header)
+        all_expo.append(expo)
+        
+        all_filt.append(filters)
+        all_filt1.append(filters1)
+        all_filt2.append(filters2)
+            
+        hdu_list.close()
+        
+    return all_dates,all_airmass,all_titles,all_header,all_expo, all_leftspectra_data,all_rightspectra_data, all_leftspectra_data_stat_err , all_rightspectra_data_stat_err ,all_leftspectra_wl,all_rightspectra_wl,all_filt,all_filt1,all_filt2
+#-----------------------------------------------------------------------------------------------------
+
+
+def ShowCalibSpectrainPDF(all_spectra,all_spectra_stat_err,all_spectra_wl,all_titles,object_name,dir_top_img,all_filt,date,figname,tagname,NBIMGPERROW=2):
+    """
+    ShowCalibSpectrainPDF : Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBSPEC=len(all_spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    titlepage='Calibrated 1D Spectra 1D for {}, date : {} , {} '.format(object_name,date,tagname)
+    
+    
+    
+    # loop on spectra  
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+    
+  
+        spectrum=all_spectra[index]
+        spectrum_err=all_spectra_stat_err[index]
+        spectrum_wl=all_spectra_wl[index]
+        
+        
+       
+        axarr[iy,ix].errorbar(spectrum_wl,spectrum,yerr=spectrum_err,ecolor='grey',elinewidth=0.5)
+        axarr[iy,ix].plot(spectrum_wl,spectrum,'-',color='blue',lw=1)
+    
+        
+        thetitle="{} : {} : {} : {} ".format(index,all_titles[index],all_filt[index],tagname)
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+      
+        max_y_to_plot=np.max(spectrum)*1.2
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].set_xlim(0.,1200.)
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('ADU (sum over 10 pix transv)')
+        #axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+#---------------------------------------------------------------------------------------------------------   
+
+
+def ShowCalibSpectrainPDFSelect(all_spectra,all_spectra_stat_err,all_spectra_wl,all_titles,object_name,dir_top_img,all_filt,all_filt1,all_filt2,date,figname,tagname,NBIMGPERROW=2):
+    """
+    ShowCalibSpectrainPDF : Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBSPEC=len(all_spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    titlepage='Calibrated 1D Spectra 1D for {}, date : {} , {} '.format(object_name,date,tagname)
+    
+    
+    index=-1
+    # loop on spectra  
+    for idx in np.arange(0,NBSPEC):
+        
+        if all_filt1[idx]=='FGB37':
+            index=index+1
+        else:
+            continue
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+    
+  
+        spectrum=all_spectra[idx]
+        spectrum_err=all_spectra_stat_err[idx]
+        spectrum_wl=all_spectra_wl[idx]
+        
+        
+       
+        axarr[iy,ix].errorbar(spectrum_wl,spectrum,yerr=spectrum_err,ecolor='grey',elinewidth=0.5)
+        axarr[iy,ix].plot(spectrum_wl,spectrum,'-',color='blue',lw=1)
+    
+        
+        thetitle="{} : {} : {} : {} ".format(idx,all_titles[idx],all_filt[idx],tagname)
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+      
+        max_y_to_plot=np.max(spectrum)*1.2
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].set_xlim(0.,1200.)
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('ADU (sum over 10 pix transv)')
+        #axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+#---------------------------------------------------------------------------------------------------------   
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
