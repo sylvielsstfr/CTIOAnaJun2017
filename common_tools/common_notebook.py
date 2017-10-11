@@ -248,8 +248,8 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
         
         thetitle="{}".format(index)
         axarr[iy,ix].set_title(thetitle)
-    cax = f.add_axes([0.9, 0.1, 0.03, 0.8])
-    f.colorbar(im, cax=cax)
+    
+    f.colorbar(im, orientation="horizontal")
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
     
@@ -320,8 +320,7 @@ def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date 
         
         # save a new page
         if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
-            cax = f.add_axes([0.9, 0.1, 0.03, 0.8])
-            f.colorbar(im, cax=cax)
+            f.colorbar(im, orientation="horizontal")
             PageNum+=1  # increase page Number
             f.savefig(pp, format='pdf')
             f.show()
@@ -408,6 +407,7 @@ def ShowOneOrderinPDF(all_images,all_titles,thex0,they0,object_name,all_expo,dir
         
         # save a new page
         if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f.colorbar(im, orientation="horizontal")
             PageNum+=1  # increase page Number
             f.savefig(pp, format='pdf')
             print "pdf Page written ",PageNum
@@ -4318,6 +4318,17 @@ def ShowExtrSpectrainPDF(all_spectra,all_totspectra,all_titles,object_name,dir_t
       
         max_y_to_plot=spectrum[:].max()*1.2
         
+        #YMIN=0.
+        #YMAX=max_y_to_plot
+    
+        #for line in LINES:
+        #    if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+        #        axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+        #        axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+     
+        
+        axarr[iy,ix].set_xlabel("pixel")
+        axarr[iy,ix].set_ylabel("ADU")
         axarr[iy,ix].set_ylim(0.,max_y_to_plot)
         axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
     
@@ -4394,7 +4405,17 @@ def CALSPECAbsLineIdentificationinPDF(spectra,pointing,all_titles,object_name,di
         axarr[iy,ix].legend(loc='best',fontsize=16)
         axarr[iy,ix].set_xlabel('Wavelength [nm]', fontsize=16)
         axarr[iy,ix].grid(True)
-        axarr[iy,ix].set_ylim(0.,spec.max()*1.2)
+        
+        YMIN=0.
+        YMAX=spec.max()*1.2
+    
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+     
+        
+        axarr[iy,ix].set_ylim(YMIN,YMAX)
         axarr[iy,ix].set_xlim(np.min(lambdas),np.max(lambdas))
         axarr[iy,ix].set_xlim(0,1200.)
     
@@ -4411,6 +4432,83 @@ def CALSPECAbsLineIdentificationinPDF(spectra,pointing,all_titles,object_name,di
     return all_wl
 
 #---------------------------------------------------------------------------------------------
+def CompareSpectrumProfile(wl,spectra,all_titles,all_airmass,object_name,all_filt,dir_top_img,grating_name,list_of_index):
+    """
+    CompareSpectrumProfile
+    =====================
+    input:
+        wl
+        spectra
+        all_titles
+        object_name
+        all_filt
+        dir_top_img
+        grating_name
+        list_of_index
+    
+    
+    output
+    
+    """
+    shortfilename='CompareSpec_'+grating_name+'.pdf'
+    title="Compare spectra of {} with disperser {}".format(object_name,grating_name)
+    figfilename=os.path.join(dir_top_img,shortfilename)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    f, axarr = plt.subplots(1,1,figsize=(10,6))
+    f.suptitle(title,fontsize=16,fontweight='bold')
+    
+    NBSPEC=len(spectra)
+    
+    min_z=min(all_airmass)
+    max_z=max(all_airmass)
+    
+    maxim_y_to_plot= []
+
+    texte='airmass : {} - {} '.format(min_z,max_z)
+    
+    for index in np.arange(0,NBSPEC):
+                
+        if index in list_of_index:
+            axarr.plot(wl[index],spectra[index],'-',lw=3)
+            maxim_y_to_plot.append(spectra[index].max())
+    
+    max_y_to_plot=max(maxim_y_to_plot)*1.2
+    axarr.set_ylim(0,max_y_to_plot)
+    axarr.text(0.,max_y_to_plot*0.9, texte ,verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    axarr.grid(True)
+    
+    YMIN=0.
+    YMAX=max_y_to_plot
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+            axarr.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+            axarr.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+     
+    
+    #axarr.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #axarr.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    axarr.grid(b=True, which='major', color='grey', linewidth=0.5)
+    #axarr.grid(b=True, which='minor', color='grey', linewidth=0.5)
+
+    
+    axarr.set_ylabel("ADU",fontsize=10,fontweight='bold')
+    axarr.set_xlabel("wavelength (nm)",fontsize=10,fontweight='bold')
+    axarr.set_xlim(0.,1200.)
+        
+    f.savefig(pp, format='pdf')
+    f.show()
+    
+    pp.close()     
+    
+
+
+
+
+
+
 # Study Calibrated Spectra
 #---------------------------------------------------------------------------------------------
 def BuildCalibSpec(sorted_filenames,sorted_numbers,object_name):
@@ -4566,6 +4664,14 @@ def ShowCalibSpectrainPDF(all_spectra,all_spectra_stat_err,all_spectra_wl,all_ti
       
         max_y_to_plot=np.max(spectrum)*1.2
         
+        YMIN=0.
+        YMAX=max_y_to_plot
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+        
+        
         axarr[iy,ix].set_ylim(0.,max_y_to_plot)
         axarr[iy,ix].set_xlim(0.,1200.)
         axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
@@ -4641,6 +4747,15 @@ def ShowCalibSpectrainPDFSelect(all_spectra,all_spectra_stat_err,all_spectra_wl,
         axarr[iy,ix].grid(True)
       
         max_y_to_plot=np.max(spectrum)*1.2
+        
+        
+        YMIN=0.
+        YMAX=max_y_to_plot
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+        
         
         axarr[iy,ix].set_ylim(0.,max_y_to_plot)
         axarr[iy,ix].set_xlim(0.,1200.)
