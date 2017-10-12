@@ -2612,7 +2612,7 @@ def remove_from_bad(arr,index_to_remove):
 #-------------------------------------------------------------------------------
     
 
-def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx,check_quality_flag=False,sigmapix_quality_cut=10):
+def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx,check_quality_flag=False,sigmapix_quality_cut=10,qualitytag=None):
     """
     guess_central_position:
     ----------------------
@@ -2692,112 +2692,127 @@ def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,fi
     # Step 2 : check if the fit is creazy 
     # if so, use the average center for the given disperser
     
-    print 'Check fit quality :: '
-    print ' ==========================='
+  
     
     # find bad ids for filter 1 and correct for 
         
+    if check_quality_flag: 
+        print ' ==========================='
+        print 'Check fit quality :: '
+        print ' ==========================='
         
-    # filter 0
-    #------------------------
-    if filt0_idx.shape[0] >0:        
-        aver_x0,std_x0,bad_idx_x0=check_bad_guess(x_guess,filt0_idx)
-        if (bad_idx_x0.shape[0] != 0):
-            print 'bad filt 0 x : ',bad_idx_x0
-            x_guess[bad_idx_x0]=aver_x0    # do the correction
+        # filter 0
+        #------------------------
+        if filt0_idx.shape[0] >0:        
+            aver_x0,std_x0,bad_idx_x0=check_bad_guess(x_guess,filt0_idx)
+            if (bad_idx_x0.shape[0] != 0):
+                print 'bad filt 0 x : ',bad_idx_x0
+                x_guess[bad_idx_x0]=aver_x0    # do the correction
     
-        aver_y0,std_y0,bad_idx_y0=check_bad_guess(y_guess,filt0_idx)
-        if (bad_idx_y0.shape[0] != 0):
-            print 'bad filt 0 y : ',bad_idx_y0
-            y_guess[bad_idx_y0]=aver_y0    # do the correction     
+            aver_y0,std_y0,bad_idx_y0=check_bad_guess(y_guess,filt0_idx)
+            if (bad_idx_y0.shape[0] != 0):
+                print 'bad filt 0 y : ',bad_idx_y0
+                y_guess[bad_idx_y0]=aver_y0    # do the correction     
         
 
-    # filter 1
-    if filt1_idx.shape[0]>0:    
-        aver_x1,std_x1,bad_idx_x1=check_bad_guess(x_guess,filt1_idx)
-        if (bad_idx_x1.shape[0] != 0):
-            print 'bad filt 1 x : ',bad_idx_x1
-            # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
-            # !!!!!!! 30 jun 17 on HD111XXX
-            #idx_to_remove=0
-            #print 'remove from bad idx x1 : ',idx_to_remove
-            #bad_idx_x1=remove_from_bad(bad_idx_x1,idx_to_remove)           
-            #print 'new bad filt 1 x : ',bad_idx_x1
-            x_guess[bad_idx_x1]=aver_x1    # do the correction
+        # filter 1
+        #--------------------------
+        if filt1_idx.shape[0]>0:    
+            aver_x1,std_x1,bad_idx_x1=check_bad_guess(x_guess,filt1_idx)
+            if (bad_idx_x1.shape[0] != 0):
+                print 'bad filt 1 x : ',bad_idx_x1
+                # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
+                # !!!!!!! 30 jun 17 on HD111980 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if qualitytag=="ana_30may17_hd111980":
+                    idx_to_remove=0
+                    print 'remove from bad idx x1 : ',idx_to_remove
+                    bad_idx_x1=remove_from_bad(bad_idx_x1,idx_to_remove)           
+                    print 'new bad filt 1 x : ',bad_idx_x1
+                
+                x_guess[bad_idx_x1]=aver_x1    # do the correction
     
-        aver_y1,std_y1,bad_idx_y1=check_bad_guess(y_guess,filt1_idx)
-        if (bad_idx_y1.shape[0] != 0):
-            print 'bad filt 1 y : ',bad_idx_y1
-            # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
-            #idx_to_remove=0        
-            #print 'remove from bad idx y1 : ',idx_to_remove
-            #bad_idx_y1=remove_from_bad(bad_idx_y1,idx_to_remove)           
-            #print 'new bad filt 1 y : ',bad_idx_y1
-            y_guess[bad_idx_y1]=aver_y1    # do the correction
-    
- 
-    # filter 2  
-    if filt2_idx.shape[0]>0:          
-        aver_x2,std_x2,bad_idx_x2=check_bad_guess(x_guess,filt2_idx)
-        if (bad_idx_x2.shape[0] != 0):
-            print 'bad filt 2 x : ',bad_idx_x2
-            x_guess[bad_idx_x2]=aver_x2    # do the correction
-    
-        aver_y2,std_y2,bad_idx_y2=check_bad_guess(y_guess,filt2_idx)
-        if (bad_idx_y2.shape[0] != 0):
-            print 'bad filt 2 y : ',bad_idx_y2
-            y_guess[bad_idx_y2]=aver_y2    # do the correction
-        
-        
-        # filter 3 
-    if filt3_idx.shape[0]>0:  
-        aver_x3,std_x3,bad_idx_x3=check_bad_guess(x_guess,filt3_idx)
-        if (bad_idx_x3.shape[0] != 0):
-            print 'bad bad filt 3 x : ',bad_idx_x3
-            x_guess[bad_idx_x3]=aver_x3    # do the correction
-    
-        aver_y3,std_y3,bad_idx_y3=check_bad_guess(y_guess,filt3_idx)
-        if (bad_idx_y3.shape[0] != 0):
-            print 'bad filt 3 y : ',bad_idx_y3
-            y_guess[bad_idx_y3]=aver_y3    # do the correction
-        
-    # filter 4
-    if filt4_idx.shape[0]>0:          
-        aver_x4,std_x4,bad_idx_x4=check_bad_guess(x_guess,filt4_idx)
-        if (bad_idx_x4.shape[0] != 0):
-            print 'bad filt 4 x : ',bad_idx_x4
-            x_guess[bad_idx_x4]=aver_x4    # do the correction
-    
-        aver_y4,std_y4,bad_idx_y4=check_bad_guess(y_guess,filt4_idx)
-        if (bad_idx_y4.shape[0] != 0):
-            print 'bad filt 4 y : ',bad_idx_y4
-            y_guess[bad_idx_y4]=aver_y4    # do the correction        
- 
-    
-    # filter 5
-    if filt5_idx.shape[0]>0:  
-          
-        aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
-        if (bad_idx_x5.shape[0] != 0):
-            print 'bad filt 5 x : ',bad_idx_x5
-            #x_guess[bad_idx_x5]=aver_x5    # do the correction
-    
-        aver_y5,std_y5,bad_idx_y5=check_bad_guess(y_guess,filt5_idx)
-        if (bad_idx_y5.shape[0] != 0):
-            print 'bad filt 5 y : ',bad_idx_y5
-            #y_guess[bad_idx_y5]=aver_y5    # do the correction  
+            aver_y1,std_y1,bad_idx_y1=check_bad_guess(y_guess,filt1_idx)
+            if (bad_idx_y1.shape[0] != 0):
+                print 'bad filt 1 y : ',bad_idx_y1
+                # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
+                # !!!!!!! 30 jun 17 on HD111980 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if qualitytag=="ana_30may17_hd111980":
+                    idx_to_remove=0        
+                    print 'remove from bad idx y1 : ',idx_to_remove
+                    bad_idx_y1=remove_from_bad(bad_idx_y1,idx_to_remove)           
+                    print 'new bad filt 1 y : ',bad_idx_y1
+                    
+                y_guess[bad_idx_y1]=aver_y1    # do the correction
             
-    # filter 6 
-    if filt6_idx.shape[0]> 0:       
-        aver_x6,std_x6,bad_idx_x6=check_bad_guess(x_guess,filt6_idx)
-        if (bad_idx_x6.shape[0] != 0):
-            print 'bad filt 6 x : ',bad_idx_x6
-            x_guess[bad_idx_x6]=aver_x6    # do the correction
     
-        aver_y6,std_y6,bad_idx_y6=check_bad_guess(y_guess,filt6_idx)
-        if (bad_idx_y6.shape[0] != 0):
-            print 'bad filt 6 y : ',bad_idx_y6
-            y_guess[bad_idx_y6]=aver_y6    # do the correction  
+ 
+        # filter 2
+        #-------------------
+        if filt2_idx.shape[0]>0:          
+            aver_x2,std_x2,bad_idx_x2=check_bad_guess(x_guess,filt2_idx)
+            if (bad_idx_x2.shape[0] != 0):
+                print 'bad filt 2 x : ',bad_idx_x2
+                x_guess[bad_idx_x2]=aver_x2    # do the correction
+    
+            aver_y2,std_y2,bad_idx_y2=check_bad_guess(y_guess,filt2_idx)
+            if (bad_idx_y2.shape[0] != 0):
+                print 'bad filt 2 y : ',bad_idx_y2
+                y_guess[bad_idx_y2]=aver_y2    # do the correction
+        
+        
+        # filter 3
+        #-----------
+        if filt3_idx.shape[0]>0:  
+            aver_x3,std_x3,bad_idx_x3=check_bad_guess(x_guess,filt3_idx)
+            if (bad_idx_x3.shape[0] != 0):
+                print 'bad bad filt 3 x : ',bad_idx_x3
+                x_guess[bad_idx_x3]=aver_x3    # do the correction
+    
+            aver_y3,std_y3,bad_idx_y3=check_bad_guess(y_guess,filt3_idx)
+            if (bad_idx_y3.shape[0] != 0):
+                print 'bad filt 3 y : ',bad_idx_y3
+                y_guess[bad_idx_y3]=aver_y3    # do the correction
+        
+        # filter 4
+        #----------------
+        if filt4_idx.shape[0]>0:          
+            aver_x4,std_x4,bad_idx_x4=check_bad_guess(x_guess,filt4_idx)
+            if (bad_idx_x4.shape[0] != 0):
+                print 'bad filt 4 x : ',bad_idx_x4
+                x_guess[bad_idx_x4]=aver_x4    # do the correction
+    
+            aver_y4,std_y4,bad_idx_y4=check_bad_guess(y_guess,filt4_idx)
+            if (bad_idx_y4.shape[0] != 0):
+                print 'bad filt 4 y : ',bad_idx_y4
+                y_guess[bad_idx_y4]=aver_y4    # do the correction        
+ 
+    
+        # filter 5
+        #-----------------
+        if filt5_idx.shape[0]>0:  
+          
+            aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
+            if (bad_idx_x5.shape[0] != 0):
+                print 'bad filt 5 x : ',bad_idx_x5
+                x_guess[bad_idx_x5]=aver_x5    # do the correction
+    
+            aver_y5,std_y5,bad_idx_y5=check_bad_guess(y_guess,filt5_idx)
+            if (bad_idx_y5.shape[0] != 0):
+                print 'bad filt 5 y : ',bad_idx_y5
+                y_guess[bad_idx_y5]=aver_y5    # do the correction  
+            
+            # filter 6 
+            #---------------
+        if filt6_idx.shape[0]> 0:       
+            aver_x6,std_x6,bad_idx_x6=check_bad_guess(x_guess,filt6_idx)
+            if (bad_idx_x6.shape[0] != 0):
+                print 'bad filt 6 x : ',bad_idx_x6
+                x_guess[bad_idx_x6]=aver_x6    # do the correction
+    
+            aver_y6,std_y6,bad_idx_y6=check_bad_guess(y_guess,filt6_idx)
+            if (bad_idx_y6.shape[0] != 0):
+                print 'bad filt 6 y : ',bad_idx_y6
+                y_guess[bad_idx_y6]=aver_y6    # do the correction  
     
     
     return x_guess,y_guess
@@ -4751,6 +4766,7 @@ def ShowCalibSpectrainPDFSelect(all_spectra,all_spectra_stat_err,all_spectra_wl,
         
         YMIN=0.
         YMAX=max_y_to_plot
+        
         for line in LINES:
             if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
                 axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
