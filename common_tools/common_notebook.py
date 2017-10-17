@@ -4633,6 +4633,9 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
     all_leftspectra_data = []
     all_rightspectra_data = []
     
+    all_totleftspectra_data = []
+    all_totrightspectra_data = []
+    
     all_leftspectra_data_stat_err = []
     all_rightspectra_data_stat_err = []
     
@@ -4721,22 +4724,19 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         #print hdu_list[1].columns
         #cols.names
   
-        #col1=fits.Column(name='CalibLeftSpecWL',format='E',array=theleftwl_cut[idx[0]])
-        #col2=fits.Column(name='CalibLeftSpecData',format='E',array=theleftspectrum_cut[idx[0]])
-        #col3=fits.Column(name='CalibLeftSpecSim',format='E',array=theleftsimspec_cut[idx[0]])
-        #col4=fits.Column(name='CalibRightSpecWL',format='E',array=therightwl_cut[idx[0]])
-        #col5=fits.Column(name='CalibRightSpecData',format='E',array=therightspectrum_cut[idx[0]])
-        #col6=fits.Column(name='CalibRightSpecSim',format='E',array=therightsimspec_cut[idx[0]])
-    
     
         left_spectrum_wl=table_data.field('CalibLeftSpecWL')
         left_spectrum_data=table_data.field('CalibLeftSpec')
         left_spectrum_data_stat_err=table_data.field('CalibStatErrorLeftSpec')
+        totleft_spectrum_data=table_data.field('CalibTotLeftSpec')
+        
         
         right_spectrum_wl=table_data.field('CalibRightSpecWL')
         right_spectrum_data=table_data.field('CalibRightSpec')
         right_spectrum_data_stat_err=table_data.field('CalibStatErrorRightSpec')
-       
+        totright_spectrum_data=table_data.field('CalibTotRightSpec')
+        
+
         
         all_dates.append(date_obs)
         all_objects.append(object)
@@ -4771,6 +4771,9 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         all_leftspectra_data_stat_err.append(left_spectrum_data_stat_err)
         all_rightspectra_data_stat_err.append(right_spectrum_data_stat_err)
         
+        all_totleftspectra_data.append(totleft_spectrum_data)
+        all_totrightspectra_data.append(totright_spectrum_data)
+        
         all_titles.append(title)
         all_headers.append(header)
         
@@ -4781,7 +4784,8 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
             
         hdu_list.close()
         
-    return all_dates, \
+    return all_headers, \
+        all_dates, \
         all_objects, \
         all_airmass, \
         all_titles, \
@@ -4795,7 +4799,9 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         all_leftspectra_data_stat_err ,\
         all_rightspectra_data_stat_err ,\
         all_leftspectra_wl,\
-        all_rightspectra_wl
+        all_rightspectra_wl, \
+        all_totleftspectra_data, \
+        all_totrightspectra_data
 
 #--------------------------------------------------------------------------------------------------------------------------
 
