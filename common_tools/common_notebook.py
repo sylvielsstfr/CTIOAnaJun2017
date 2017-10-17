@@ -156,8 +156,78 @@ def BuildImages(sorted_filenames,sorted_numbers,object_name):
         hdu_list.close()
         
     return all_dates,all_airmass,all_images,all_titles,all_header,all_expo,all_filt,all_filt1,all_filt2
+#-------------------------------------------------------------------------------------------
+    
+def BuildRawSpec(sorted_filenames,sorted_numbers,object_name):
+    """
+    BuildRawSpec
+    ===============
+    """
 
-#------------------------------------------------------------------------------
+    all_dates = []
+    all_airmass = []
+    all_leftspectra = []
+    all_rightspectra = []
+    all_totleftspectra = []
+    all_totrightspectra = []
+    all_titles = []
+    all_header = []
+    all_expo = []
+    all_filt= []
+    all_filt1 = []
+    all_filt2 = []
+    all_elecgain = []
+   
+    NBFILES=sorted_filenames.shape[0]
+
+    for idx in range(NBFILES):  
+        
+        file=sorted_filenames[idx]    
+        
+        hdu_list=fits.open(file)
+        header=hdu_list[0].header
+        #print header
+        date_obs = header['DATE-OBS']
+        airmass = header['AIRMASS']
+        expo = header['EXPTIME']
+        num=sorted_numbers[idx]
+        filters = header['FILTERS']
+        filter1 = header['FILTER1']
+        filter2 = header['FILTER2']
+        
+        
+        title=object_name+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        gain = 0.25*(float(header['GTGAIN11'])+float(header['GTGAIN12'])+float(header['GTGAIN21'])+float(header['GTGAIN22']))
+        
+        # now reads the spectra
+        
+        table_data=hdu_list[1].data
+        
+        left_spectrum=table_data.field('RawLeftSpec')
+        right_spectrum=table_data.field('RawRightSpec')
+        tot_left_spectrum=table_data.field('TotLeftSpec')
+        tot_right_spectrum=table_data.field('TotRightSpec')
+        
+        all_dates.append(date_obs)
+        all_airmass.append(float(airmass))
+        all_leftspectra.append(left_spectrum)
+        all_rightspectra.append(right_spectrum)
+        all_totleftspectra.append(tot_left_spectrum)
+        all_totrightspectra.append(tot_right_spectrum)
+        all_titles.append(title)
+        all_header.append(header)
+        all_expo.append(expo)
+        all_filt.append(filters)
+        all_filt1.append(filter1)
+        all_filt2.append(filter2)
+        all_elecgain.append(gain)
+        hdu_list.close()
+        
+    return all_dates,all_airmass,all_titles,all_header,all_expo,all_leftspectra,all_rightspectra,all_totleftspectra,all_totrightspectra,all_filt,all_filt1,all_filt2,all_elecgain
+
+
+
+#--------------------------------------------------------------------------------------------
 
 def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
     """
@@ -178,8 +248,8 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
         
         thetitle="{}".format(index)
         axarr[iy,ix].set_title(thetitle)
-    cax = f.add_axes([0.9, 0.1, 0.03, 0.8])
-    f.colorbar(im, cax=cax)
+    
+    f.colorbar(im, orientation="horizontal")
     title='Images of {}'.format(object_name)
     plt.suptitle(title,size=16)    
     
@@ -250,8 +320,7 @@ def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date 
         
         # save a new page
         if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
-            cax = f.add_axes([0.9, 0.1, 0.03, 0.8])
-            f.colorbar(im, cax=cax)
+            f.colorbar(im, orientation="horizontal")
             PageNum+=1  # increase page Number
             f.savefig(pp, format='pdf')
             f.show()
@@ -338,6 +407,7 @@ def ShowOneOrderinPDF(all_images,all_titles,thex0,they0,object_name,all_expo,dir
         
         # save a new page
         if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f.colorbar(im, orientation="horizontal")
             PageNum+=1  # increase page Number
             f.savefig(pp, format='pdf')
             print "pdf Page written ",PageNum
@@ -440,7 +510,7 @@ def ShowOneOrder_contourinPDF(all_images,all_titles,thex0,they0,object_name,all_
     pp.close()
 #-------------------------------------------------------------------------------------------------------------------------------------  
     
-def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,dir_top_img,all_filt,date,figname,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
+def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,dir_top_img,all_filt,date,figname,w=10,Dist=50,right_edge = 1900,NBIMGPERROW=2,vmin=0,vmax=2000,downsampling=1,verbose=False):
     """
     ShowTransverseProfile: Show the raw images without background subtraction
     =====================
@@ -470,11 +540,11 @@ def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,
     
 
     ############       Criteria for spectrum region selection #####################
-    DeltaX=1000
-    w=10
-    ws=80
-    Dist=3*w
-    right_edge = 1800
+    #DeltaX=1000
+    #w=10
+    #ws=80
+    #Dist=3*w
+    
     ##############################################################################
     
     # containers
@@ -524,9 +594,18 @@ def ShowTransverseProfileinPDF(all_images,thex0,all_titles,object_name,all_expo,
         #y0 = they0[index]
         #im=axarr[iy,ix].imshow(data,vmin=-10,vmax=50)
         axarr[iy,ix].semilogy(yprofile,color='blue',lw=2)
+        
         axarr[iy,ix].semilogy([y0,y0],[ymin,ymax],'r-',lw=2)
+        
         axarr[iy,ix].semilogy([y0-w,y0-w],[ymin,ymax],'k-')
         axarr[iy,ix].semilogy([y0+w,y0+w],[ymin,ymax],'k-')
+        
+        axarr[iy,ix].semilogy([y0-w-Dist,y0-w-Dist],[ymin,ymax],'g-')
+        axarr[iy,ix].semilogy([y0+w-Dist,y0+w-Dist],[ymin,ymax],'g-')
+        
+        axarr[iy,ix].semilogy([y0-w+Dist,y0-w+Dist],[ymin,ymax],'g-')
+        axarr[iy,ix].semilogy([y0+w+Dist,y0+w+Dist],[ymin,ymax],'g-')
+        
         thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
         axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
         
@@ -2536,7 +2615,7 @@ def remove_from_bad(arr,index_to_remove):
 #-------------------------------------------------------------------------------
     
 
-def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx,check_quality_flag=False,sigmapix_quality_cut=10):
+def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,filt2_idx,filt3_idx,filt4_idx,filt5_idx,filt6_idx,check_quality_flag=False,sigmapix_quality_cut=10,qualitytag=None):
     """
     guess_central_position:
     ----------------------
@@ -2616,112 +2695,127 @@ def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,fi
     # Step 2 : check if the fit is creazy 
     # if so, use the average center for the given disperser
     
-    print 'Check fit quality :: '
-    print ' ==========================='
+  
     
     # find bad ids for filter 1 and correct for 
         
+    if check_quality_flag: 
+        print ' ==========================='
+        print 'Check fit quality :: '
+        print ' ==========================='
         
-    # filter 0
-    #------------------------
-    if filt0_idx.shape[0] >0:        
-        aver_x0,std_x0,bad_idx_x0=check_bad_guess(x_guess,filt0_idx)
-        if (bad_idx_x0.shape[0] != 0):
-            print 'bad filt 0 x : ',bad_idx_x0
-            x_guess[bad_idx_x0]=aver_x0    # do the correction
+        # filter 0
+        #------------------------
+        if filt0_idx.shape[0] >0:        
+            aver_x0,std_x0,bad_idx_x0=check_bad_guess(x_guess,filt0_idx)
+            if (bad_idx_x0.shape[0] != 0):
+                print 'bad filt 0 x : ',bad_idx_x0
+                x_guess[bad_idx_x0]=aver_x0    # do the correction
     
-        aver_y0,std_y0,bad_idx_y0=check_bad_guess(y_guess,filt0_idx)
-        if (bad_idx_y0.shape[0] != 0):
-            print 'bad filt 0 y : ',bad_idx_y0
-            y_guess[bad_idx_y0]=aver_y0    # do the correction     
+            aver_y0,std_y0,bad_idx_y0=check_bad_guess(y_guess,filt0_idx)
+            if (bad_idx_y0.shape[0] != 0):
+                print 'bad filt 0 y : ',bad_idx_y0
+                y_guess[bad_idx_y0]=aver_y0    # do the correction     
         
 
-    # filter 1
-    if filt1_idx.shape[0]>0:    
-        aver_x1,std_x1,bad_idx_x1=check_bad_guess(x_guess,filt1_idx)
-        if (bad_idx_x1.shape[0] != 0):
-            print 'bad filt 1 x : ',bad_idx_x1
-            # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
-            # !!!!!!! 30 jun 17 on HD111XXX
-            #idx_to_remove=0
-            #print 'remove from bad idx x1 : ',idx_to_remove
-            #bad_idx_x1=remove_from_bad(bad_idx_x1,idx_to_remove)           
-            #print 'new bad filt 1 x : ',bad_idx_x1
-            x_guess[bad_idx_x1]=aver_x1    # do the correction
+        # filter 1
+        #--------------------------
+        if filt1_idx.shape[0]>0:    
+            aver_x1,std_x1,bad_idx_x1=check_bad_guess(x_guess,filt1_idx)
+            if (bad_idx_x1.shape[0] != 0):
+                print 'bad filt 1 x : ',bad_idx_x1
+                # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
+                # !!!!!!! 30 jun 17 on HD111980 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if qualitytag=="ana_30may17_hd111980":
+                    idx_to_remove=0
+                    print 'remove from bad idx x1 : ',idx_to_remove
+                    bad_idx_x1=remove_from_bad(bad_idx_x1,idx_to_remove)           
+                    print 'new bad filt 1 x : ',bad_idx_x1
+                
+                x_guess[bad_idx_x1]=aver_x1    # do the correction
     
-        aver_y1,std_y1,bad_idx_y1=check_bad_guess(y_guess,filt1_idx)
-        if (bad_idx_y1.shape[0] != 0):
-            print 'bad filt 1 y : ',bad_idx_y1
-            # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
-            #idx_to_remove=0        
-            #print 'remove from bad idx y1 : ',idx_to_remove
-            #bad_idx_y1=remove_from_bad(bad_idx_y1,idx_to_remove)           
-            #print 'new bad filt 1 y : ',bad_idx_y1
-            y_guess[bad_idx_y1]=aver_y1    # do the correction
-    
- 
-    # filter 2  
-    if filt2_idx.shape[0]>0:          
-        aver_x2,std_x2,bad_idx_x2=check_bad_guess(x_guess,filt2_idx)
-        if (bad_idx_x2.shape[0] != 0):
-            print 'bad filt 2 x : ',bad_idx_x2
-            x_guess[bad_idx_x2]=aver_x2    # do the correction
-    
-        aver_y2,std_y2,bad_idx_y2=check_bad_guess(y_guess,filt2_idx)
-        if (bad_idx_y2.shape[0] != 0):
-            print 'bad filt 2 y : ',bad_idx_y2
-            y_guess[bad_idx_y2]=aver_y2    # do the correction
-        
-        
-        # filter 3 
-    if filt3_idx.shape[0]>0:  
-        aver_x3,std_x3,bad_idx_x3=check_bad_guess(x_guess,filt3_idx)
-        if (bad_idx_x3.shape[0] != 0):
-            print 'bad bad filt 3 x : ',bad_idx_x3
-            x_guess[bad_idx_x3]=aver_x3    # do the correction
-    
-        aver_y3,std_y3,bad_idx_y3=check_bad_guess(y_guess,filt3_idx)
-        if (bad_idx_y3.shape[0] != 0):
-            print 'bad filt 3 y : ',bad_idx_y3
-            y_guess[bad_idx_y3]=aver_y3    # do the correction
-        
-    # filter 4
-    if filt4_idx.shape[0]>0:          
-        aver_x4,std_x4,bad_idx_x4=check_bad_guess(x_guess,filt4_idx)
-        if (bad_idx_x4.shape[0] != 0):
-            print 'bad filt 4 x : ',bad_idx_x4
-            x_guess[bad_idx_x4]=aver_x4    # do the correction
-    
-        aver_y4,std_y4,bad_idx_y4=check_bad_guess(y_guess,filt4_idx)
-        if (bad_idx_y4.shape[0] != 0):
-            print 'bad filt 4 y : ',bad_idx_y4
-            y_guess[bad_idx_y4]=aver_y4    # do the correction        
- 
-    
-    # filter 5
-    if filt5_idx.shape[0]>0:  
-          
-        aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
-        if (bad_idx_x5.shape[0] != 0):
-            print 'bad filt 5 x : ',bad_idx_x5
-            #x_guess[bad_idx_x5]=aver_x5    # do the correction
-    
-        aver_y5,std_y5,bad_idx_y5=check_bad_guess(y_guess,filt5_idx)
-        if (bad_idx_y5.shape[0] != 0):
-            print 'bad filt 5 y : ',bad_idx_y5
-            #y_guess[bad_idx_y5]=aver_y5    # do the correction  
+            aver_y1,std_y1,bad_idx_y1=check_bad_guess(y_guess,filt1_idx)
+            if (bad_idx_y1.shape[0] != 0):
+                print 'bad filt 1 y : ',bad_idx_y1
+                # !!!!!!!!!!!!!!!!!!!!!! Special for first Thorlab image
+                # !!!!!!! 30 jun 17 on HD111980 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if qualitytag=="ana_30may17_hd111980":
+                    idx_to_remove=0        
+                    print 'remove from bad idx y1 : ',idx_to_remove
+                    bad_idx_y1=remove_from_bad(bad_idx_y1,idx_to_remove)           
+                    print 'new bad filt 1 y : ',bad_idx_y1
+                    
+                y_guess[bad_idx_y1]=aver_y1    # do the correction
             
-    # filter 6 
-    if filt6_idx.shape[0]> 0:       
-        aver_x6,std_x6,bad_idx_x6=check_bad_guess(x_guess,filt6_idx)
-        if (bad_idx_x6.shape[0] != 0):
-            print 'bad filt 6 x : ',bad_idx_x6
-            x_guess[bad_idx_x6]=aver_x6    # do the correction
     
-        aver_y6,std_y6,bad_idx_y6=check_bad_guess(y_guess,filt6_idx)
-        if (bad_idx_y6.shape[0] != 0):
-            print 'bad filt 6 y : ',bad_idx_y6
-            y_guess[bad_idx_y6]=aver_y6    # do the correction  
+ 
+        # filter 2
+        #-------------------
+        if filt2_idx.shape[0]>0:          
+            aver_x2,std_x2,bad_idx_x2=check_bad_guess(x_guess,filt2_idx)
+            if (bad_idx_x2.shape[0] != 0):
+                print 'bad filt 2 x : ',bad_idx_x2
+                x_guess[bad_idx_x2]=aver_x2    # do the correction
+    
+            aver_y2,std_y2,bad_idx_y2=check_bad_guess(y_guess,filt2_idx)
+            if (bad_idx_y2.shape[0] != 0):
+                print 'bad filt 2 y : ',bad_idx_y2
+                y_guess[bad_idx_y2]=aver_y2    # do the correction
+        
+        
+        # filter 3
+        #-----------
+        if filt3_idx.shape[0]>0:  
+            aver_x3,std_x3,bad_idx_x3=check_bad_guess(x_guess,filt3_idx)
+            if (bad_idx_x3.shape[0] != 0):
+                print 'bad bad filt 3 x : ',bad_idx_x3
+                x_guess[bad_idx_x3]=aver_x3    # do the correction
+    
+            aver_y3,std_y3,bad_idx_y3=check_bad_guess(y_guess,filt3_idx)
+            if (bad_idx_y3.shape[0] != 0):
+                print 'bad filt 3 y : ',bad_idx_y3
+                y_guess[bad_idx_y3]=aver_y3    # do the correction
+        
+        # filter 4
+        #----------------
+        if filt4_idx.shape[0]>0:          
+            aver_x4,std_x4,bad_idx_x4=check_bad_guess(x_guess,filt4_idx)
+            if (bad_idx_x4.shape[0] != 0):
+                print 'bad filt 4 x : ',bad_idx_x4
+                x_guess[bad_idx_x4]=aver_x4    # do the correction
+    
+            aver_y4,std_y4,bad_idx_y4=check_bad_guess(y_guess,filt4_idx)
+            if (bad_idx_y4.shape[0] != 0):
+                print 'bad filt 4 y : ',bad_idx_y4
+                y_guess[bad_idx_y4]=aver_y4    # do the correction        
+ 
+    
+        # filter 5
+        #-----------------
+        if filt5_idx.shape[0]>0:  
+          
+            aver_x5,std_x5,bad_idx_x5=check_bad_guess(x_guess,filt5_idx)
+            if (bad_idx_x5.shape[0] != 0):
+                print 'bad filt 5 x : ',bad_idx_x5
+                x_guess[bad_idx_x5]=aver_x5    # do the correction
+    
+            aver_y5,std_y5,bad_idx_y5=check_bad_guess(y_guess,filt5_idx)
+            if (bad_idx_y5.shape[0] != 0):
+                print 'bad filt 5 y : ',bad_idx_y5
+                y_guess[bad_idx_y5]=aver_y5    # do the correction  
+            
+            # filter 6 
+            #---------------
+        if filt6_idx.shape[0]> 0:       
+            aver_x6,std_x6,bad_idx_x6=check_bad_guess(x_guess,filt6_idx)
+            if (bad_idx_x6.shape[0] != 0):
+                print 'bad filt 6 x : ',bad_idx_x6
+                x_guess[bad_idx_x6]=aver_x6    # do the correction
+    
+            aver_y6,std_y6,bad_idx_y6=check_bad_guess(y_guess,filt6_idx)
+            if (bad_idx_y6.shape[0] != 0):
+                print 'bad filt 6 y : ',bad_idx_y6
+                y_guess[bad_idx_y6]=aver_y6    # do the correction  
     
     
     return x_guess,y_guess
@@ -4194,9 +4288,740 @@ def CalculateOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,
 
 
 
+def ShowExtrSpectrainPDF(all_spectra,all_totspectra,all_titles,object_name,dir_top_img,all_filt,date,figname,NBIMGPERROW=2):
+    """
+    ShowExtrSpectrainPDF: Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBSPEC=len(all_spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    titlepage='Raw 1D Spectra 1D for {}, date : {}'.format(object_name,date)
+    
+    
+    
+    # loop on spectra  
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+    
+  
+        spectrum=all_spectra[index]
+        totspectrum=all_totspectra[index]
+        axarr[iy,ix].plot(spectrum,'r-',lw=2)
+        axarr[iy,ix].plot(totspectrum,'k:',lw=2)
+        
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+      
+        max_y_to_plot=spectrum[:].max()*1.2
+        
+        #YMIN=0.
+        #YMAX=max_y_to_plot
+    
+        #for line in LINES:
+        #    if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+        #        axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+        #        axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+     
+        
+        axarr[iy,ix].set_xlabel("pixel")
+        axarr[iy,ix].set_ylabel("ADU")
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+#---------------------------------------------------------------------------------------------------------    
+
+def CALSPECAbsLineIdentificationinPDF(spectra,pointing,all_titles,object_name,dir_top_images,all_filt,date,figname,tagname,NBIMGPERROW=2):
+    """
+    CALSPECAbsLineIdentification show the right part of spectrum with identified lines
+    =====================
+    """
+    
+    
+    NBSPEC=len(spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_images,figname)
+   
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    titlepage='WL calibrated 1D Spectra 1D for obj : {} date :{}'.format(object_name,date)
+    
+    
+    all_wl= []  # containers for wavelength
+    
+    
+    for index in np.arange(0,NBSPEC):
+        
+             
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+             
+        
+        spec = spectra[index]
+        
+        # calibrate
+        grating_name=get_disperser_filtname(all_filt[index])
+        X_Size_Pixels=np.arange(spec.shape[0])
+        lambdas = Pixel_To_Lambdas(grating_name,X_Size_Pixels,pointing[index],False)
+        
+        
+        all_wl.append(lambdas)
+        
+        #plot
+        axarr[iy,ix].plot(lambdas,spec,'r-',lw=2,label=tagname)
+    
+        thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        
+        #axarr[iy,ix].text(600.,spec.max()*1.1, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+        axarr[iy,ix].legend(loc='best',fontsize=16)
+        axarr[iy,ix].set_xlabel('Wavelength [nm]', fontsize=16)
+        axarr[iy,ix].grid(True)
+        
+        YMIN=0.
+        YMAX=spec.max()*1.2
+    
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+     
+        
+        axarr[iy,ix].set_ylim(YMIN,YMAX)
+        axarr[iy,ix].set_xlim(np.min(lambdas),np.max(lambdas))
+        axarr[iy,ix].set_xlim(0,1200.)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()   
+   
+    return all_wl
+
+#---------------------------------------------------------------------------------------------
+def CompareSpectrumProfile(wl,spectra,all_titles,all_airmass,object_name,all_filt,dir_top_img,grating_name,list_of_index):
+    """
+    CompareSpectrumProfile
+    =====================
+    input:
+        wl
+        spectra
+        all_titles
+        object_name
+        all_filt
+        dir_top_img
+        grating_name
+        list_of_index
+    
+    
+    output
+    
+    """
+    shortfilename='CompareSpec_'+grating_name+'.pdf'
+    title="Compare spectra of {} with disperser {}".format(object_name,grating_name)
+    figfilename=os.path.join(dir_top_img,shortfilename)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    f, axarr = plt.subplots(1,1,figsize=(10,6))
+    f.suptitle(title,fontsize=16,fontweight='bold')
+    
+    NBSPEC=len(spectra)
+    
+    min_z=min(all_airmass)
+    max_z=max(all_airmass)
+    
+    maxim_y_to_plot= []
+
+    texte='airmass : {} - {} '.format(min_z,max_z)
+    
+    for index in np.arange(0,NBSPEC):
+                
+        if index in list_of_index:
+            axarr.plot(wl[index],spectra[index],'-',lw=3)
+            maxim_y_to_plot.append(spectra[index].max())
+    
+    max_y_to_plot=max(maxim_y_to_plot)*1.2
+    axarr.set_ylim(0,max_y_to_plot)
+    axarr.text(0.,max_y_to_plot*0.9, texte ,verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    axarr.grid(True)
+    
+    YMIN=0.
+    YMAX=max_y_to_plot
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+            axarr.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+            axarr.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+     
+    
+    #axarr.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #axarr.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    axarr.grid(b=True, which='major', color='grey', linewidth=0.5)
+    #axarr.grid(b=True, which='minor', color='grey', linewidth=0.5)
+
+    
+    axarr.set_ylabel("ADU",fontsize=10,fontweight='bold')
+    axarr.set_xlabel("wavelength (nm)",fontsize=10,fontweight='bold')
+    axarr.set_xlim(0.,1200.)
+        
+    f.savefig(pp, format='pdf')
+    f.show()
+    
+    pp.close()     
+    
 
 
+# Study Calibrated Spectra
+#---------------------------------------------------------------------------------------------
+def BuildCalibSpec(sorted_filenames,sorted_numbers,object_name):
+    """
+    BuildRawSpec
+    ===============
+    """
 
+    all_dates = []
+    all_airmass = []
+    
+    all_leftspectra_data = []
+    all_rightspectra_data = []
+    
+    all_leftspectra_data_stat_err = []
+    all_rightspectra_data_stat_err = []
+    
+    all_leftspectra_wl = []
+    all_rightspectra_wl = []
+    all_titles = []
+    all_header = []
+    all_expo = []
+    all_filt = []
+    all_filt1= []
+    all_filt2= []
+   
+    NBFILES=sorted_filenames.shape[0]
+
+    for idx in range(NBFILES):  
+        
+        file=sorted_filenames[idx]    
+        
+        hdu_list=fits.open(file)
+        
+        #hdu_list.info()
+        
+        header=hdu_list[0].header
+        #print header
+        date_obs = header['DATE-OBS']
+        airmass = header['AIRMASS']
+        expo = header['EXPTIME']
+        num=sorted_numbers[idx]
+        title=object_name+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        filters = header['FILTERS']
+        filters1= header['FILTER1']
+        filters2= header['FILTER2']
+        
+        # now reads the spectra
+        
+        table_data=hdu_list[1].data
+        
+        #cols = hdu_list[1].columns
+        #cols.info()
+        #print hdu_list[1].columns
+        #cols.names
+  
+        #col1=fits.Column(name='CalibLeftSpecWL',format='E',array=theleftwl_cut[idx[0]])
+        #col2=fits.Column(name='CalibLeftSpecData',format='E',array=theleftspectrum_cut[idx[0]])
+        #col3=fits.Column(name='CalibLeftSpecSim',format='E',array=theleftsimspec_cut[idx[0]])
+        #col4=fits.Column(name='CalibRightSpecWL',format='E',array=therightwl_cut[idx[0]])
+        #col5=fits.Column(name='CalibRightSpecData',format='E',array=therightspectrum_cut[idx[0]])
+        #col6=fits.Column(name='CalibRightSpecSim',format='E',array=therightsimspec_cut[idx[0]])
+    
+    
+        left_spectrum_wl=table_data.field('CalibLeftSpecWL')
+        left_spectrum_data=table_data.field('CalibLeftSpec')
+        left_spectrum_data_stat_err=table_data.field('CalibStatErrorLeftSpec')
+        
+        right_spectrum_wl=table_data.field('CalibRightSpecWL')
+        right_spectrum_data=table_data.field('CalibRightSpec')
+        right_spectrum_data_stat_err=table_data.field('CalibStatErrorRightSpec')
+       
+        
+ 
+        
+        
+        all_dates.append(date_obs)
+        all_airmass.append(float(airmass))
+        
+        all_leftspectra_data.append(left_spectrum_data)
+        all_rightspectra_data.append(right_spectrum_data)
+        
+        all_leftspectra_wl.append(left_spectrum_wl)
+        all_rightspectra_wl.append(right_spectrum_wl)
+        
+        all_leftspectra_data_stat_err.append(left_spectrum_data_stat_err)
+        all_rightspectra_data_stat_err.append(right_spectrum_data_stat_err)
+        
+        all_titles.append(title)
+        all_header.append(header)
+        all_expo.append(expo)
+        
+        all_filt.append(filters)
+        all_filt1.append(filters1)
+        all_filt2.append(filters2)
+            
+        hdu_list.close()
+        
+    return all_dates,all_airmass,all_titles,all_header,all_expo, all_leftspectra_data,all_rightspectra_data, all_leftspectra_data_stat_err , all_rightspectra_data_stat_err ,all_leftspectra_wl,all_rightspectra_wl,all_filt,all_filt1,all_filt2
+#-----------------------------------------------------------------------------------------------------
+
+
+def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
+    """
+    BuildCalibSpecFull : Get everything from the fits file
+    ===============
+    """
 
 
     
+    all_leftspectra_data = []
+    all_rightspectra_data = []
+    
+    all_leftspectra_data_stat_err = []
+    all_rightspectra_data_stat_err = []
+    
+    all_leftspectra_wl = []
+    all_rightspectra_wl = []
+    all_titles = []
+  
+    
+    all_headers = []
+    all_objects = []
+    all_dates = []
+    all_airmass = []
+    all_exposures = []
+    all_ut = []
+    all_ra = []
+    all_dec = []
+    all_epoch = []
+    all_zenith = []
+    all_ha = []
+    all_st = []
+    all_alt = []
+    all_focus = []
+    all_temp = []
+    all_press = []
+    all_hum = []
+    all_windsp = []
+    all_seeing = []
+    all_seeingam = []
+    all_filt = []
+    all_filt1 = []
+    all_filt2 = []
+    
+    
+    
+   
+    NBFILES=sorted_filenames.shape[0]
+
+    for idx in range(NBFILES):  
+        
+        file=sorted_filenames[idx]    
+        
+        hdu_list=fits.open(file)
+        
+        #hdu_list.info()
+        
+        header=hdu_list[0].header
+        #print header
+        
+        header=hdu_list[0].header
+        date_obs = header['DATE-OBS']
+        airmass = float(header['AIRMASS'])
+        expo= float(header['EXPTIME'])
+      
+        object=header['OBJECT']
+   
+        ut=header['UT']
+        ra=header['RA']
+        dec=header['DEC']
+        epoch=float(header['EPOCH'])
+        zd = float(header['ZD'])
+        ha = header['HA']
+        st = header['ST']
+        alt = float(header['ALT'])
+        fcl = float(header['TELFOCUS'])
+        temp= float(header['OUTTEMP'])
+        press= float(header['OUTPRESS'])
+        hum= float(header['OUTHUM'])
+        windsp=float(header['WNDSPEED'])
+        seeing=float(header['SEEING'])
+        seeingam=float(header['SAIRMASS'])
+ 
+        
+    
+        num=sorted_numbers[idx]
+        title=object+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        filters = header['FILTERS']
+        filters1= header['FILTER1']
+        filters2= header['FILTER2']
+        
+        # now reads the spectra
+        
+        table_data=hdu_list[1].data
+        
+        #cols = hdu_list[1].columns
+        #cols.info()
+        #print hdu_list[1].columns
+        #cols.names
+  
+        #col1=fits.Column(name='CalibLeftSpecWL',format='E',array=theleftwl_cut[idx[0]])
+        #col2=fits.Column(name='CalibLeftSpecData',format='E',array=theleftspectrum_cut[idx[0]])
+        #col3=fits.Column(name='CalibLeftSpecSim',format='E',array=theleftsimspec_cut[idx[0]])
+        #col4=fits.Column(name='CalibRightSpecWL',format='E',array=therightwl_cut[idx[0]])
+        #col5=fits.Column(name='CalibRightSpecData',format='E',array=therightspectrum_cut[idx[0]])
+        #col6=fits.Column(name='CalibRightSpecSim',format='E',array=therightsimspec_cut[idx[0]])
+    
+    
+        left_spectrum_wl=table_data.field('CalibLeftSpecWL')
+        left_spectrum_data=table_data.field('CalibLeftSpec')
+        left_spectrum_data_stat_err=table_data.field('CalibStatErrorLeftSpec')
+        
+        right_spectrum_wl=table_data.field('CalibRightSpecWL')
+        right_spectrum_data=table_data.field('CalibRightSpec')
+        right_spectrum_data_stat_err=table_data.field('CalibStatErrorRightSpec')
+       
+        
+        all_dates.append(date_obs)
+        all_objects.append(object)
+        all_airmass.append(airmass)
+        all_headers.append(header)
+        all_exposures.append(expo)
+        all_ut.append(ut)
+        all_ra.append(ra)
+        all_dec.append(dec)
+        all_epoch.append(epoch)
+        all_zenith.append(zd)
+        all_ha.append(ha)
+        all_st.append(st)
+        all_alt.append(alt)
+        all_focus.append(fcl)
+        all_temp.append(temp)
+        all_press.append(press)
+        all_hum.append(hum)
+        all_windsp.append(windsp)
+        all_seeing.append(seeing)
+        all_seeingam.append(seeingam)
+      
+        
+
+        
+        all_leftspectra_data.append(left_spectrum_data)
+        all_rightspectra_data.append(right_spectrum_data)
+        
+        all_leftspectra_wl.append(left_spectrum_wl)
+        all_rightspectra_wl.append(right_spectrum_wl)
+        
+        all_leftspectra_data_stat_err.append(left_spectrum_data_stat_err)
+        all_rightspectra_data_stat_err.append(right_spectrum_data_stat_err)
+        
+        all_titles.append(title)
+        all_headers.append(header)
+        
+        
+        all_filt.append(filters)
+        all_filt1.append(filters1)
+        all_filt2.append(filters2)
+            
+        hdu_list.close()
+        
+    return all_dates, \
+        all_objects, \
+        all_airmass, \
+        all_titles, \
+        all_exposures, \
+        all_ut, all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,\
+        all_temp, all_press,all_hum,all_windsp,\
+        all_seeing,all_seeingam,\
+        all_filt,all_filt1,all_filt2,\
+        all_leftspectra_data, \
+        all_rightspectra_data, \
+        all_leftspectra_data_stat_err ,\
+        all_rightspectra_data_stat_err ,\
+        all_leftspectra_wl,\
+        all_rightspectra_wl
+
+#--------------------------------------------------------------------------------------------------------------------------
+
+def ShowCalibSpectrainPDF(all_spectra,all_spectra_stat_err,all_spectra_wl,all_titles,object_name,dir_top_img,all_filt,date,figname,tagname,NBIMGPERROW=2):
+    """
+    ShowCalibSpectrainPDF : Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBSPEC=len(all_spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    titlepage='Calibrated 1D Spectra 1D for {}, date : {} , {} '.format(object_name,date,tagname)
+    
+    
+    
+    # loop on spectra  
+    for index in np.arange(0,NBSPEC):
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+    
+  
+        spectrum=all_spectra[index]
+        spectrum_err=all_spectra_stat_err[index]
+        spectrum_wl=all_spectra_wl[index]
+        
+        
+       
+        axarr[iy,ix].errorbar(spectrum_wl,spectrum,yerr=spectrum_err,ecolor='grey',elinewidth=0.5)
+        axarr[iy,ix].plot(spectrum_wl,spectrum,'-',color='blue',lw=1)
+    
+        
+        thetitle="{} : {} : {} : {} ".format(index,all_titles[index],all_filt[index],tagname)
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+      
+        max_y_to_plot=np.max(spectrum)*1.2
+        
+        YMIN=0.
+        YMAX=max_y_to_plot
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].set_xlim(0.,1200.)
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('ADU (sum over 10 pix transv)')
+        #axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+#---------------------------------------------------------------------------------------------------------   
+
+
+def ShowCalibSpectrainPDFSelect(all_spectra,all_spectra_stat_err,all_spectra_wl,all_titles,object_name,dir_top_img,all_filt,all_filt1,all_filt2,date,figname,tagname,NBIMGPERROW=2):
+    """
+    ShowCalibSpectrainPDF : Show the raw images without background subtraction
+    ==============
+    """
+    
+    NBSPEC=len(all_spectra)
+    
+    MAXIMGROW=max(2,int(m.ceil(float(NBSPEC)/float(NBIMGPERROW))))
+    
+    
+    # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    titlepage='Calibrated 1D Spectra 1D for {}, date : {} , {} '.format(object_name,date,tagname)
+    
+    
+    index=-1
+    # loop on spectra  
+    for idx in np.arange(0,NBSPEC):
+        
+        if all_filt1[idx]=='FGB37':
+            index=index+1
+        else:
+            continue
+        
+        
+        # new pdf page    
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(titlepage,size=20)
+            
+        # index of image in the pdf page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+    
+  
+        spectrum=all_spectra[idx]
+        spectrum_err=all_spectra_stat_err[idx]
+        spectrum_wl=all_spectra_wl[idx]
+        
+        
+       
+        axarr[iy,ix].errorbar(spectrum_wl,spectrum,yerr=spectrum_err,ecolor='grey',elinewidth=0.5)
+        axarr[iy,ix].plot(spectrum_wl,spectrum,'-',color='blue',lw=1)
+    
+        
+        thetitle="{} : {} : {} : {} ".format(idx,all_titles[idx],all_filt[idx],tagname)
+        axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
+        
+        axarr[iy,ix].grid(True)
+      
+        max_y_to_plot=np.max(spectrum)*1.2
+        
+        
+        YMIN=0.
+        YMAX=max_y_to_plot
+        
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].set_xlim(0.,1200.)
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('ADU (sum over 10 pix transv)')
+        #axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.2, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+    
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+    
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()    
+#---------------------------------------------------------------------------------------------------------   
+def smooth(x,window_len=11,window='hanning'):
+    """smooth the data using a window with requested size.
+    
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal 
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
+    
+    input:
+        x: the input signal 
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+
+    output:
+        the smoothed signal
+        
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+    
+    see also: 
+    
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+ 
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError, "smooth only accepts 1 dimension arrays."
+
+    if x.size < window_len:
+        raise ValueError, "Input vector needs to be bigger than window size."
+
+
+    if window_len<3:
+        return x
+
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+
+
+    s=np.r_[x[window_len-1:0:-1],x,x[-2:-window_len-1:-1]]
+    #print(len(s))
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
+    else:
+        w=eval('np.'+window+'(window_len)')
+
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    #return y
+    return y[(window_len/2):-(window_len/2)] 
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -25,8 +25,8 @@ import UVspec
 
 # LibRadTran installation directory
 home = os.environ['HOME']+'/'       
-libradtranpath = home+'MacOSX/External/libRadtran/libRadtran-2.0.1/'
-
+#libradtranpath = home+'MacOSX/External/libRadtran/libRadtran-2.0.1/'
+libradtranpath = os.environ['LIBRADTRANDIR']+'/'   
 # Filename : RT_LS_pp_us_sa_rt_z15_wv030_oz30.txt
 #          : Prog_Obs_Rte_Atm_proc_Mod_zXX_wv_XX_oz_XX
   

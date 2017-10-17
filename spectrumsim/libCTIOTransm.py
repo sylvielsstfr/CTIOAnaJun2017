@@ -2,13 +2,12 @@
 libCTIOSTransm.py
 =============----
 
-
 author : Sylvie Dagoret-Campagne
 affiliation : LAL/CNRS/IN2P3/FRANCE
 Collaboration : DESC-LSST
 
-
 Purpose : Provide the various transmission usefull
+update : October 17 : set the path with environnment variables
 
 """
 
@@ -26,7 +25,8 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import interp1d
 
 home = os.environ['HOME']+'/'  
-path_CTIOtransm=home+'MacOSX/GitHub/LSST/CTIOAnaJun2017/spectrumsim/CTIOThroughput'
+path_ctioanajun2017=os.environ['CTIOAnaJun2017DIR']
+path_CTIOtransm=path_ctioanajun2017+'/spectrumsim/CTIOThroughput'
 
 #
 filename_qe = "qecurve.txt"  
