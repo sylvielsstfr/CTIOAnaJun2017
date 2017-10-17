@@ -25,7 +25,8 @@ import UVspec
 
 # LibRadTran installation directory
 home = os.environ['HOME']+'/'       
-libradtranpath = home+'MacOSX/External/libRadtran/libRadtran-2.0.1/'
+#libradtranpath = home+'MacOSX/External/libRadtran/libRadtran-2.0.1/'
+libradtranpath = os.environ['LIBRADTRANDIR']+'/'    
 
 # Filename : RT_LS_pp_us_sa_rt_z15_wv030_oz30.txt
 #          : Prog_Obs_Rte_Atm_proc_Mod_zXX_wv_XX_oz_XX
@@ -40,7 +41,6 @@ Mod='rt'   # Models for absorption bands : rt for REPTRAN, lt for LOWTRAN, k2 fo
 ZXX='z'        # XX index for airmass z :   XX=int(10*z)
 WVXX='wv'      # XX index for PWV       :   XX=int(pwv*10)
 OZXX='oz'      # XX index for OZ        :   XX=int(oz/10)
-
 
 
 LSST_Altitude = 2.750  # in k meters from astropy package (Cerro Pachon)
