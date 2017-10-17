@@ -2032,7 +2032,10 @@ def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2,vmi
         ix=index%NBIMGPERROW
         iy=index/NBIMGPERROW
         image=all_images[index]    
-        angle=all_angles[index]    
+        angle=all_angles[index]
+        if np.isnan(angle):
+            all_rotated_images.append(image)
+            continue
         data=np.copy(image)
         # prefilter=False and order=5 give best rotated images
         rotated_image=ndimage.interpolation.rotate(data,angle,prefilter=False,order=5)

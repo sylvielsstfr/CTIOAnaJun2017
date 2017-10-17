@@ -44,13 +44,17 @@ CIII1 =  {'lambda': 673.0,'atmospheric':False,'label':'$C_{III}$','pos':[-0.016,
 CIII2 =  {'lambda': 570.0,'atmospheric':False,'label':'$C_{III}$','pos':[0.007,0.02]}
 HEI =  {'lambda': 587.5,'atmospheric':False,'label':'$He_{I}$','pos':[0.007,0.02]}
 HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.02]}
+CAII1 =  {'lambda': 393.366,'atmospheric':True,'label':'$Ca_{II}$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
+CAII2 =  {'lambda': 396.847,'atmospheric':True,'label':'$Ca_{II}$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 #O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
 O2 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # libradtran paper fig.3
 O2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
+O2B = {'lambda': 686.719,'atmospheric':True,'label':'$O_2(B)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
+O2Y = {'lambda': 898.765,'atmospheric':True,'label':'$O_2(Y)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 #H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # 
 H2O = {'lambda': 950,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
 H2O = {'lambda': 970,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
-LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII]
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,O2B,O2Y,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
 LINES = sorted(LINES, key=lambda x: x['lambda'])
 
 
@@ -888,16 +892,22 @@ def GratingResolution_TwoOrder(thecorrspectra,all_images,all_filt,leftorder_edge
     return(Ns,N_errs)
 
 
-def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,emission_spectrum=False,atmospheric_lines=True,hydrogen_only=False,verbose=False,dir_top_images=None):
+def extract_spectrum(thecorrspectrum,holo,xlims,thex0,order0_position,order=1):
+    left_cut, right_cut = xlims
+    spec = thecorrspectrum[left_cut:right_cut]
+    pixels = np.arange(left_cut,right_cut,1)-thex0
+    lambdas = holo.grating_pixel_to_lambda(pixels,order0_position,order=order)
+    return [lambdas,spec]
+
+
+def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_name,all_filt,xlim=(1000,1800),target=None,order=1,emission_spectrum=False,atmospheric_lines=True,hydrogen_only=False,nofit=False,verbose=False,dir_top_images=None):
     """
     CalibrateSpectra show the right part of spectrum with identified lines
     =====================
     """
     NBSPEC=len(spectra)
-    if target is not None :
-        target.load_spectra()
-    f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
     Ds = []
+    specs = []
     for index in np.arange(0,NBSPEC):
         if isinstance(xlim[0], (list, tuple, np.ndarray)) :
             left_cut = xlim[index][0]
@@ -905,13 +915,13 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         else :
             left_cut = xlim[0]
             right_cut = min(len(spectra[index]),xlim[1])
-        spec = spectra[index][left_cut:right_cut]
         ######## convert pixels to wavelengths #########
         holo = Hologram(all_filt[index],verbose=verbose)
-        if verbose : print '-----------------------------------------------------'
-        pixels = np.arange(left_cut,right_cut,1)-thex0[index]
-        lambdas = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
-        ###### detect emission/absorption lines and calibrate pixel/lambda ##### 
+        if verbose : print '---------------------------------------------------'
+        lambdas, spec = extract_spectrum(spectra[index],holo,[left_cut,right_cut],thex0[index],order0_positions[index],order=order)
+        ###### detect emission/absorption lines and calibrate pixel/lambda #####
+        D = DISTANCE2CCD-DISTANCE2CCD_ERR
+        shift = 0
         shifts = []
         counts = 0
         #lambda_shift = 1e20
@@ -924,17 +934,13 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         #        if abs(shifts[-1]+shifts[-2]) < 0.1 : break
         #    if counts > 30 : break
         #if verbose : print 'Wavelenght total shift: %.2fnm (after %d steps)' % (np.sum(shifts),len(shifts))
-        D = DISTANCE2CCD-DISTANCE2CCD_ERR
         D_step = DISTANCE2CCD_ERR / 4
-        shift = 0
         while D < DISTANCE2CCD+4*DISTANCE2CCD_ERR and D > DISTANCE2CCD-4*DISTANCE2CCD_ERR and counts < 30 :
             holo.D = D
             lambdas_test = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
             lambda_shift = detect_lines(lambdas_test,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=False)
-            #lambdas -= lambda_shift
             shifts.append(lambda_shift)
             counts += 1
-            #print counts, D, lambda_shift
             if abs(lambda_shift)<0.1 :
                 break
             elif lambda_shift > 2 :
@@ -947,7 +953,6 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
                 D_step = -DISTANCE2CCD_ERR / 20
             elif  lambda_shift < -0.5 :
                 D_step = -DISTANCE2CCD_ERR / 6
-            #print counts, D, lambda_shift, D_step, holo.N(order0_positions[index]), order0_positions[index]
             D += D_step
         Ds.append(D)
         shift = np.mean(lambdas_test - lambdas)
@@ -955,10 +960,22 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         if verbose :
             print 'Wavelenght total shift: %.2fnm (after %d steps)' % (shift,len(shifts))
             print '\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR)
+        specs.append([lambdas,spec])
+    PlotCalibratedSpectra(specs,redshift,all_titles,object_name,all_filt,target=target,order=order,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,nofit=nofit,verbose=verbose,dir_top_images=dir_top_images)
+    return specs, Ds
+
+def PlotCalibratedSpectra(specs,redshift,all_titles,object_name,all_filt,target=None,order=1,atmospheric_lines=True,hydrogen_only=False,nofit=False,verbose=False,dir_top_images=None):
+    NBSPEC=len(specs)
+    if target is not None :
+        target.load_spectra()
+    f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
+    for index in np.arange(0,NBSPEC):
+        lambdas, spec = specs[index]
         axarr[index].set_xlim(lambdas[0],lambdas[-1])
-        axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order +1 spectrum')
+        axarr[index].plot(lambdas,spec,'r-',lw=2,label='Order %d spectrum' % order)
         plot_atomic_lines(axarr[index],redshift=redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only)
-        lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=axarr[index],verbose=verbose)
+        if not nofit :
+            lambda_shift = detect_lines(lambdas,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=axarr[index],verbose=verbose)
         if verbose : print '-----------------------------------------------------'
         ######## add target spectrum #######
         if target is not None :
@@ -976,6 +993,51 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         figfilename=os.path.join(dir_top_images,'calibrated_spectrum_profile.pdf')
         plt.savefig(figfilename) 
     plt.show()
-    return Ds
+
+
+def EstimateSecondOrderRatios(specs1,specs2,lambdas,all_titles,object_name,all_filt,bin_width=1,verbose=False,dir_top_images=None):
+    """ bins in nm : with of binned ratio """
+    NBSPEC=len(specs1)
+    f, axarr = plt.subplots(NBSPEC,1,figsize=(20,7*NBSPEC))
+    ratios = []
+    for index in np.arange(0,NBSPEC):
+        ####### compute order1/order2 ratio ########
+        spec1_interp = np.interp(lambdas,specs1[index][0],specs1[index][1])
+        spec2_interp = np.interp(lambdas,specs2[index][0],specs2[index][1])
+        ratio = np.abs(spec2_interp/spec1_interp)
+        ###### bin ratio ########
+        if bin_width > 1 :
+            binned_ratio = []
+            binned_ratio_err = []
+            binned_lambdas = []
+            binned_lambdas_err = []
+            i = 0
+            while lambdas[0] + (i+1)*bin_width <= lambdas[-1] :
+                lambdas_indices = np.where(np.logical_and(lambdas > lambdas[0]+i*bin_width, lambdas < lambdas[0] + (i+1)*bin_width))
+                binned_ratio.append(np.median(ratio[lambdas_indices]))
+                binned_ratio_err.append(np.std(ratio[lambdas_indices]))
+                binned_lambdas.append(0.5*(lambdas[lambdas_indices[0][0]]+lambdas[lambdas_indices[0][-1]]))
+                binned_lambdas_err.append(-0.5*(lambdas[lambdas_indices[0][0]]-lambdas[lambdas_indices[0][-1]]))
+                i += 1
+            ratios.append([2*lambdas,ratio,2*np.array(binned_lambdas),binned_ratio,2*np.array(binned_lambdas_err),binned_ratio_err])
+        else : 
+            ratios.append([2*lambdas,ratio])
+        if verbose : print '---------------------------------------------------'
+        ######## set plot #######
+        axarr[index].plot(2*lambdas,ratio,'r-',lw=2) # plot with respect to order 1 wavelength
+        if bin_width > 1 :
+            axarr[index].errorbar(2*np.array(binned_lambdas),binned_ratio,xerr=2*np.array(binned_lambdas_err),yerr=binned_ratio_err,lw=2,elinewidth=3,fmt='ko',markersize=10)
+        axarr[index].set_title(all_titles[index])
+        axarr[index].annotate(all_filt[index],xy=(0.05,0.8),xytext=(0.05,0.8),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
+        #axarr[index].legend(fontsize=16,loc='best')
+        axarr[index].set_xlabel('Order 1 wavelength [nm]', fontsize=16)
+        axarr[index].grid(True)
+        axarr[index].set_xlim(2*lambdas[0],2*lambdas[-1])
+        axarr[index].set_ylim(0,1.2*np.max(ratio))
+    if dir_top_images is not None :
+        figfilename=os.path.join(dir_top_images,'second_order_contamination.pdf')
+        plt.savefig(figfilename) 
+    plt.show()
+    return ratios
 
 
