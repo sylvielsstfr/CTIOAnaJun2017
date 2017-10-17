@@ -153,8 +153,8 @@ def scatter_interpol(central_positions,values,margin=10,kind='cubic',plot=False,
     interp = lambda x: interp_2args(x[0],x[1])
     if plot :
         fig = plt.figure(figsize=(8,8))
-        plt.scatter(x, y, c=values, s=100, cmap=cm.jet, marker='o', vmin=np.min(values), vmax=np.max(values),edgecolors='k')
-        im = plt.imshow(z, extent=[np.min(xx)-margin, np.max(xx)+margin, np.min(yy)-margin, np.max(yy)+margin],origin='lower',aspect='auto',cmap=cm.jet)
+        im = plt.imshow(z, extent=[np.min(xx)-margin, np.max(xx)+margin, np.min(yy)-margin, np.max(yy)+margin],origin='lower',aspect='auto',cmap=cm.jet, vmin=np.min(z), vmax=np.max(z))
+        plt.scatter(x, y, c=values, s=100, cmap=cm.jet, marker='o', edgecolors='k', vmin=np.min(z), vmax=np.max(z))
         plt.xlabel('Pixel x')
         plt.ylabel('Pixel y')
         plt.annotate(holo_name,xy=(0.95,0.05),xytext=(0.95,0.05),fontsize=16,
