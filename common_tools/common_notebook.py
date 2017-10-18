@@ -5363,6 +5363,35 @@ def PlotDataVsDateTime(all_dates,all_data,thetitle,thextitle,theytitle,dir_top_i
 
     figfilename=os.path.join(dir_top_img,figname)
     fig.savefig(figfilename)
+#-----------------------------------------------------------------------------------------------------------
+
+def GetSpectraFromIndexList(all_wl,all_spectra,idx_list):
+    """
+    GetSpectraFromIndexList(all_wl,all_spectra,idx_list)
+    
+    Select spectra from a list of indexes
+    
+    input :
+        all_wl : all wavelength
+        all_spectra :all input spectra
+        idx_list : list of selected index
+        
+    output  :
+        all_wl_sel : selected wavelength
+        all_spectra_sel : selected spectra
+    
+    """
+    NBSPEC=len(all_spectra)
+    
+    
+    all_wl_sel=[]
+    all_spectra_sel=[]
+    
+    for idx in np.arange(0,NBSPEC):
+        if idx in idx_list:
+            all_wl_sel.append(all_wl[idx])
+            all_spectra_sel.append(all_spectra[idx])
+    return all_wl_sel,all_spectra_sel
     
     
 #----------------------------------------------------------------------------------------------------------    
