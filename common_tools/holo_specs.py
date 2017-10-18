@@ -51,10 +51,11 @@ O2 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # librad
 O2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
 O2B = {'lambda': 686.719,'atmospheric':True,'label':'$O_2(B)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 O2Y = {'lambda': 898.765,'atmospheric':True,'label':'$O_2(Y)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
+O2Z = {'lambda': 822.696,'atmospheric':True,'label':'$O_2(Z)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 #H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # 
 H2O = {'lambda': 950,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
 H2O = {'lambda': 970,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
-LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,O2B,O2Y,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,O2B,O2Y,O2Z,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
 LINES = sorted(LINES, key=lambda x: x['lambda'])
 
 

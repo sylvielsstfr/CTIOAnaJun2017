@@ -4693,7 +4693,7 @@ def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
     all_titles = []
   
     
-    all_headers = []
+    all_header = []
     all_objects = []
     all_dates = []
     all_airmass = []
@@ -4733,12 +4733,11 @@ def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
         header=hdu_list[0].header
         #print header
         
-        header=hdu_list[0].header
         date_obs = header['DATE-OBS']
         airmass = float(header['AIRMASS'])
         expo= float(header['EXPTIME'])
       
-        object=header['OBJECT']
+        obj=header['OBJECT']
    
         ut=header['UT']
         ra=header['RA']
@@ -4759,7 +4758,7 @@ def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
         
     
         num=sorted_numbers[idx]
-        title=object+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        title=obj+" z= {:3.2f} Nb={}".format(float(airmass),num)
         filters = header['FILTERS']
         filters1= header['FILTER1']
         filters2= header['FILTER2']
@@ -4793,9 +4792,11 @@ def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
 
         
         all_dates.append(date_obs)
-        all_objects.append(object)
+        all_objects.append(obj)
         all_airmass.append(airmass)
-        all_headers.append(header)
+        
+        all_header.append(header)
+        
         all_exposures.append(expo)
         all_ut.append(ut)
         all_ra.append(ra)
@@ -4833,7 +4834,7 @@ def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
         all_sim_spectra_data.append(sim_spectrum_data)
         
         all_titles.append(title)
-        all_headers.append(header)
+       
         
         
         all_filt.append(filters)
@@ -4842,7 +4843,7 @@ def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
             
         hdu_list.close()
         
-    return all_headers, \
+    return all_header, \
         all_dates, \
         all_objects, \
         all_airmass, \
@@ -4889,7 +4890,7 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
     all_titles = []
   
     
-    all_headers = []
+    all_header = []
     all_objects = []
     all_dates = []
     all_airmass = []
@@ -4929,12 +4930,11 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         header=hdu_list[0].header
         #print header
         
-        header=hdu_list[0].header
         date_obs = header['DATE-OBS']
         airmass = float(header['AIRMASS'])
         expo= float(header['EXPTIME'])
       
-        object=header['OBJECT']
+        obj=header['OBJECT']
    
         ut=header['UT']
         ra=header['RA']
@@ -4955,7 +4955,7 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         
     
         num=sorted_numbers[idx]
-        title=object+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        title=obj+" z= {:3.2f} Nb={}".format(float(airmass),num)
         filters = header['FILTERS']
         filters1= header['FILTER1']
         filters2= header['FILTER2']
@@ -4982,11 +4982,14 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         totright_spectrum_data=table_data.field('CalibTotRightSpec')
         
 
+        # append only once !!!!!!
         
         all_dates.append(date_obs)
-        all_objects.append(object)
+        all_objects.append(obj)
         all_airmass.append(airmass)
-        all_headers.append(header)
+        
+        all_header.append(header)
+        
         all_exposures.append(expo)
         all_ut.append(ut)
         all_ra.append(ra)
@@ -5020,7 +5023,7 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         all_totrightspectra_data.append(totright_spectrum_data)
         
         all_titles.append(title)
-        all_headers.append(header)
+       
         
         
         all_filt.append(filters)
@@ -5029,7 +5032,7 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
             
         hdu_list.close()
         
-    return all_headers, \
+    return all_header, \
         all_dates, \
         all_objects, \
         all_airmass, \
@@ -5295,7 +5298,8 @@ def ShowCalibAndSimSpectrainPDF(all_spectra,all_wl,all_titles,object_name,all_fi
         axarr[iy,ix].set_xlim(0.,1200.)
         axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.4, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
        
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{} : {}".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         #axarr[iy,ix].set_title(all_filt[index])
         axarr[iy,ix].set_xlabel("wavelength (nm)")
         
