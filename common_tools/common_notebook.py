@@ -40,7 +40,8 @@ from fwhm_profiles import *
 
 import math as m
 
-from matplotlib.backends.backend_pdf import PdfPages   
+from matplotlib.backends.backend_pdf import PdfPages  
+import matplotlib as mpl 
 
 
 
@@ -5197,7 +5198,116 @@ def ShowCalibSpectrainPDFSelect(all_spectra,all_spectra_stat_err,all_spectra_wl,
     f.savefig(pp, format='pdf') 
     f.show()
     pp.close()    
-#---------------------------------------------------------------------------------------------------------   
+#--------------------------------------------------------------------------------------------------------- 
+    
+def ShowCalibAndSimSpectrainPDF(all_spectra,all_wl,all_titles,object_name,all_filt,dir_top_img,sim_spec_data,sim_spec_wl,NBIMGPERROW=2,NormSpecRange= [790,810]):
+    """
+    ShowCalibAndSimSpectra: Compare spectra in data and sim in AnaCompareDataSimSpec.ipynb
+    ==============
+    
+    
+    input : NormSpecRange= [790,810] range in  which individual spectra data and sim are normalized relatively
+    
+    output:
+        return relative calibration factors
+    
+    """
+    
+    # range where to normalize the spectra
+    
+    
+    # number of spectra
+    NBSPEC=len(all_spectra)
+   
+    MAXIMGROW=max(2,m.ceil(NBSPEC/NBIMGPERROW))
+    #MAXIMGROW=int(MAXIMGROW)
+        
+    # calibration factor required
+    calibdatasimfactor = []    
+        
+        
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,'input_calibratedandsim_spectra.pdf')
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    title='Calibrated spectra for {}'.format(object_name)
+         
+   
+  
+    
+    for index in np.arange(0,NBSPEC):
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20,fontweight='bold')
+ 
+
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+        # extraction for data
+        wl=all_wl[index]  # wavelength in data        
+        spectrum=all_spectra[index]   # data
+        maxdata_in_range=np.max(spectrum[np.where(np.logical_and(wl>NormSpecRange[0],wl<NormSpecRange[1]))]) # max in data in selected wl range
+        
+        # extraction for sim
+        wl_sim= sim_spec_wl[index]       # wl
+        spectrum_sim=sim_spec_data[index] # spec
+        
+        maxsim_in_range=np.max(spectrum_sim[np.where(np.logical_and(wl_sim>NormSpecRange[0],wl_sim<NormSpecRange[1]))]) # max in sim in selected wl range
+        
+        # calib factor per image
+        calibfactor=maxdata_in_range/maxsim_in_range   # calib factor data/sim in wl range
+        calibdatasimfactor.append(calibfactor) # for later analysis
+        
+        # plot spec data
+        axarr[iy,ix].plot(wl,spectrum,'r-',lw=2,label='data') # plot data
+        
+        # renormalize sim
+        spectrum_sim=spectrum_sim*calibfactor  # renormalize the sim to data units
+        
+        # plot sim
+        axarr[iy,ix].plot(wl_sim,spectrum_sim,'b-',lw=1,label='sim')
+        
+        
+        max_y_to_plot=spectrum[:].max()*1.4
+        axarr[iy,ix].set_ylim(0.,max_y_to_plot)
+        axarr[iy,ix].set_xlim(0.,1200.)
+        axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.4, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
+       
+        axarr[iy,ix].set_title(all_titles[index])
+        #axarr[iy,ix].set_title(all_filt[index])
+        axarr[iy,ix].set_xlabel("wavelength (nm)")
+        
+        axarr[iy,ix].get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+        axarr[iy,ix].get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+        axarr[iy,ix].grid(b=True, which='major' ,color='grey', linewidth=0.5)
+        #axarr[iy,ix].grid(b=True, which='minor', color='grey', linewidth=0.5)
+      
+        axarr[iy,ix].legend()
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            f.show()
+            
+                
+          
+    
+    f.savefig(pp, format='pdf') 
+    f.show()
+    pp.close()
+    return np.array(calibdatasimfactor)
+        
+    
+    
+    
+    
+#----------------------------------------------------------------------------------------------------------    
 def smooth(x,window_len=11,window='hanning'):
     """smooth the data using a window with requested size.
     
