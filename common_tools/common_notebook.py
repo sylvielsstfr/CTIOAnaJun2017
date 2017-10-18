@@ -65,9 +65,31 @@ def init_notebook():
 
     print os.getcwd()
 #-------------------------------------------------------------------------------
-
-
-
+class ListTable(list):
+    """ Overridden list class which takes a 2-dimensional list of 
+        the form [[1,2,3],[4,5,6]], and renders an HTML Table in 
+        IPython Notebook. """
+    
+    def _repr_html_(self):
+        html = ["<table>"]
+        for row in self:
+            html.append("<tr>")
+            
+            for col in row:
+                html.append("<td>{0}</td>".format(col))
+            
+            html.append("</tr>")
+        html.append("</table>")
+        return ''.join(html)
+#----------------------------------------------------------------------------------    
+def truncate(f, n):
+    '''Truncates/pads a float f to n decimal places without rounding'''
+    s = '{}'.format(f)
+    if 'e' in s or 'E' in s:
+        return '{0:.{1}f}'.format(f, n)
+    i, p, d = s.partition('.')
+    return '.'.join([i, (d+'0'*n)[:n]])    
+#-----------------------------------------------------------------------------------
 def MakeFileList(dirlist_all,MIN_IMGNUMBER=0,MAX_IMGNUMBER=1e10,SelectTagRe='',SearchTagRe=''):
     """
     MakeFileList : Make The List of files to open
@@ -4625,10 +4647,212 @@ def BuildCalibSpec(sorted_filenames,sorted_numbers,object_name):
 #-----------------------------------------------------------------------------------------------------
 
 
-def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
+def BuildCalibandSimSpecFull(sorted_filenames,sorted_numbers):
     """
     BuildCalibSpecFull : Get everything from the fits file
     ===============
+    
+      called by AnaCompareDataSimSpec.ipynb
+    """
+
+
+    
+    all_leftspectra_data = []
+    all_rightspectra_data = []
+    
+    all_totleftspectra_data = []
+    all_totrightspectra_data = []
+    
+    all_leftspectra_data_stat_err = []
+    all_rightspectra_data_stat_err = []
+    
+    all_sim_spectra_wl = []
+    all_sim_spectra_data = []
+    
+    
+    all_leftspectra_wl = []
+    all_rightspectra_wl = []
+    all_titles = []
+  
+    
+    all_headers = []
+    all_objects = []
+    all_dates = []
+    all_airmass = []
+    all_exposures = []
+    all_ut = []
+    all_ra = []
+    all_dec = []
+    all_epoch = []
+    all_zenith = []
+    all_ha = []
+    all_st = []
+    all_alt = []
+    all_focus = []
+    all_temp = []
+    all_press = []
+    all_hum = []
+    all_windsp = []
+    all_seeing = []
+    all_seeingam = []
+    all_filt = []
+    all_filt1 = []
+    all_filt2 = []
+    
+    
+    
+   
+    NBFILES=sorted_filenames.shape[0]
+
+    for idx in range(NBFILES):  
+        
+        file=sorted_filenames[idx]    
+        
+        hdu_list=fits.open(file)
+        
+        #hdu_list.info()
+        
+        header=hdu_list[0].header
+        #print header
+        
+        header=hdu_list[0].header
+        date_obs = header['DATE-OBS']
+        airmass = float(header['AIRMASS'])
+        expo= float(header['EXPTIME'])
+      
+        object=header['OBJECT']
+   
+        ut=header['UT']
+        ra=header['RA']
+        dec=header['DEC']
+        epoch=float(header['EPOCH'])
+        zd = float(header['ZD'])
+        ha = header['HA']
+        st = header['ST']
+        alt = float(header['ALT'])
+        fcl = float(header['TELFOCUS'])
+        temp= float(header['OUTTEMP'])
+        press= float(header['OUTPRESS'])
+        hum= float(header['OUTHUM'])
+        windsp=float(header['WNDSPEED'])
+        seeing=float(header['SEEING'])
+        seeingam=float(header['SAIRMASS'])
+ 
+        
+    
+        num=sorted_numbers[idx]
+        title=object+" z= {:3.2f} Nb={}".format(float(airmass),num)
+        filters = header['FILTERS']
+        filters1= header['FILTER1']
+        filters2= header['FILTER2']
+        
+        # now reads the spectra
+        
+        table_data=hdu_list[1].data
+        
+        #cols = hdu_list[1].columns
+        #cols.info()
+        #print hdu_list[1].columns
+        #cols.names
+  
+    
+        left_spectrum_wl=table_data.field('CalibLeftSpecWL')
+        left_spectrum_data=table_data.field('CalibLeftSpec')
+        left_spectrum_data_stat_err=table_data.field('CalibStatErrorLeftSpec')
+        totleft_spectrum_data=table_data.field('CalibTotLeftSpec')
+        
+        
+        right_spectrum_wl=table_data.field('CalibRightSpecWL')
+        right_spectrum_data=table_data.field('CalibRightSpec')
+        right_spectrum_data_stat_err=table_data.field('CalibStatErrorRightSpec')
+        totright_spectrum_data=table_data.field('CalibTotRightSpec')
+        
+        sim_spectrum_wl=table_data.field('SimSpecWL')
+        sim_spectrum_data=table_data.field('SimSpec')
+
+
+
+
+        
+        all_dates.append(date_obs)
+        all_objects.append(object)
+        all_airmass.append(airmass)
+        all_headers.append(header)
+        all_exposures.append(expo)
+        all_ut.append(ut)
+        all_ra.append(ra)
+        all_dec.append(dec)
+        all_epoch.append(epoch)
+        all_zenith.append(zd)
+        all_ha.append(ha)
+        all_st.append(st)
+        all_alt.append(alt)
+        all_focus.append(fcl)
+        all_temp.append(temp)
+        all_press.append(press)
+        all_hum.append(hum)
+        all_windsp.append(windsp)
+        all_seeing.append(seeing)
+        all_seeingam.append(seeingam)
+      
+        
+
+        
+        all_leftspectra_data.append(left_spectrum_data)
+        all_rightspectra_data.append(right_spectrum_data)
+        
+        all_leftspectra_wl.append(left_spectrum_wl)
+        all_rightspectra_wl.append(right_spectrum_wl)
+        
+        all_leftspectra_data_stat_err.append(left_spectrum_data_stat_err)
+        all_rightspectra_data_stat_err.append(right_spectrum_data_stat_err)
+        
+        all_totleftspectra_data.append(totleft_spectrum_data)
+        all_totrightspectra_data.append(totright_spectrum_data)
+        
+        
+        all_sim_spectra_wl.append(sim_spectrum_wl)
+        all_sim_spectra_data.append(sim_spectrum_data)
+        
+        all_titles.append(title)
+        all_headers.append(header)
+        
+        
+        all_filt.append(filters)
+        all_filt1.append(filters1)
+        all_filt2.append(filters2)
+            
+        hdu_list.close()
+        
+    return all_headers, \
+        all_dates, \
+        all_objects, \
+        all_airmass, \
+        all_titles, \
+        all_exposures, \
+        all_ut, all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,\
+        all_temp, all_press,all_hum,all_windsp,\
+        all_seeing,all_seeingam,\
+        all_filt,all_filt1,all_filt2,\
+        all_leftspectra_data, \
+        all_rightspectra_data, \
+        all_leftspectra_data_stat_err ,\
+        all_rightspectra_data_stat_err ,\
+        all_leftspectra_wl,\
+        all_rightspectra_wl, \
+        all_totleftspectra_data, \
+        all_totrightspectra_data, \
+        all_sim_spectra_wl, \
+        all_sim_spectra_data
+
+#--------------------------------------------------------------------------------------------------------------------------
+def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
+    """
+    BuildCalibandSpecFull : Get everything from the fits file
+    =========================================================
+    
+    called by SimulateSpectrum.ipynb 
+    
     """
 
 
@@ -4806,7 +5030,10 @@ def BuildCalibSpecFull(sorted_filenames,sorted_numbers):
         all_totleftspectra_data, \
         all_totrightspectra_data
 
-#--------------------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------------------        
+        
+        
+        
 
 def ShowCalibSpectrainPDF(all_spectra,all_spectra_stat_err,all_spectra_wl,all_titles,object_name,dir_top_img,all_filt,date,figname,tagname,NBIMGPERROW=2):
     """
