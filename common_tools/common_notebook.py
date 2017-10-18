@@ -40,9 +40,26 @@ from fwhm_profiles import *
 
 import math as m
 
-from matplotlib.backends.backend_pdf import PdfPages  
-import matplotlib as mpl 
+# lib about pdf
+from matplotlib.backends.backend_pdf import PdfPages 
+# libs about time handling
+import datetime
+from datetime import timedelta
+from dateutil import parser  # very usefull time format smart parser
 
+ 
+import matplotlib as mpl 
+from matplotlib.dates import MonthLocator, WeekdayLocator,DateFormatter
+from matplotlib.dates import MONDAY
+mondays = WeekdayLocator(MONDAY)
+months = MonthLocator(range(1, 13), bymonthday=1, interval=1)
+monthsFmt = DateFormatter("%b '%y")
+import matplotlib.dates as mdates
+years = mdates.YearLocator()   # every year
+months = mdates.MonthLocator()  # every month
+days=mdates.DayLocator()  # every day
+hour=mdates.HourLocator()  # every day
+yearsFmt = mdates.DateFormatter('%Y')
 
 
 # Definitions of some constants
@@ -5304,7 +5321,48 @@ def ShowCalibAndSimSpectrainPDF(all_spectra,all_wl,all_titles,object_name,all_fi
     return np.array(calibdatasimfactor)
         
     
+#----------------------------------------------------------------------------------------------------------
+def PlotDataVsDateTime(all_dates,all_data,thetitle,thextitle,theytitle,dir_top_img,figname):
+    """
+    """
     
+    NDATA=len(all_data)
+    all_dt= [ parser.parse(all_dates[i]) for i in range(NDATA)]
+    
+    fig=plt.figure(figsize=(15,5))
+
+    ax=fig.add_subplot(1,1,1)
+    ax.plot_date(all_dt, all_data,marker='o',color='red',lw=0,label='airmass',linewidth=3)
+    #ax.plot_date(all_dt, am,marker='.',color='blue',lw=0,label='relative airmass',linewidth=3)
+
+    #ax.set_ylim(0.,2)
+
+    date_range = all_dt[NDATA-1] - all_dt[0]
+
+    if date_range > timedelta(days = 1):
+        ax.xaxis.set_major_locator(mdates.DayLocator(bymonthday=range(1,32), interval=1))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        ax.get_xaxis().set_minor_locator(mdates.HourLocator(byhour=range(0,24,2)))
+        ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    else:
+        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0,24,2)))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+        ax.get_xaxis().set_minor_locator(mdates.MinuteLocator(byminute=range(0,60,5)))
+    
+    ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+
+    ax.grid(b=True, which='major', color='k', linewidth=1.0)
+    ax.grid(b=True, which='minor', color='grey', linewidth=0.5)
+    ax.set_ylabel(theytitle)
+    ax.set_xlabel(thextitle)
+
+
+    plt.title(thetitle)
+    plt.legend(loc='best')
+
+    figfilename=os.path.join(dir_top_img,figname)
+    fig.savefig(figfilename)
     
     
 #----------------------------------------------------------------------------------------------------------    
