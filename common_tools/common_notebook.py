@@ -4468,7 +4468,7 @@ def CALSPECAbsLineIdentificationinPDF(spectra,pointing,all_titles,object_name,di
         YMAX=spec.max()*1.2
     
         for line in LINES:
-            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA or line ==O2B or line == O2Y or line == O2Z:
                 axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
                 axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
      
@@ -4541,7 +4541,7 @@ def CompareSpectrumProfile(wl,spectra,all_titles,all_airmass,object_name,all_fil
     YMAX=max_y_to_plot
     
     for line in LINES:
-        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA or line ==O2B or line == O2Y or line == O2Z:
             axarr.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
             axarr.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
      
@@ -5298,6 +5298,21 @@ def ShowCalibAndSimSpectrainPDF(all_spectra,all_wl,all_titles,object_name,all_fi
         axarr[iy,ix].set_xlim(0.,1200.)
         axarr[iy,ix].text(0.,max_y_to_plot*1.1/1.4, all_filt[index],verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20)
        
+       
+        YMIN=0.
+        YMAX=max_y_to_plot
+    
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA or line ==O2B or line == O2Y or line == O2Z:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+        
+ 
+        
+        
+                
+        
+        
         thetitle="{} : {}".format(index,all_titles[index])
         axarr[iy,ix].set_title(thetitle)
         #axarr[iy,ix].set_title(all_filt[index])
@@ -5323,6 +5338,10 @@ def ShowCalibAndSimSpectrainPDF(all_spectra,all_wl,all_titles,object_name,all_fi
     f.show()
     pp.close()
     return np.array(calibdatasimfactor)
+#-----------------------------------------------------------------------------------------------------------
+
+
+
         
     
 #----------------------------------------------------------------------------------------------------------
@@ -5459,3 +5478,22 @@ def smooth(x,window_len=11,window='hanning'):
 
 
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def RemoveBadWavelengths(all_wl,all_spec,WLMIN=300.,WLMAX=1200.):
+    """
+    
+    Remove wl<WLMIN=300. and wl>WLMAX
+    
+    """
+    NSPEC=len(all_wl)
+    all_wl_cut= []
+    all_spec_cut = []
+    
+    for idx in np.arange(NSPEC):
+        thewl=all_wl[idx]
+        thespec=all_spec[idx]
+        index_sel=np.where(np.logical_and(thewl>=WLMIN,thewl<=WLMAX))
+        all_wl_cut.append(thewl[index_sel])
+        all_spec_cut.append(thespec[index_sel])
+    
+    return all_wl_cut,all_spec_cut
+#-----------------------------------------------------------------    

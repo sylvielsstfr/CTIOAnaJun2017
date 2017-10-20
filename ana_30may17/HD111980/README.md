@@ -11,6 +11,7 @@ Last update: SDC, Oct 18th 2017
 - **Extract_Spectrum.ipynb** : Extract the 1_D from the selected Region 
 - **CalibrateSpectrum.ipynb** : Calibrate in wavelength the 1-D Spectrum axtracted above
 - **StudyCalibratedSpectra.ipynb** : Used to view calib spectra
+- **AnaCalibratedandSimSpectraRatio.ipynb** : Idem but use also simulation
 - **AnaCalibratedSpectraRatio.ipynb** : Look at Spectra Ratio (No simulation) : under dev
 - **SimulateSpectra.ipynb** : Simulate the corresponding spectrum on the fly from header info
 - **AnaCompareDataSimSpec.ipynb** : Compare data/sim spectra 	 
