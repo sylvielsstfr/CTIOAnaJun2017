@@ -65,6 +65,7 @@ yearsFmt = mdates.DateFormatter('%Y')
 # Definitions of some constants
 #------------------------------------------------------------------------------
 Filt_names= ['dia Ron400', 'dia Thor300', 'dia HoloPhP', 'dia HoloPhAg', 'dia HoloAmAg', 'dia Ron200','Unknown']
+Disp_names= ['Ron400', 'Thor300', 'HoloPhP', 'HoloPhAg', 'HoloAmAg', 'Ron200','Unknown']
 
 #-------------------------------------------------------------------------------
 def init_notebook():
@@ -3922,7 +3923,7 @@ def ShowOneEquivWidth(index,all_images,all_pointing,thex0,they0,all_titles,objec
 #---------------------------------------------------------------------------------------------
 
 
-def ComputeEquivalentWidth(wl,spec,wl1,wl2,wl3,wl4):
+def ComputeEquivalentWidthOld(wl,spec,wl1,wl2,wl3,wl4):
     """
     ComputeEquivalentWidth : compute the equivalent width must be computed
     
@@ -5496,4 +5497,1362 @@ def RemoveBadWavelengths(all_wl,all_spec,WLMIN=300.,WLMAX=1200.):
         all_spec_cut.append(thespec[index_sel])
     
     return all_wl_cut,all_spec_cut
-#-----------------------------------------------------------------    
+#----------------------------------------------------------------- 
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#    AnaEqWdtCalibSpectrum.ipynb         
+#---------------------------------------------------------------------------------------------------------
+def errorfill(x, y, yerr, color=None, alpha_fill=0.3, ax=None):
+    ax = ax if ax is not None else plt.gca()
+    if color is None:
+        color = ax._get_lines.color_cycle.next()
+    if np.isscalar(yerr) or len(yerr) == len(y):
+        ymin = y - yerr
+        ymax = y + yerr
+    elif len(yerr) == 2:
+        ymin, ymax = yerr
+    ax.plot(x, y, color=color)
+    ax.fill_between(x, ymax, ymin, color=color, alpha=alpha_fill)
+#------------------------------------------------------------------------------------------------------------  
+    
+import numpy.core.numeric as NX
+from numpy.core import isscalar, abs, finfo, atleast_1d, hstack, dot
+from numpy.lib.twodim_base import diag, vander
+from numpy.lib.function_base import trim_zeros, sort_complex
+from numpy.lib.type_check import iscomplex, real, imag
+from numpy.linalg import eigvals, lstsq, inv
+#---------------------------------------------------------------------------------------------------------
+def polyfit(x, y, deg, rcond=None, full=False, w=None, cov=False):
+    """
+    Least squares polynomial fit.
+    Fit a polynomial ``p(x) = p[0] * x**deg + ... + p[deg]`` of degree `deg`
+    to points `(x, y)`. Returns a vector of coefficients `p` that minimises
+    the squared error.
+    Parameters
+    ----------
+    x : array_like, shape (M,)
+        x-coordinates of the M sample points ``(x[i], y[i])``.
+    y : array_like, shape (M,) or (M, K)
+        y-coordinates of the sample points. Several data sets of sample
+        points sharing the same x-coordinates can be fitted at once by
+        passing in a 2D-array that contains one dataset per column.
+    deg : int
+        Degree of the fitting polynomial
+    rcond : float, optional
+        Relative condition number of the fit. Singular values smaller than
+        this relative to the largest singular value will be ignored. The
+        default value is len(x)*eps, where eps is the relative precision of
+        the float type, about 2e-16 in most cases.
+    full : bool, optional
+        Switch determining nature of return value. When it is False (the
+        default) just the coefficients are returned, when True diagnostic
+        information from the singular value decomposition is also returned.
+    w : array_like, shape (M,), optional
+        weights to apply to the y-coordinates of the sample points.
+    cov : bool, optional
+        Return the estimate and the covariance matrix of the estimate
+        If full is True, then cov is not returned.
+    Returns
+    -------
+    p : ndarray, shape (M,) or (M, K)
+        Polynomial coefficients, highest power first.  If `y` was 2-D, the
+        coefficients for `k`-th data set are in ``p[:,k]``.
+    residuals, rank, singular_values, rcond :
+        Present only if `full` = True.  Residuals of the least-squares fit,
+        the effective rank of the scaled Vandermonde coefficient matrix,
+        its singular values, and the specified value of `rcond`. For more
+        details, see `linalg.lstsq`.
+    V : ndarray, shape (M,M) or (M,M,K)
+        Present only if `full` = False and `cov`=True.  The covariance
+        matrix of the polynomial coefficient estimates.  The diagonal of
+        this matrix are the variance estimates for each coefficient.  If y
+        is a 2-D array, then the covariance matrix for the `k`-th data set
+        are in ``V[:,:,k]``
+    Warns
+    -----
+    RankWarning
+        The rank of the coefficient matrix in the least-squares fit is
+        deficient. The warning is only raised if `full` = False.
+        The warnings can be turned off by
+        >>> import warnings
+        >>> warnings.simplefilter('ignore', np.RankWarning)
+    See Also
+    --------
+    polyval : Computes polynomial values.
+    linalg.lstsq : Computes a least-squares fit.
+    scipy.interpolate.UnivariateSpline : Computes spline fits.
+    Notes
+    -----
+    The solution minimizes the squared error
+    .. math ::
+        E = \\sum_{j=0}^k |p(x_j) - y_j|^2
+    in the equations::
+        x[0]**n * p[0] + ... + x[0] * p[n-1] + p[n] = y[0]
+        x[1]**n * p[0] + ... + x[1] * p[n-1] + p[n] = y[1]
+        ...
+        x[k]**n * p[0] + ... + x[k] * p[n-1] + p[n] = y[k]
+    The coefficient matrix of the coefficients `p` is a Vandermonde matrix.
+    `polyfit` issues a `RankWarning` when the least-squares fit is badly
+    conditioned. This implies that the best fit is not well-defined due
+    to numerical error. The results may be improved by lowering the polynomial
+    degree or by replacing `x` by `x` - `x`.mean(). The `rcond` parameter
+    can also be set to a value smaller than its default, but the resulting
+    fit may be spurious: including contributions from the small singular
+    values can add numerical noise to the result.
+    Note that fitting polynomial coefficients is inherently badly conditioned
+    when the degree of the polynomial is large or the interval of sample points
+    is badly centered. The quality of the fit should always be checked in these
+    cases. When polynomial fits are not satisfactory, splines may be a good
+    alternative.
+    References
+    ----------
+    .. [1] Wikipedia, "Curve fitting",
+           http://en.wikipedia.org/wiki/Curve_fitting
+    .. [2] Wikipedia, "Polynomial interpolation",
+           http://en.wikipedia.org/wiki/Polynomial_interpolation
+    Examples
+    --------
+    >>> x = np.array([0.0, 1.0, 2.0, 3.0,  4.0,  5.0])
+    >>> y = np.array([0.0, 0.8, 0.9, 0.1, -0.8, -1.0])
+    >>> z = np.polyfit(x, y, 3)
+    >>> z
+    array([ 0.08703704, -0.81349206,  1.69312169, -0.03968254])
+    It is convenient to use `poly1d` objects for dealing with polynomials:
+    >>> p = np.poly1d(z)
+    >>> p(0.5)
+    0.6143849206349179
+    >>> p(3.5)
+    -0.34732142857143039
+    >>> p(10)
+    22.579365079365115
+    High-order polynomials may oscillate wildly:
+    >>> p30 = np.poly1d(np.polyfit(x, y, 30))
+    /... RankWarning: Polyfit may be poorly conditioned...
+    >>> p30(4)
+    -0.80000000000000204
+    >>> p30(5)
+    -0.99999999999999445
+    >>> p30(4.5)
+    -0.10547061179440398
+    Illustration:
+    >>> import matplotlib.pyplot as plt
+    >>> xp = np.linspace(-2, 6, 100)
+    >>> _ = plt.plot(x, y, '.', xp, p(xp), '-', xp, p30(xp), '--')
+    >>> plt.ylim(-2,2)
+    (-2, 2)
+    >>> plt.show()
+    """
+    order = int(deg) + 1
+    x = NX.asarray(x) + 0.0
+    y = NX.asarray(y) + 0.0
+
+    # check arguments.
+    if deg < 0:
+        raise ValueError("expected deg >= 0")
+    if x.ndim != 1:
+        raise TypeError("expected 1D vector for x")
+    if x.size == 0:
+        raise TypeError("expected non-empty vector for x")
+    if y.ndim < 1 or y.ndim > 2:
+        raise TypeError("expected 1D or 2D array for y")
+    if x.shape[0] != y.shape[0]:
+        raise TypeError("expected x and y to have same length")
+
+    # set rcond
+    if rcond is None:
+        rcond = len(x)*finfo(x.dtype).eps
+
+    # set up least squares equation for powers of x
+    lhs = vander(x, order)
+    rhs = y
+
+    # apply weighting
+    if w is not None:
+        w = NX.asarray(w) + 0.0
+        if w.ndim != 1:
+            raise TypeError("expected a 1-d array for weights")
+        if w.shape[0] != y.shape[0]:
+            raise TypeError("expected w and y to have the same length")
+        lhs *= w[:, NX.newaxis]
+        if rhs.ndim == 2:
+            rhs *= w[:, NX.newaxis]
+        else:
+            rhs *= w
+
+    # scale lhs to improve condition number and solve
+    scale = NX.sqrt((lhs*lhs).sum(axis=0))
+    lhs /= scale
+    
+    
+    print 'MyPolyfit lhs      =   ', lhs
+    
+    rcond =len(x)*2e-16
+    
+    c, resids, rank, s = lstsq(lhs, rhs, rcond)
+    c = (c.T/scale).T  # broadcast scale coefficients
+    
+    
+    print 'MyPolyfit  c, resids, rank, s   =  ',   c, resids, rank, s
+    
+    
+    
+
+    # warn on rank reduction, which indicates an ill conditioned matrix
+    if rank != order and not full:
+        msg = "Polyfit may be poorly conditioned"
+        warnings.warn(msg, RankWarning)
+
+    if full:
+        return c, resids, rank, s, rcond
+    elif cov:
+        Vbase = inv(dot(lhs.T, lhs))
+        Vbase /= NX.outer(scale, scale)
+        # Some literature ignores the extra -2.0 factor in the denominator, but
+        #  it is included here because the covariance of Multivariate Student-T
+        #  (which is implied by a Bayesian uncertainty analysis) includes it.
+        #  Plus, it gives a slightly more conservative estimate of uncertainty.
+        fac = resids / (len(x) - order - 2.0)
+        if y.ndim == 1:
+            return c, Vbase * fac
+        else:
+            return c, Vbase[:,:, NX.newaxis] * fac
+    else:
+        return c
+#----------------------------------------------------------------------------------------------
+def ShowEquivalentWidth(wl,spec,wl1,wl2,wl3,wl4,label='absortion line',fsize=(12,4)):
+    """
+    ShowEquivalentWidth : show how the equivalent width must be computed
+    """
+    
+    f, axarr = plt.subplots(1,2,figsize=fsize)
+    
+    ##--------------
+    ## Figure 1
+    ##------------
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    axarr[0].plot(wl_cut,spec_cut,'b-')
+    axarr[0].plot([wl2,wl2],[ymin,ymax],'r-.',lw=2)
+    axarr[0].plot([wl3,wl3],[ymin,ymax],'r-.',lw=2)
+    
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,1)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    axarr[0].plot(x_cont,y_cont,'o')
+    axarr[0].plot(fit_line_x,fit_line_y,'g--',lw=1)
+    
+    axarr[0].grid(True)
+    axarr[0].set_xlabel('$\lambda$ (nm)')
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+    #--------------
+    # Figure 2
+    #-----------
+    axarr[1].plot(wl_cut,ratio,'b-')
+    axarr[1].plot([wl2,wl2],[0,1.2],'r-.',lw=2)
+    axarr[1].plot([wl3,wl3],[0,1.2],'r-.',lw=2)
+    axarr[1].grid(True)
+    
+    axarr[1].set_xlabel('$\lambda$ (nm)')
+    
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width
+    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()
+    
+    
+    title = 'Equivalent width computation for {}'.format(label)
+    f.suptitle(title)
+    
+    return equivalent_width
+#-----------------------------------------------------------------------------------------------------
+def ShowEquivalentWidth2(wl,spec,wl1,wl2,wl3,wl4,label='absortion line',fsize=(12,4)):
+    """
+    ShowEquivalentWidth : show how the equivalent width must be computed
+    """
+    
+    f, axarr = plt.subplots(1,2,figsize=fsize)
+    
+    #############
+    ## Figure 1
+    ############
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    axarr[0].plot(wl_cut,spec_cut,'b-')
+    axarr[0].plot([wl2,wl2],[ymin,ymax],'r-.',lw=2)
+    axarr[0].plot([wl3,wl3],[ymin,ymax],'r-.',lw=2)
+    
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,1)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    axarr[0].plot(x_cont,y_cont,'o')
+    axarr[0].plot(fit_line_x,fit_line_y,'g--',lw=1)
+    
+    axarr[0].grid(True)
+    axarr[0].set_xlabel('$\lambda$ (nm)')
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+    #-------------
+    # Figure 2
+    #-----------
+    axarr[1].plot(wl_cut,ratio)
+    axarr[1].plot([wl2,wl2],[0,1.2],'r-.',lw=2)
+    axarr[1].plot([wl3,wl3],[0,1.2],'r-.',lw=2)
+    axarr[1].grid(True)
+    axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
+    
+    axarr[1].set_xlabel('$\lambda$ (nm)')
+    
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width
+    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()
+    
+    
+    title = 'Equivalent width computation for {}'.format(label)
+    f.suptitle(title)
+    
+    return equivalent_width    
+
+#--------------------------------------------------------------------------------------------------
+def ShowEquivalentWidthwthStatErrTOREMOVE(wl,spec,specerr,wl1,wl2,wl3,wl4,ndeg=3,thelabel='ShowEquivalentWidthwthStatErr'):
+    """
+    ******************************************************************************
+    ShowEquivalentWidthwthStatErr : show how the equivalent width must be computed
+    
+    - with errors
+    - with non linear method
+    
+    *********************************************************************************
+    """
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    spec_cut_err=specerr[selected_indexes]
+    
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    #############
+    ### Figure 1
+    #############
+    plt.figure()
+    
+    plt.plot(wl_cut,spec_cut,'b-')
+    plt.errorbar(wl_cut,spec_cut,yerr=spec_cut_err,color='red',fmt='.')
+    
+    # vertical bars
+    plt.plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
+    plt.plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
+    
+    
+    # continuum fit
+    #------------------
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    y_cont_err=specerr[continuum_indexes]
+    y_w=1./y_cont_err
+    y_w[np.where(y_cont==0)]=0. # erase the empty bins
+   
+    
+    popt_p , pcov_p= np.polyfit(x_cont, y_cont,ndeg,w=y_w,full=False,cov=True,rcond=2.0e-16*len(x_cont)) #rcond mandatory    
+    z_cont_fit=popt_p
+      
+
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    # fitted curve with its error
+    #---------------------------------
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    fit_line_y_err = []
+    for thex in fit_line_x:
+        dfdx = [ thex**thepow for thepow in np.arange(ndeg,-1,-1)]
+        dfdx=np.array(dfdx)
+        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
+        fit_line_y_err.append(propagated_error)
+    fit_line_y_err=np.array(fit_line_y_err)
+    
+    errorfill(fit_line_x,fit_line_y,fit_line_y_err, color='grey',ax=plt)
+    plt.errorbar(x_cont,y_cont,yerr=y_cont_err,fmt='.',color='blue')
+    plt.plot(fit_line_x,fit_line_y,'g--',lw=1)
+    plt.xlabel(' wavelength (nm)')
+    plt.ylabel(' ADU per second')
+    
+    plt.grid(True)
+    plt.title(thelabel)
+    
+    # compute the ratio spectrum/continuum
+    #-------------------------------------
+    full_continum=pol_cont_fit(wl_cut)    
+    
+    full_continum_err= []
+    for wl in wl_cut:
+        dfdx = [ wl**thepow for thepow in np.arange(ndeg,-1,-1)]
+        dfdx=np.array(dfdx)
+        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
+        full_continum_err.append(propagated_error)
+    full_continum_err=np.array(full_continum_err)
+    
+    
+    ratio=spec_cut/full_continum
+    # error not correlated    
+    ratio_err=ratio*np.sqrt( (spec_cut_err/spec_cut)**2+ (full_continum_err/full_continum)**2)
+    
+    
+    
+    
+    ###################
+    ### Second figure
+    #################
+    plt.figure()
+    plt.plot(wl_cut,ratio,lw=2,color='blue')
+    plt.errorbar(wl_cut,ratio,yerr=ratio_err,fmt='.',lw=2,color='red')
+    plt.plot([wl2,wl2],[0,1.2],'k-.',lw=2)
+    plt.plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    plt.grid(True)
+    plt.ylim(0.8*ratio.min(),1.2*ratio.max())
+    plt.xlabel(' wavelength (nm)')
+    plt.ylabel(' no unit')
+    plt.title(thelabel)
+    
+    # Compute now the equavalent width
+    #--------------------------------
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin in wavelength
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width and its error
+    #-------------------------------------------------
+    absorption_band=wl_bin_size*(1-ratio)
+    absorption_band_error=wl_bin_size*ratio_err
+    
+    equivalent_width= absorption_band.sum()
+    
+    # quadratic sum of errors for each wl bin
+    equivalend_width_error=np.sqrt((absorption_band_error*absorption_band_error).sum() )
+    
+    return equivalent_width,equivalend_width_error
+#----------------------------------------------------------------------------------------------
+
+def ShowEquivalentWidthNonLinearTOREMOVE(wl,spec,wl1,wl2,wl3,wl4,ndeg=3,thelabel='ShowEquivalentWidthNonLinear'):
+    """
+    ShowEquivalentWidthNonLinear : show how the equivalent width must be computed
+    Do not use stats, for simulation by exammple
+    """
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+   
+    
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    plt.figure()
+    plt.plot(wl_cut,spec_cut,'r-')
+    plt.plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
+    plt.plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
+    
+    
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,ndeg,rcond=2.0e-16*len(x_cont))
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    plt.plot(x_cont,y_cont,marker='.',color='blue',lw=0)
+    plt.plot(fit_line_x,fit_line_y,'g--',lw=2)
+    
+    plt.grid(True)
+    plt.xlabel(' wavelength (nm)')
+    plt.ylabel(' ADU per second')
+    plt.title(thelabel)
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+    plt.figure()
+    plt.plot(wl_cut,ratio,'b-')
+    plt.plot([wl2,wl2],[0,1.2],'k-.',lw=2)
+    plt.plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    plt.grid(True)
+    plt.xlabel(' wavelength (nm)')
+    plt.ylabel(' No unit')
+    plt.ylim(0.8*ratio.min(),1.2*ratio.max())
+    plt.title(thelabel)
+    
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width
+    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()
+    
+    
+    return equivalent_width
+#---------------------------------------------------------------------------------------------
+def ShowEquivalentWidthNonLinear2(wl,spec,wl1,wl2,wl3,wl4,ndeg=3,label='absortion line',fsize=(12,4)):
+    """
+    ShowEquivalentWidth : show how the equivalent width must be computed
+    """
+    
+    f, axarr = plt.subplots(1,2,figsize=fsize)
+    
+    ################
+    ## Figure 1
+    #################
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    axarr[0].plot(wl_cut,spec_cut,marker='.',color='red')
+    axarr[0].plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
+    axarr[0].plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
+    
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,ndeg)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    axarr[0].plot(x_cont,y_cont,marker='.',color='blue',lw=0)
+    axarr[0].plot(fit_line_x,fit_line_y,'g--',lw=2)
+    
+    axarr[0].grid(True)
+    axarr[0].set_xlabel('$\lambda$ (nm)')
+    axarr[0].set_ylabel('ADU per second')
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+    external_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    
+    
+    ############
+    # Figure 2
+    ###########
+    
+    axarr[1].plot(wl_cut,ratio,marker='.',color='red')
+    axarr[1].plot(wl_cut[external_indexes],ratio[external_indexes],marker='.',color='blue',lw=0)
+    
+    axarr[1].plot([wl2,wl2],[0,1.2],'k-.',lw=2)
+    axarr[1].plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    axarr[1].grid(True)
+    axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
+    
+    axarr[1].set_xlabel('$\lambda$ (nm)')
+    axarr[1].set_ylabel('No unit')
+    
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width
+    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()
+    
+    
+    title = 'Equivalent width computation for {}'.format(label)
+    f.suptitle(title)
+    
+    return equivalent_width    
+
+#---------------------------------------------------------------------------------------------    
+
+def ShowEquivalentWidthNonLinearwthStatErr(wl,spec,specerr,wl1,wl2,wl3,wl4,ndeg=3,label='absortion line',fsize=(12,4)):
+    """
+    ***********************************************************************
+    ShowEquivalentWidth2NonLinearwthStatErr : 
+    
+    Fit equivalent width:
+    - Non linear
+    - with errors
+    
+    ************************************************************************
+    """
+    
+    f, axarr = plt.subplots(1,2,figsize=fsize)
+    
+    order=ndeg+1
+    
+    #######################
+    ## Figure 1
+    #########################
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    spec_cut_err=specerr[selected_indexes]
+    
+    
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    # plot points
+    #axarr[0].plot(wl_cut,spec_cut,'b-')
+    axarr[0].errorbar(wl_cut,spec_cut,yerr=spec_cut_err,color='red',fmt='.',lw=1)
+    axarr[0].plot(wl_cut,spec_cut,'r-',lw=1)
+    # plot vertical bars
+    axarr[0].plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
+    axarr[0].plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
+    
+    # continuum fit
+    #----------------
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    
+
+    # error for continum
+    y_cont_err=specerr[continuum_indexes]
+    y_w=1./y_cont_err
+    y_w[np.where(y_cont==0)]=0. # erase the empty bins
+    
+    popt_p , pcov_p= np.polyfit(x_cont, y_cont,ndeg,w=y_w,full=False,cov=True,rcond=2.0e-16*len(x_cont)) #rcond mandatory
+    
+    z_cont_fit=popt_p
+      
+   
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+
+    # compute the fit and propagate the error
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    fit_line_y_err = []
+    for thex in fit_line_x:
+        dfdx = [ thex**thepow for thepow in np.arange(ndeg,-1,-1)]
+        dfdx=np.array(dfdx)
+        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
+        fit_line_y_err.append(propagated_error)
+    fit_line_y_err=np.array(fit_line_y_err)
+    
+    
+    errorfill(fit_line_x,fit_line_y,fit_line_y_err,color='grey',ax=axarr[0])
+    axarr[0].errorbar(x_cont,y_cont,yerr=y_cont_err,fmt='.',color='blue')
+    
+       
+    axarr[0].grid(True)
+    axarr[0].set_xlabel('$\lambda$ (nm)')
+    axarr[0].set_ylabel('ADU per second')
+    
+    # compute the ratio spectrum/continuum and its error
+    # -------------------------------------
+    full_continum=pol_cont_fit(wl_cut)  
+    
+    full_continum_err= []
+    external_indexes = []
+    idx=0
+    for wl in wl_cut:
+        if wl<wl2 or wl>wl3:
+            external_indexes.append(idx)
+        idx+=1
+        dfdx = [ wl**thepow for thepow in np.arange(ndeg,-1,-1)]
+        dfdx=np.array(dfdx)
+        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
+        full_continum_err.append(propagated_error)
+    full_continum_err=np.array(full_continum_err)
+    
+    
+    ratio=spec_cut/full_continum
+    # error not correlated    
+    ratio_err=ratio*np.sqrt( (spec_cut_err/spec_cut)**2+ (full_continum_err/full_continum)**2)
+    
+    
+    
+    
+    
+    ##################
+    # Figure 2
+    ###################
+    
+    axarr[1].plot(wl_cut,ratio,lw=1,color='red')
+    axarr[1].errorbar(wl_cut,ratio,yerr=ratio_err,fmt='.',lw=2,color='red')
+    axarr[1].errorbar(wl_cut[external_indexes],ratio[external_indexes],yerr=ratio_err[external_indexes],fmt='.',lw=0,color='blue')
+    
+    
+    axarr[1].plot([wl2,wl2],[0,1.2],'k-.',lw=2)
+    axarr[1].plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    axarr[1].grid(True)
+    axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
+    axarr[1].set_xlabel('$\lambda$ (nm)')
+    axarr[1].set_ylabel('ratio : no unit')
+    
+    
+    #compute the equivalent width
+    #-----------------------------
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width and its error (units nm because wl in nm)
+    # ----------------------------------------------
+    absorption_band=wl_bin_size*(1-ratio)
+    absorption_band_error=wl_bin_size*ratio_err
+    equivalent_width= absorption_band.sum()
+    equivalent_width_err=np.sqrt((absorption_band_error**2).sum())
+    
+    
+    title = 'Equivalent width computation for {}'.format(label)
+    f.suptitle(title)
+    
+    return equivalent_width,equivalent_width_err
+#--------------------------------------------------------------------------------------------
+def ShowEquivalentWidthNonLinear(wl,spec,wl1,wl2,wl3,wl4,ndeg=3,label='absortion line',fsize=(12,4)):
+    """
+    ShowEquivalentWidth : show how the equivalent width must be computed
+    """
+    
+    f, axarr = plt.subplots(1,2,figsize=fsize)
+    
+    ################
+    ## Figure 1
+    #################
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+    
+    axarr[0].plot(wl_cut,spec_cut,marker='.',color='red')
+    axarr[0].plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
+    axarr[0].plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
+    
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,ndeg)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    axarr[0].plot(x_cont,y_cont,marker='.',color='blue',lw=0)
+    axarr[0].plot(fit_line_x,fit_line_y,'g--',lw=2)
+    
+    axarr[0].grid(True)
+    axarr[0].set_xlabel('$\lambda$ (nm)')
+    axarr[0].set_ylabel('ADU per second')
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+    external_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    
+    
+    ############
+    # Figure 2
+    ###########
+    
+    axarr[1].plot(wl_cut,ratio,marker='.',color='red')
+    axarr[1].plot(wl_cut[external_indexes],ratio[external_indexes],marker='.',color='blue',lw=0)
+    
+    axarr[1].plot([wl2,wl2],[0,1.2],'k-.',lw=2)
+    axarr[1].plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    axarr[1].grid(True)
+    axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
+    
+    axarr[1].set_xlabel('$\lambda$ (nm)')
+    axarr[1].set_ylabel('No unit')
+    
+    NBBins=len(wl_cut)
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
+
+    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                       
+    # calculation of equivalent width
+    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()
+    
+    
+    title = 'Equivalent width computation for {}'.format(label)
+    f.suptitle(title)
+    
+    return equivalent_width
+
+
+#--------------------------------------------------------------------------------------------------
+def ComputeEquivalentWidth(wl,spec,wl1,wl2,wl3,wl4):
+    """
+    ComputeEquivalentWidth : compute the equivalent width must be computed
+    """
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+     
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,1)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+
+    # compute bin size in the band
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                                  
+    
+    # calculation of equivalent width    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()    
+    
+    return equivalent_width
+#--------------------------------------------------------------------------------------------- 
+def ComputeEquivalentWidthNonLinear(wl,spec,wl1,wl2,wl3,wl4,ndeg=3):
+    """
+    ComputeEquivalentWidth : compute the equivalent width must be computed
+    """
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+        
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+     
+    # continuum fit
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    z_cont_fit=np.polyfit(x_cont, y_cont,ndeg,rcond=2.0e-16*len(x_cont))
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    
+    
+    # compute the ratio spectrum/continuum
+    full_continum=pol_cont_fit(wl_cut)    
+    ratio=spec_cut/full_continum
+    
+
+    # compute bin size in the band
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+                                  
+    
+    # calculation of equivalent width    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum()    
+    
+    return equivalent_width
+#----------------------------------------------------------------------------------------------
+def ComputeEquivalentWidthNonLinearwthStatErr(wl,spec,specerr,wl1,wl2,wl3,wl4,ndeg=3):
+    """
+    ************************************************************************************
+    ComputeEquivalentWidthNonLinearwthStatErr : compute the equivalent width must be computed
+    
+    *************************************************************************************
+    """
+    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
+    
+    # extract
+    wl_cut=wl[selected_indexes]
+    spec_cut=spec[selected_indexes]
+    spec_cut_err=specerr[selected_indexes]
+    
+    
+    ymin=spec_cut.min()
+    ymax=spec_cut.max()
+     
+    # continuum fit
+    #---------------
+    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
+    x_cont=wl[continuum_indexes]
+    y_cont=spec[continuum_indexes]
+    y_cont_err=specerr[continuum_indexes]
+    
+    y_w=1./y_cont_err
+    y_w[np.where(y_cont==0)]=0. # erase the empty bins
+   
+    
+    popt_p , pcov_p= np.polyfit(x_cont, y_cont,ndeg,w=y_w,full=False,cov=True,rcond=2.0e-16*len(x_cont)) #rcond mandatory    
+    z_cont_fit=popt_p
+    
+    
+    
+    z_cont_fit=np.polyfit(x_cont, y_cont,ndeg)
+        
+    pol_cont_fit=np.poly1d(z_cont_fit)
+    
+    fit_line_x=np.linspace(wl1,wl4,50)
+    fit_line_y=pol_cont_fit(fit_line_x)
+    fit_line_y_err = []
+    for thex in fit_line_x:
+        dfdx = [ thex**thepow for thepow in np.arange(ndeg,-1,-1)]
+        dfdx=np.array(dfdx)
+        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
+        fit_line_y_err.append(propagated_error)
+    fit_line_y_err=np.array(fit_line_y_err)
+    
+    
+    # compute the ratio spectrum/continuum and its error
+    full_continum=pol_cont_fit(wl_cut)    
+    
+    full_continum_err= []
+    for wl in wl_cut:
+        dfdx = [ wl**thepow for thepow in np.arange(ndeg,-1,-1)]
+        dfdx=np.array(dfdx)
+        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
+        full_continum_err.append(propagated_error)
+    full_continum_err=np.array(full_continum_err)
+    
+    
+    ratio=spec_cut/full_continum
+    # error not correlated    
+    ratio_err=ratio*np.sqrt( (spec_cut_err/spec_cut)**2+ (full_continum_err/full_continum)**2)
+    
+    
+
+    # compute bin size in the band
+    wl_shift_right=np.roll(wl_cut,1)
+    wl_shift_left=np.roll(wl_cut,-1)
+    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin    
+    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
+    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
+    
+    
+    
+    # calculation of equivalent width    
+    absorption_band=wl_bin_size*(1-ratio)
+    equivalent_width= absorption_band.sum() 
+    
+    # return equavalent width error
+    absorption_band_error=wl_bin_size*ratio_err
+    # quadratic sum of errors for each wl bin
+    equivalend_width_error=np.sqrt((absorption_band_error*absorption_band_error).sum() )
+    
+    return equivalent_width,equivalend_width_error
+#----------------------------------------------------------------------------------------------------- 
+def ShowAllEquivalentWidth(all_wl,all_spec,all_filt,wl1,wl2,wl3,wl4,label='absorption line'):
+        
+    NBSPECTRA=len(all_spec)
+    
+    for index in np.arange(0,NBSPECTRA):        
+        spectrum=all_spec[index]
+        wl=all_wl[index]
+        
+        newlabel = label+ ' spec {} with disp {} (fit BG-L)'.format(index,all_filt[index]) 
+        
+        ShowEquivalentWidth(wl,spectrum,wl1,wl2,wl3,wl4,label=newlabel,fsize=(9,3))
+#-----------------------------------------------------------------------------------------------        
+def ShowAllEquivalentWidthNonLinear(all_wl,all_spec,all_filt,wl1,wl2,wl3,wl4,ndeg=3,label='absorption line'):
+        
+    NBSPECTRA=len(all_spec)
+    
+    for index in np.arange(0,NBSPECTRA):        
+        spectrum=all_spec[index]
+        wl=all_wl[index]
+        
+        newlabel = label+ ' spec {} with disp {} (fit BG-N)'.format(index,all_filt[index]) 
+        
+        ShowEquivalentWidthNonLinear(wl,spectrum,wl1,wl2,wl3,wl4,ndeg=ndeg,label=newlabel,fsize=(9,3))
+        
+        
+#-----------------------------------------------------------------------------------------------        
+def ShowAllEquivalentWidthNonLinearwthStatErr(all_wl,all_spec,all_spec_err,all_filt,wl1,wl2,wl3,wl4,ndeg=3,label='absorption line'):
+        
+    NBSPECTRA=len(all_spec)
+    
+    for index in np.arange(0,NBSPECTRA):        
+        spectrum=all_spec[index]
+        wl=all_wl[index]
+        err=all_spec_err[index]
+        
+        newlabel = label+ ' spec {} with disp {} (fit BG-N+ stat err)'.format(index,all_filt[index]) 
+        
+        ShowEquivalentWidthNonLinearwthStatErr(wl,spectrum,err,wl1,wl2,wl3,wl4,ndeg=ndeg,label=newlabel,fsize=(9,3))
+#----------------------------------------------------------------------------------------------------        
+        
+#---------------------------------------------------------------------------------------------------
+def ComputeAllEquivalentWidth(all_wl,all_spec,wl1,wl2,wl3,wl4):
+    
+    EQW_coll = []
+    
+    NBSPECTRA=len(all_spec)
+    
+    for index in np.arange(0,NBSPECTRA):        
+        spectrum=all_spec[index]
+        wl=all_wl[index]
+        eqw=ComputeEquivalentWidth(wl,spectrum,wl1,wl2,wl3,wl4)
+        EQW_coll.append(eqw)
+        
+    return np.array(EQW_coll)
+#--------------------------------------------------------------------------------------------
+        
+#---------------------------------------------------------------------------------------------------
+def ComputeAllEquivalentWidthNonLinear(all_wl,all_spec,wl1,wl2,wl3,wl4,ndeg=3):
+    
+    EQW_coll = []
+    
+    NBSPECTRA=len(all_spec)
+    
+    for index in np.arange(0,NBSPECTRA):        
+        spectrum=all_spec[index]
+        wl=all_wl[index]
+        eqw=ComputeEquivalentWidthNonLinear(wl,spectrum,wl1,wl2,wl3,wl4,ndeg=ndeg)
+        EQW_coll.append(eqw)
+        
+    return np.array(EQW_coll)
+#--------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
+def ComputeAllEquivalentWidthNonLinearwthStatErr(all_wl,all_spec,all_spec_err,wl1,wl2,wl3,wl4,ndeg=3):
+    
+    EQW_coll = []
+    EQWErr_coll = []
+    
+    NBSPECTRA=len(all_spec)
+    
+    for index in np.arange(0,NBSPECTRA):        
+        spectrum=all_spec[index]
+        wl=all_wl[index]
+        err=all_spec_err[index]
+        
+        eqw,eqw_err=ComputeEquivalentWidthNonLinearwthStatErr(wl,spectrum,err,wl1,wl2,wl3,wl4,ndeg=ndeg)
+        EQW_coll.append(eqw)
+        EQWErr_coll.append(eqw_err)
+        
+    EQW_coll=np.array(EQW_coll)    
+    EQWErr_coll=np.array(EQWErr_coll)    
+    return EQW_coll, EQWErr_coll
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt,tagabsline,dir_top_img,figname,spec_err=None):
+    """
+    """
+    am0 = []
+    eqw0 = []
+    err0 = []
+    
+    am1 = []
+    eqw1 = []
+    err1 = []
+    
+    am2 = []
+    eqw2 = []
+    err2 = []
+    
+    am3 = []
+    eqw3 = []
+    err3 = []
+    
+    am4 = []
+    eqw4 = []
+    err4 = []
+    
+    
+    for index,eqw in np.ndenumerate(all_eqw_width):
+        idx=index[0]
+        grating_name=all_filt[idx]
+        am=all_am[idx]
+        err=0
+        if spec_err != None:
+            err=spec_err[idx]
+        
+        
+        if re.search(Disp_names[0],grating_name):
+            am0.append(am)
+            eqw0.append(eqw)
+            err0.append(err)
+        elif re.search(Disp_names[1],grating_name):
+            am1.append(am)
+            eqw1.append(eqw)
+            err1.append(err)
+        elif re.search(Disp_names[2],grating_name):
+            am2.append(am)
+            eqw2.append(eqw)
+            err2.append(err)
+        elif re.search(Disp_names[3],grating_name):
+            am3.append(am)
+            eqw3.append(eqw)
+            err3.append(err)
+        elif re.search(Disp_names[4],grating_name):
+            am4.append(am)
+            eqw4.append(eqw)
+            err4.append(err)
+        else:
+            print 'disperser ',grating_name,' not found'
+            
+    fig=plt.figure(figsize=(20,8))
+
+    ax=fig.add_subplot(1,1,1)
+    
+    ax.errorbar(am0,eqw0,err0, fmt='o',color='red')
+    ax.plot(am0,eqw0,marker='o',color='red',lw=1,label=Disp_names[0])
+    ax.errorbar(am1,eqw1,err1, fmt='o',color='blue')
+    ax.plot(am1,eqw1,marker='o',color='blue',lw=1,label=Disp_names[1])
+    ax.errorbar(am2,eqw2,err2, fmt='o',color='green')
+    ax.plot(am2,eqw2,marker='o',color='green',lw=1,label=Disp_names[2])
+    ax.errorbar(am3,eqw3,err3, fmt='o',color='cyan')
+    ax.plot(am3,eqw3,marker='o',color='cyan',lw=1,label=Disp_names[3])
+    ax.errorbar(am4,eqw4,err4, fmt='o',color='magenta')
+    ax.plot(am4,eqw4,marker='o',color='magenta',lw=1,label=Disp_names[4])
+    
+    ax.plot(all_am,all_eqw_width_sim,marker='o',color='black',lw=1,label='Sim')
+
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())   
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+
+    ax.grid(b=True, which='major', color='grey', linewidth=1.0)
+    #ax.grid(b=True, which='minor', color='grey', linewidth=0.5)
+
+    ax.set_ylabel('Equivalent width (nm)')
+    ax.set_xlabel('AirMass')
+
+
+
+    title='Equivalent Width for {} vs airmass'.format(tagabsline)
+
+    plt.title(title)
+    plt.legend(loc='best')
+
+    figfilename=os.path.join(dir_top_img,figname)
+    fig.savefig(figfilename)
+ #--------------------------------------------------------------------------------------------  
+
+def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_filt,tagabsline,dir_top_img,figname,spec_err=None):
+    """
+    """
+    am0 = []
+    eqw0 = []
+    tim0 = []
+    err0 = []
+    
+    am1 = []
+    eqw1 = []
+    tim1=[]
+    err1 = []
+    
+    am2 = []
+    eqw2 = []
+    tim2=[]
+    err2 = []
+    
+    am3 = []
+    eqw3 = []
+    tim3=[]
+    err3 = []
+    
+    am4 = []
+    eqw4 = []
+    tim4=[]
+    err4 = []
+    
+    NDATA=len(all_eqw_width)
+    
+    date_range = all_dt[NDATA-1] - all_dt[0]
+    
+    
+    for index,eqw in np.ndenumerate(all_eqw_width):
+        idx=index[0]
+        grating_name=all_filt[idx]
+        am=all_am[idx]
+        err=0
+        if spec_err != None:
+            err=spec_err[idx]
+        
+        
+        
+        if re.search(Disp_names[0],grating_name):
+            am0.append(am)
+            eqw0.append(eqw)
+            tim0.append(all_dt[idx])
+            err0.append(err)
+        elif re.search(Disp_names[1],grating_name):
+            am1.append(am)
+            eqw1.append(eqw)
+            tim1.append(all_dt[idx])
+            err1.append(err)
+        elif re.search(Disp_names[2],grating_name):
+            am2.append(am)
+            eqw2.append(eqw)
+            tim2.append(all_dt[idx])
+            err2.append(err)
+        elif re.search(Disp_names[3],grating_name):
+            am3.append(am)
+            eqw3.append(eqw)
+            tim3.append(all_dt[idx])
+            err3.append(err)
+        elif re.search(Disp_names[4],grating_name):
+            am4.append(am)
+            eqw4.append(eqw)
+            tim4.append(all_dt[idx])
+            err4.append(err)
+        else:
+            print 'disperser ',grating_name,' not found'
+            
+    fig=plt.figure(figsize=(20,8))
+
+    ax=fig.add_subplot(1,1,1)
+
+    ax.errorbar(tim0,eqw0,err0, fmt='o',color='red')
+    ax.plot_date(tim0,eqw0,'-',color='red',lw=1,label=Disp_names[0])
+    ax.errorbar(tim1,eqw1,err1, fmt='o',color='blue')
+    ax.plot_date(tim1,eqw1,'-',color='blue',lw=1,label=Disp_names[1])
+    ax.errorbar(tim2,eqw2,err2, fmt='o',color='green')
+    ax.plot_date(tim2,eqw2,'-',color='green',lw=1,label=Disp_names[2])
+    ax.errorbar(tim3,eqw3,err3, fmt='o',color='cyan')
+    ax.plot_date(tim3,eqw3,'-',color='cyan',lw=1,label=Disp_names[3])
+    ax.errorbar(tim4,eqw4,err4, fmt='o',color='magenta')
+    ax.plot_date(tim4,eqw4,'-',color='magenta',lw=1,label=Disp_names[4])
+    
+    ax.plot(all_dt,all_eqw_width_sim,'o',color='black')
+    ax.plot_date(all_dt,all_eqw_width_sim,'-',color='black',lw=1,label='Sim')
+    
+    
+    date_range = all_dt[NDATA-1] - all_dt[0]
+
+    if date_range > datetime.timedelta(days = 1):
+        ax.xaxis.set_major_locator(mdates.DayLocator(bymonthday=range(1,32), interval=1))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        ax.get_xaxis().set_minor_locator(mdates.HourLocator(byhour=range(0,24,2)))
+        #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    else:
+        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0,24,2)))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+        ax.get_xaxis().set_minor_locator(mdates.MinuteLocator(byminute=range(0,60,5)))
+    
+    ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+
+    ax.grid(b=True, which='major', color='k', linewidth=2.0)
+    ax.grid(b=True, which='minor', color='grey', linewidth=0.5)
+    ax.set_ylabel('Equivalent width (nm)')
+    ax.set_xlabel('time')
+#    ax.set_ylim(0.,5.)
+
+
+
+    title='Equivalent Width for {} vs time'.format(tagabsline)
+
+    plt.title(title)
+    plt.legend(loc='best')
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    fig.savefig(figfilename)
+   
