@@ -6863,4 +6863,99 @@ def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_
     
     figfilename=os.path.join(dir_top_img,figname)
     fig.savefig(figfilename)
-   
+#-----------------------------------------------------------------------------------------------------
+    
+#--------------------------------------------------------------------------------------------
+def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,all_am,all_filt,tagabsline,dir_top_img,figname,ratio_err=None):
+    """
+    """
+    am0 = []
+    eqwr0 = []
+    err0 = []
+    
+    am1 = []
+    eqwr1 = []
+    err1 = []
+    
+    am2 = []
+    eqwr2 = []
+    err2 = []
+    
+    am3 = []
+    eqwr3 = []
+    err3 = []
+    
+    am4 = []
+    eqwr4 = []
+    err4 = []
+    
+    
+    for index,eqwr in np.ndenumerate(all_eqw_widthratio):
+        idx=index[0]
+        grating_name=all_filt[idx]
+        am=all_am[idx]
+        err=0
+        if ratio_err != None:
+            err=ratio_err[idx]
+        
+        
+        if re.search(Disp_names[0],grating_name):
+            am0.append(am)
+            eqwr0.append(eqwr)
+            err0.append(err)
+        elif re.search(Disp_names[1],grating_name):
+            am1.append(am)
+            eqwr1.append(eqwr)
+            err1.append(err)
+        elif re.search(Disp_names[2],grating_name):
+            am2.append(am)
+            eqwr2.append(eqwr)
+            err2.append(err)
+        elif re.search(Disp_names[3],grating_name):
+            am3.append(am)
+            eqwr3.append(eqwr)
+            err3.append(err)
+        elif re.search(Disp_names[4],grating_name):
+            am4.append(am)
+            eqwr4.append(eqwr)
+            err4.append(err)
+        else:
+            print 'disperser ',grating_name,' not found'
+            
+    fig=plt.figure(figsize=(20,8))
+
+    ax=fig.add_subplot(1,1,1)
+    
+    ax.errorbar(am0,eqwr0,err0, fmt='o',color='red')
+    ax.plot(am0,eqwr0,marker='o',color='red',lw=1,label=Disp_names[0])
+    ax.errorbar(am1,eqwr1,err1, fmt='o',color='blue')
+    ax.plot(am1,eqwr1,marker='o',color='blue',lw=1,label=Disp_names[1])
+    ax.errorbar(am2,eqwr2,err2, fmt='o',color='green')
+    ax.plot(am2,eqwr2,marker='o',color='green',lw=1,label=Disp_names[2])
+    ax.errorbar(am3,eqwr3,err3, fmt='o',color='cyan')
+    ax.plot(am3,eqwr3,marker='o',color='cyan',lw=1,label=Disp_names[3])
+    ax.errorbar(am4,eqwr4,err4, fmt='o',color='magenta')
+    ax.plot(am4,eqwr4,marker='o',color='magenta',lw=1,label=Disp_names[4])
+    
+    ax.plot(all_am,all_eqw_widthratio_sim,marker='o',color='black',lw=1,label='Sim')
+
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())   
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+
+    ax.grid(b=True, which='major', color='grey', linewidth=1.0)
+    #ax.grid(b=True, which='minor', color='grey', linewidth=0.5)
+
+    ax.set_ylabel('Equivalent width ratio')
+    ax.set_xlabel('AirMass')
+
+
+
+    title='Equivalent Width Ratio for {} vs airmass'.format(tagabsline)
+
+    plt.title(title)
+    plt.legend(loc='best')
+
+    figfilename=os.path.join(dir_top_img,figname)
+    fig.savefig(figfilename)
+ #--------------------------------------------------------------------------------------------     
+    
