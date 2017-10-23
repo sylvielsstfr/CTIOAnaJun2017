@@ -7914,3 +7914,73 @@ def PlotRayleigh(thepopt,theperr,dispname,dir_top_img,object_name,runtype='DATA'
     return popt[0]
 #----------------------------------------------------------------------------------    
 
+def plotDataSimRatio(all_ratio_wl,all_ratio,all_filt2,dir_top_img,XMIN=350,XMAX=700,YMIN=0,YMAX=0.8*1e15):
+
+    fig, ax = plt.subplots(1, 1, figsize=(15,8))
+    
+    c1=0
+    c2=0
+    c3=0
+    c4=0
+    c5=0
+    
+    NDATA=len(all_ratio_wl)
+    for idx in np.arange(NDATA):
+        if re.search('Ron400',all_filt2[idx]):
+            if c1==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-',label='Ron400')
+                c1+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-')
+                c1+=1
+               
+                
+        elif re.search('Thor300',all_filt2[idx]): 
+            if c2==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx]/10.,'b-',label='Thor300/10')
+                c2+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx]/10.,'b-')
+                c2+=1
+               
+        elif re.search('HoloPhP',all_filt2[idx]): 
+            if c3==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'g-',label='HoloPhP')
+                c3+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'g-')
+                c3+=1
+               
+        elif re.search('HoloPhAg',all_filt2[idx]): 
+            if c4==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'k-',label='HoloPhAg')
+                c4+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'k-')
+                c4+=1
+                
+        elif re.search('HoloAmAg',all_filt2[idx]): 
+            if c5==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx]*5.,'y-',label='HoloAmAg*5')
+                c5+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx]*5.,'y-')
+                c5+=1
+    
+    for line in LINES:
+        if line == O2B or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA :
+                ax.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                ax.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)        
+            
+    ax.grid()        
+    ax.set_ylim(YMIN,YMAX)
+    ax.set_xlim(XMIN,XMAX)
+    ax.legend(loc=2)
+    ax.set_title("Ratio of spectra : Data/Sim",fontsize=20,fontweight='bold')
+    ax.set_xlabel("$\lambda$ (nm)")
+    ax.set_ylabel("ratio (a.u)")
+    figname='RatioSpecDataSim.pdf'
+    figfilename=os.path.join(dir_top_img,figname)
+    fig.savefig(figfilename)
+
+#-------------------------------------------------------------------------------------
