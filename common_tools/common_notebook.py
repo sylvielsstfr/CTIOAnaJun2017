@@ -6957,5 +6957,753 @@ def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,
 
     figfilename=os.path.join(dir_top_img,figname)
     fig.savefig(figfilename)
- #--------------------------------------------------------------------------------------------     
+#--------------------------------------------------------------------------------------------  
+#   AnaAerCalibSpectrum.ipynb
+#--------------------------------------------------------------------------------------------   
+def bougline(x, a, b):
+    return a*x + b
+#-------------------------------------------------------------------------------------------
+def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg'):
+    """
+    ShowTrueBouguer:
     
+    """
+    
+    fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    
+    
+    NBBands=6
+    labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
+    WLMINAbs=np.array([400.,450.,500.,550,600,650])
+    WLMAXAbs=np.array([450.,500.,550.,600,650,700])
+    
+    NBSPEC=len(thespec)
+    
+    all_z = []
+    all_log10S1vsZ = []
+    all_log10S2vsZ = []
+    all_log10S3vsZ = []
+    all_log10S4vsZ = []
+    all_log10S5vsZ = []
+    all_log10S6vsZ = []
+    all_log10S1vsZE = []
+    all_log10S2vsZE = []
+    all_log10S3vsZE = []
+    all_log10S4vsZE = []
+    all_log10S5vsZE = []
+    all_log10S6vsZE = []
+    
+    fitparam = []
+    all_yfit = []   
+    xfit=np.linspace(1.,2.0,50)
+    all_popt = []
+    all_perr = []
+    
+    # loop on spectra
+    for index in np.arange(NBSPEC):
+        
+        if re.search(sel_filt,all_filt[index]): 
+        
+            thez=thezam[index]
+              
+            wl_current=thewl[index]
+            wl_spec=thespec[index]
+        
+            nbwl=wl_current.shape[0]
+        
+            band1=np.where(np.logical_and(wl_current>= WLMINAbs[0],wl_current<WLMAXAbs[0]))
+            band2=np.where(np.logical_and(wl_current>= WLMINAbs[1],wl_current<WLMAXAbs[1]))    
+            band3=np.where(np.logical_and(wl_current>= WLMINAbs[2],wl_current<WLMAXAbs[2])) 
+            band4=np.where(np.logical_and(wl_current>= WLMINAbs[3],wl_current<WLMAXAbs[3])) 
+            band5=np.where(np.logical_and(wl_current>= WLMINAbs[4],wl_current<WLMAXAbs[4])) 
+            band6=np.where(np.logical_and(wl_current>= WLMINAbs[5],wl_current<WLMAXAbs[5])) 
+        
+            all_S1=wl_spec[band1]
+            all_S2=wl_spec[band2]
+            all_S3=wl_spec[band3]
+            all_S4=wl_spec[band4]
+            all_S5=wl_spec[band5]
+            all_S6=wl_spec[band6]
+        
+            all_log10S1 = 2.5*np.log10(all_S1)
+            all_log10S2 = 2.5*np.log10(all_S2)
+            all_log10S3 = 2.5*np.log10(all_S3)
+            all_log10S4 = 2.5*np.log10(all_S4)
+            all_log10S5 = 2.5*np.log10(all_S5)
+            all_log10S6 = 2.5*np.log10(all_S6)
+    
+            all_z.append(thez)
+            all_log10S1vsZ.append(np.average(all_log10S1))
+            all_log10S2vsZ.append(np.average(all_log10S2))
+            all_log10S3vsZ.append(np.average(all_log10S3))
+            all_log10S4vsZ.append(np.average(all_log10S4))
+            all_log10S5vsZ.append(np.average(all_log10S5))
+            all_log10S6vsZ.append(np.average(all_log10S6))
+            all_log10S1vsZE.append(np.std(all_log10S1)/np.sqrt(all_log10S1.shape[0]))
+            all_log10S2vsZE.append(np.std(all_log10S2)/np.sqrt(all_log10S2.shape[0]))
+            all_log10S3vsZE.append(np.std(all_log10S3)/np.sqrt(all_log10S3.shape[0]))
+            all_log10S4vsZE.append(np.std(all_log10S4)/np.sqrt(all_log10S4.shape[0]))
+            all_log10S5vsZE.append(np.std(all_log10S5)/np.sqrt(all_log10S5.shape[0]))
+            all_log10S6vsZE.append(np.std(all_log10S6)/np.sqrt(all_log10S6.shape[0]))
+    
+    ###########    
+    # band 1
+    ############
+    z = np.polyfit(all_z,all_log10S1vsZ, 1)
+    fitparam.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S1vsZ,p0=z,sigma=all_log10S1vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S1vsZ))**2/np.array(all_log10S1vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    
+    all_popt.append(popt)
+    all_perr.append(perr)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(1.)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
+    #ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
+    ax.errorbar(all_z,all_log10S1vsZ-y0fit,yerr=all_log10S1vsZE,fmt='--o',color='blue',lw=2,label=labels[0])
+    
+    #########
+    # band 2
+    #########
+    z = np.polyfit(all_z,all_log10S2vsZ, 1)
+    fitparam.append(z)    
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S2vsZ,p0=z,sigma=all_log10S2vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S2vsZ))**2/np.array(all_log10S2vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    
+    all_popt.append(popt)
+    all_perr.append(perr)
+      
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(1.)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)  
+    #ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
+    ax.errorbar(all_z,all_log10S2vsZ-y0fit,yerr=all_log10S2vsZE,fmt='--o',color='green',lw=2,label=labels[1])
+    
+    ###########
+    # band 3
+    ########
+    z = np.polyfit(all_z,all_log10S3vsZ, 1)
+    fitparam.append(z) 
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S3vsZ,p0=z,sigma=all_log10S3vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S3vsZ))**2/np.array(all_log10S3vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(1.)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S3vsZ-y0fit,yerr=all_log10S3vsZE,fmt='--o',color='red',lw=2,label=labels[2])
+    #ax.plot(all_z,all_log10S4vsZ,'o-',color='magenta',label=labels[3])
+    #ax.plot(all_z,all_log10S5vsZ,'o-',color='black',label=labels[4])
+    #ax.plot(all_z,all_log10S6vsZ,'o-',color='grey',label=labels[5])
+    
+    #########
+    # band 4
+    ##########
+    z = np.polyfit(all_z,all_log10S4vsZ, 1)
+    fitparam.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S4vsZ,p0=z,sigma=all_log10S4vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S4vsZ))**2/np.array(all_log10S4vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(1.)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S4vsZ-y0fit,yerr=all_log10S4vsZE,fmt='--o',color='magenta',lw=2,label=labels[3])
+    
+    #########
+    # band 5
+    ########
+    z = np.polyfit(all_z,all_log10S5vsZ, 1)
+    fitparam.append(z) 
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S5vsZ,p0=z,sigma=all_log10S5vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S5vsZ))**2/np.array(all_log10S5vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(1.)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S5vsZ-y0fit,yerr=all_log10S5vsZE,fmt='--o',color='black',lw=2,label=labels[4])
+    
+    #########
+    # band 6
+    #########
+    z = np.polyfit(all_z,all_log10S6vsZ, 1)
+    fitparam.append(z)
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S6vsZ,p0=z,sigma=all_log10S6vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S6vsZ))**2/np.array(all_log10S6vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(1.)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S6vsZ-y0fit,yerr=all_log10S6vsZE,fmt='--o',color='grey',lw=2,label=labels[5])
+    
+    
+    ax.grid(True)
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
+    title="BOUGUER line for object {} for disperser {} ".format(object_name,sel_filt)
+    ax.set_title(title,fontsize=40,fontweight='bold')
+    ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
+    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
+    ax.legend(loc="best",fontsize=25)
+    #ax.set_xlim(1.,1.1)
+    #ax.set_ylim(-0.05,0.05)
+    
+    
+    figname='truebougher'+'_'+sel_filt+'.pdf'
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+    return fitparam,all_popt,all_perr
+#--------------------------------------------------------------------------------------------
+    
+
+#-------------------------------------------------------------------------------------------
+def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg'):
+    """
+    ShowTrueBouguer:
+    
+    """
+    
+    ZREFERENCE=0.0
+    ZMAX=2.0
+    
+    fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    
+    
+    NBBands=6
+    labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
+    WLMINAbs=np.array([400.,450.,500.,550,600,650])
+    WLMAXAbs=np.array([450.,500.,550.,600,650,700])
+    
+    NBSPEC=len(thespec)
+    
+    all_z = []
+    all_log10S1vsZ = []
+    all_log10S2vsZ = []
+    all_log10S3vsZ = []
+    all_log10S4vsZ = []
+    all_log10S5vsZ = []
+    all_log10S6vsZ = []
+    all_log10S1vsZE = []
+    all_log10S2vsZE = []
+    all_log10S3vsZE = []
+    all_log10S4vsZE = []
+    all_log10S5vsZE = []
+    all_log10S6vsZE = []
+    
+    all_z_SIM = []
+    all_log10S1vsZ_SIM = []
+    all_log10S2vsZ_SIM = []
+    all_log10S3vsZ_SIM = []
+    all_log10S4vsZ_SIM = []
+    all_log10S5vsZ_SIM = []
+    all_log10S6vsZ_SIM = []
+    
+    
+    fitparam = []
+    fitparam_SIM = []
+    all_yfit = []   
+    xfit=np.linspace(ZREFERENCE,ZMAX,50)
+    all_popt = []
+    all_perr = []
+    
+    # loop on spectra
+    for index in np.arange(NBSPEC):
+ 
+        # Do First with the data
+        #-------------------------
+        if re.search(sel_filt,all_filt[index]):        
+            thez=thezam[index]
+              
+            wl_current=thewl[index]
+            wl_spec=thespec[index]
+        
+            nbwl=wl_current.shape[0]
+        
+            band1=np.where(np.logical_and(wl_current>= WLMINAbs[0],wl_current<WLMAXAbs[0]))
+            band2=np.where(np.logical_and(wl_current>= WLMINAbs[1],wl_current<WLMAXAbs[1]))    
+            band3=np.where(np.logical_and(wl_current>= WLMINAbs[2],wl_current<WLMAXAbs[2])) 
+            band4=np.where(np.logical_and(wl_current>= WLMINAbs[3],wl_current<WLMAXAbs[3])) 
+            band5=np.where(np.logical_and(wl_current>= WLMINAbs[4],wl_current<WLMAXAbs[4])) 
+            band6=np.where(np.logical_and(wl_current>= WLMINAbs[5],wl_current<WLMAXAbs[5])) 
+        
+            all_S1=wl_spec[band1]
+            all_S2=wl_spec[band2]
+            all_S3=wl_spec[band3]
+            all_S4=wl_spec[band4]
+            all_S5=wl_spec[band5]
+            all_S6=wl_spec[band6]
+        
+            all_log10S1 = 2.5*np.log10(all_S1)
+            all_log10S2 = 2.5*np.log10(all_S2)
+            all_log10S3 = 2.5*np.log10(all_S3)
+            all_log10S4 = 2.5*np.log10(all_S4)
+            all_log10S5 = 2.5*np.log10(all_S5)
+            all_log10S6 = 2.5*np.log10(all_S6)
+    
+            all_z.append(thez)
+            all_log10S1vsZ.append(np.average(all_log10S1))
+            all_log10S2vsZ.append(np.average(all_log10S2))
+            all_log10S3vsZ.append(np.average(all_log10S3))
+            all_log10S4vsZ.append(np.average(all_log10S4))
+            all_log10S5vsZ.append(np.average(all_log10S5))
+            all_log10S6vsZ.append(np.average(all_log10S6))
+            all_log10S1vsZE.append(np.std(all_log10S1)/np.sqrt(all_log10S1.shape[0]))
+            all_log10S2vsZE.append(np.std(all_log10S2)/np.sqrt(all_log10S2.shape[0]))
+            all_log10S3vsZE.append(np.std(all_log10S3)/np.sqrt(all_log10S3.shape[0]))
+            all_log10S4vsZE.append(np.std(all_log10S4)/np.sqrt(all_log10S4.shape[0]))
+            all_log10S5vsZE.append(np.std(all_log10S5)/np.sqrt(all_log10S5.shape[0]))
+            all_log10S6vsZE.append(np.std(all_log10S6)/np.sqrt(all_log10S6.shape[0]))
+        # Do Next with Simulation
+        thez=thezam[index]
+              
+        wl_current=thesimwl[index]
+        wl_spec=thesimspec[index]
+        nbwl=wl_current.shape[0]
+        
+        band1=np.where(np.logical_and(wl_current>= WLMINAbs[0],wl_current<WLMAXAbs[0]))
+        band2=np.where(np.logical_and(wl_current>= WLMINAbs[1],wl_current<WLMAXAbs[1]))    
+        band3=np.where(np.logical_and(wl_current>= WLMINAbs[2],wl_current<WLMAXAbs[2])) 
+        band4=np.where(np.logical_and(wl_current>= WLMINAbs[3],wl_current<WLMAXAbs[3])) 
+        band5=np.where(np.logical_and(wl_current>= WLMINAbs[4],wl_current<WLMAXAbs[4])) 
+        band6=np.where(np.logical_and(wl_current>= WLMINAbs[5],wl_current<WLMAXAbs[5])) 
+        
+        all_S1=wl_spec[band1]
+        all_S2=wl_spec[band2]
+        all_S3=wl_spec[band3]
+        all_S4=wl_spec[band4]
+        all_S5=wl_spec[band5]
+        all_S6=wl_spec[band6]
+        
+        all_log10S1 = 2.5*np.log10(all_S1)
+        all_log10S2 = 2.5*np.log10(all_S2)
+        all_log10S3 = 2.5*np.log10(all_S3)
+        all_log10S4 = 2.5*np.log10(all_S4)
+        all_log10S5 = 2.5*np.log10(all_S5)
+        all_log10S6 = 2.5*np.log10(all_S6)
+    
+        all_z_SIM.append(thez)
+        all_log10S1vsZ_SIM.append(np.average(all_log10S1))
+        all_log10S2vsZ_SIM.append(np.average(all_log10S2))
+        all_log10S3vsZ_SIM.append(np.average(all_log10S3))
+        all_log10S4vsZ_SIM.append(np.average(all_log10S4))
+        all_log10S5vsZ_SIM.append(np.average(all_log10S5))
+        all_log10S6vsZ_SIM.append(np.average(all_log10S6))
+   
+        
+    
+    ###########    
+    # band 1
+    ############
+    z = np.polyfit(all_z,all_log10S1vsZ, 1)
+    fitparam.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S1vsZ,p0=z,sigma=all_log10S1vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S1vsZ))**2/np.array(all_log10S1vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    
+    all_popt.append(popt)
+    all_perr.append(perr)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
+    #ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
+    ax.errorbar(all_z,all_log10S1vsZ-y0fit,yerr=all_log10S1vsZE,fmt='--o',color='blue',lw=2,label=labels[0])
+    
+    #########
+    # band 2
+    #########
+    z = np.polyfit(all_z,all_log10S2vsZ, 1)
+    fitparam.append(z)    
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S2vsZ,p0=z,sigma=all_log10S2vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S2vsZ))**2/np.array(all_log10S2vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    
+    all_popt.append(popt)
+    all_perr.append(perr)
+      
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)  
+    #ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
+    ax.errorbar(all_z,all_log10S2vsZ-y0fit,yerr=all_log10S2vsZE,fmt='--o',color='green',lw=2,label=labels[1])
+    
+    ###########
+    # band 3
+    ########
+    z = np.polyfit(all_z,all_log10S3vsZ, 1)
+    fitparam.append(z) 
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S3vsZ,p0=z,sigma=all_log10S3vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S3vsZ))**2/np.array(all_log10S3vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S3vsZ-y0fit,yerr=all_log10S3vsZE,fmt='--o',color='red',lw=2,label=labels[2])
+    #ax.plot(all_z,all_log10S4vsZ,'o-',color='magenta',label=labels[3])
+    #ax.plot(all_z,all_log10S5vsZ,'o-',color='black',label=labels[4])
+    #ax.plot(all_z,all_log10S6vsZ,'o-',color='grey',label=labels[5])
+    
+    #########
+    # band 4
+    ##########
+    z = np.polyfit(all_z,all_log10S4vsZ, 1)
+    fitparam.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S4vsZ,p0=z,sigma=all_log10S4vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S4vsZ))**2/np.array(all_log10S4vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S4vsZ-y0fit,yerr=all_log10S4vsZE,fmt='--o',color='magenta',lw=2,label=labels[3])
+    
+    #########
+    # band 5
+    ########
+    z = np.polyfit(all_z,all_log10S5vsZ, 1)
+    fitparam.append(z) 
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S5vsZ,p0=z,sigma=all_log10S5vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S5vsZ))**2/np.array(all_log10S5vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S5vsZ-y0fit,yerr=all_log10S5vsZE,fmt='--o',color='black',lw=2,label=labels[4])
+    
+    #########
+    # band 6
+    #########
+    z = np.polyfit(all_z,all_log10S6vsZ, 1)
+    fitparam.append(z)
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z, all_log10S6vsZ,p0=z,sigma=all_log10S6vsZE)
+    perr = np.sqrt(np.diag(pcov))
+    print "popt = ",popt,' pcov',pcov,' perr',perr
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z)
+    chi2sum=(yyyfit-np.array(all_log10S6vsZ))**2/np.array(all_log10S6vsZE)**2
+    chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
+    print 'chi2',chi2
+    all_popt.append(popt)
+    all_perr.append(perr)
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
+    #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10S6vsZ-y0fit,yerr=all_log10S6vsZE,fmt='--o',color='grey',lw=2,label=labels[5])
+
+
+    #######################
+    # Simulation
+    ######################
+
+    ###########    
+    # band 1
+    ############
+    z = np.polyfit(all_z_SIM,all_log10S1vsZ_SIM, 1)
+    fitparam_SIM.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z_SIM, all_log10S1vsZ_SIM,p0=z)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "SIMULATION ", " popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z_SIM)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-.',color='blue',lw=0.5)        
+  
+    ###########    
+    # band 2
+    ############
+    z = np.polyfit(all_z_SIM,all_log10S2vsZ_SIM, 1)
+    fitparam_SIM.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z_SIM, all_log10S2vsZ_SIM,p0=z)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "SIMULATION ", " popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z_SIM)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-.',color='green',lw=0.5)      
+    
+    ###########    
+    # band 3
+    ############
+    z = np.polyfit(all_z_SIM,all_log10S3vsZ_SIM, 1)
+    fitparam_SIM.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z_SIM, all_log10S3vsZ_SIM,p0=z)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "SIMULATION ", " popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z_SIM)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-.',color='red',lw=0.5) 
+    
+    
+    ###########    
+    # band 4
+    ############
+    z = np.polyfit(all_z_SIM,all_log10S4vsZ_SIM, 1)
+    fitparam_SIM.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z_SIM, all_log10S4vsZ_SIM,p0=z)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "SIMULATION ", " popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z_SIM)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-.',color='magenta',lw=0.5) 
+    
+    ###########    
+    # band 5
+    ############
+    z = np.polyfit(all_z_SIM,all_log10S5vsZ_SIM, 1)
+    fitparam_SIM.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z_SIM, all_log10S5vsZ_SIM,p0=z)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "SIMULATION ", " popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z_SIM)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-.',color='black',lw=0.5)     
+    
+    ###########    
+    # band 6
+    ############
+    z = np.polyfit(all_z_SIM,all_log10S6vsZ_SIM, 1)
+    fitparam_SIM.append(z)  
+    print "--------------------------------------------------------------------------"
+    print "z = ",z
+    popt, pcov = curve_fit(bougline, all_z_SIM, all_log10S6vsZ_SIM,p0=z)
+    perr = np.sqrt(np.diag(pcov))
+    
+    print "SIMULATION ", " popt = ",popt,' pcov',pcov,' perr',perr
+    
+    pol = np.poly1d(popt)
+    yyyfit=pol(all_z_SIM)
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-.',color='grey',lw=0.5)      
+    #------------------------------------------------------------------------------
+    
+    
+    
+    ax.grid(True)
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
+    title="BOUGUER line for object {} for disperser {} ".format(object_name,sel_filt)
+    ax.set_title(title,fontsize=40,fontweight='bold')
+    ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
+    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
+    ax.legend(loc="best",fontsize=25)
+    #ax.set_xlim(1.,1.1)
+    #ax.set_ylim(-0.05,0.05)
+    
+    
+    figname='truebougher'+'_'+sel_filt+'.pdf'
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+    return fitparam,all_popt,all_perr, fitparam_SIM
+#--------------------------------------------------------------------------------------------  
+def FuncRayleigh(x,a):
+    return a*(400/x)**4/(1-0.0752*(400./x)**2)
+#------------------------------------------------------------------------------------------
+def PlotRayleigh(thepopt,theperr,dir_top_img,object_name):
+    X= [425.,475.,525.,575.,625.,675.]
+    Y= np.array(thepopt)[:,0]
+    EY=np.array(theperr)[:,0]*10
+    
+    fig, ax = plt.subplots(1, 1, figsize=(8,6))
+    ax.errorbar(X,Y,yerr=EY,fmt='o',color='red')
+    
+    title="Slope of BOUGUER line vs wavelength for object {}".format(object_name)
+    ax.set_title(title)
+    ax.set_xlabel("$\lambda$ (nm)")
+    ax.set_ylabel("slope/airmass (mag)")
+    ax.grid(True)
+    
+    
+    popt, pcov = curve_fit(FuncRayleigh,X,Y,sigma=EY)
+    perr = np.sqrt(np.diag(pcov))
+    xfit=np.linspace(400.,700.0,50)
+    yfit=FuncRayleigh(xfit,popt[0])
+    plt.plot(xfit,yfit)
+    
+    figfilename=os.path.join(dir_top_img,'fitrayleighwithbouguer.pdf')
+    plt.savefig(figfilename)
+    
+    print popt[0] ,' at 400 nm'
+#----------------------------------------------------------------------------------    
+
