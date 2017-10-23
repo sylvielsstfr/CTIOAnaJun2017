@@ -286,8 +286,7 @@ def ShowImages(all_images,all_titles,all_filt,object_name,NBIMGPERROW=2,vmin=0,v
         axarr[iy,ix].set_title(all_titles[index])
         axarr[iy,ix].grid(color='white', ls='solid')
         axarr[iy,ix].text(5.,5,all_filt[index],verticalalignment='bottom', horizontalalignment='left',color='yellow', fontweight='bold',fontsize=16)
-        
-        thetitle="{}".format(index)
+        thetitle="{}) : {} , {} ".format(index,all_titles[index],all_filt[index])
         axarr[iy,ix].set_title(thetitle)
     
     f.colorbar(im, orientation="horizontal")
@@ -1743,7 +1742,8 @@ def ShowCenterImages(thex0,they0,DeltaX,DeltaY,all_images,all_titles,all_filt,ob
             image_cut[bad_pixels] = np.nan
         #aperture=CircularAperture([positions_central[index]], r=100.)
         im=axarr[iy,ix].imshow(image_cut,cmap='rainbow',vmin=vmin,vmax=vmax,aspect='auto',origin='lower',interpolation='None')
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} , {} ".format(index,all_titles[index],all_filt[index])
+        axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(color='white', ls='solid')
         #aperture.plot(color='red', lw=5.)
         axarr[iy,ix].text(5.,5,all_filt[index],verticalalignment='bottom', horizontalalignment='left',color='yellow', fontweight='bold',fontsize=16)
@@ -1859,7 +1859,8 @@ def ComputeRotationAngle(all_images,thex0,they0,all_titles,object_name):
     
         im=axarr[iy,ix].plot(XtoFit,YtoFit,'ro')
         im=axarr[iy,ix].plot(x_new,y_new,'b-')
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         
         axarr[iy,ix].set_ylim(0,200)
         axarr[iy,ix].grid(True)
@@ -2034,7 +2035,8 @@ def ComputeRotationAngleHessianAndFit(all_images,thex0,they0,all_titles,object_n
         
         im=axarr[iy,ix].imshow(theta_mask,origin='lower',cmap=cm.brg,aspect='auto',vmin=-deg_threshold,vmax=deg_threshold)
         im=axarr[iy,ix].plot(x_new,y_new,'b-')
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         
         axarr[iy,ix].set_ylim(0,2*width_cut)
         axarr[iy,ix].grid(True)
@@ -2082,7 +2084,8 @@ def TurnTheImages(all_images,all_angles,all_titles,object_name,NBIMGPERROW=2,vmi
         rotated_image=ndimage.interpolation.rotate(data,angle,prefilter=False,order=5)
         all_rotated_images.append(rotated_image)
         im=axarr[iy,ix].imshow(rotated_image,origin='lower',cmap='rainbow',vmin=vmin,vmax=vmax)
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(color='white', ls='solid')
         axarr[iy,ix].grid(True)
         
@@ -2141,8 +2144,8 @@ def ShowOneOrder(all_images,all_titles,x0,object_name,all_expo,NBIMGPERROW=2):
         im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=100)
         #axarr[iy,ix].colorbar(im, orientation='vertical')
         axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
-        
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         
     
     title='Images of {}'.format(object_name)
@@ -2189,7 +2192,8 @@ def ShowTransverseProfile(all_images,all_titles,object_name,all_expo,NBIMGPERROW
         axarr[iy,ix].semilogy([y0+ws[1],y0+ws[1]],[ymin,ymax],'k-')
         axarr[iy,ix].semilogy([y0-ws[0],y0-ws[0]],[ymin,ymax],'k-')
         axarr[iy,ix].semilogy([y0-ws[1],y0-ws[1]],[ymin,ymax],'k-')
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(True)
         if ylim is not None : axarr[iy,ix].set_ylim(ylim)
     title='Spectrum tranverse profile '.format(object_name)
@@ -2273,8 +2277,8 @@ def ShowRightOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_to
         im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=100)
         #axarr[iy,ix].colorbar(im, orientation='vertical')
         axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
-        
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         
     
     title='Right part of spectrum of {} '.format(object_name)
@@ -2310,8 +2314,8 @@ def ShowLeftOrder(all_images,thex0,they0,all_titles,object_name,all_expo,dir_top
         im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=30)
         #axarr[iy,ix].colorbar(im, orientation='vertical')
         axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); axarr[iy,ix].grid(True)
-        
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         
     
     title='Left part of spectrum of '.format(object_name)
@@ -2370,7 +2374,8 @@ def ShowLongitBackground(spectra,spectraUp,spectraDown,spectraAv,all_titles,all_
         axarr[iy,ix].plot(spectraUp[index],'b-')
         axarr[iy,ix].plot(spectraDown[index],'g-')
         axarr[iy,ix].plot(spectraAv[index],'m-')
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(True)
         axarr[iy,ix].set_ylim(0.,spectra[index][:right_edge].max()*1.2)
         axarr[iy,ix].annotate(all_filt[index],xy=(0.05,0.9),xytext=(0.05,0.9),verticalalignment='top', horizontalalignment='left',color='blue',fontweight='bold', fontsize=20, xycoords='axes fraction')
@@ -2408,7 +2413,8 @@ def ShowSpectrumProfile(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2,xl
         ix=index%NBIMGPERROW
         iy=index/NBIMGPERROW
         axarr[iy,ix].plot(spectra[index],'r-')
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} ".format(index,all_titles[index])
+        axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(True)
         axarr[iy,ix].set_ylim(0.,spectra[index][:IMSIZE].max()*1.2)
         if xlim is not None :
@@ -2478,7 +2484,8 @@ def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2
             axarr[iy,ix].plot(xs,gauss(xs,*popt),'b-')
             axarr[iy,ix].axvline(popt[1],color='b',linestyle='-',lw=2)    
             print '%s:\t gaussian center x=%.2f+/-%.2f' % (all_filt[index],popt[1],np.sqrt(pcov[1,1]))
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {} , {} ".format(index,all_titles[index],all_filt[index])    
+        axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(True)
         axarr[iy,ix].set_ylim(0.,right_spectrum.max()*1.2)
         axarr[iy,ix].set_xlim(left_edge,right_edge)
@@ -3260,7 +3267,8 @@ def ShowOneOrder_contour(all_images,all_pointing,thex0,they0,all_titles,object_n
         
         axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); 
         axarr[iy,ix].grid(True)
-        axarr[iy,ix].set_title(all_titles[index])
+        thetitle="{}) : {}".format(index,all_titles[index]) 
+        axarr[iy,ix].set_title(thetitle)
     
         axarr[iy,ix].grid(color='white', ls='solid')
         axarr[iy,ix].text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
