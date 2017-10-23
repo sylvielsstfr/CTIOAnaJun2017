@@ -6963,9 +6963,9 @@ def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,
 def bougline(x, a, b):
     return a*x + b
 #-------------------------------------------------------------------------------------------
-def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg'):
+def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg',ZREFERENCE=0.0,ZMAX=2.0,YMIN=-0.5,YMAX=0.05):
     """
-    ShowTrueBouguer:
+    ShowTrueBouguerData:
     
     """
     
@@ -6995,7 +6995,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     
     fitparam = []
     all_yfit = []   
-    xfit=np.linspace(1.,2.0,50)
+    xfit=np.linspace(ZREFERENCE,ZMAX,50)
     all_popt = []
     all_perr = []
     
@@ -7069,7 +7069,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     
     p = np.poly1d(z)
     yfit=p(xfit)
-    y0fit=p(1.)
+    y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
     #ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
@@ -7096,7 +7096,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
       
     p = np.poly1d(z)
     yfit=p(xfit)
-    y0fit=p(1.)
+    y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)  
     #ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
@@ -7122,7 +7122,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     
     p = np.poly1d(z)
     yfit=p(xfit)
-    y0fit=p(1.)
+    y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
@@ -7150,7 +7150,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     all_perr.append(perr)
     p = np.poly1d(z)
     yfit=p(xfit)
-    y0fit=p(1.)
+    y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
@@ -7175,7 +7175,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     all_perr.append(perr)
     p = np.poly1d(z)
     yfit=p(xfit)
-    y0fit=p(1.)
+    y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
@@ -7200,7 +7200,7 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     all_perr.append(perr)
     p = np.poly1d(z)
     yfit=p(xfit)
-    y0fit=p(1.)
+    y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
@@ -7212,16 +7212,16 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
     #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
     #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
-    title="BOUGUER line for object {} for disperser {} ".format(object_name,sel_filt)
+    title="BOUGUER line for object {} for disperser {} (DATA) ".format(object_name,sel_filt)
     ax.set_title(title,fontsize=40,fontweight='bold')
     ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
     ax.legend(loc="best",fontsize=25)
-    #ax.set_xlim(1.,1.1)
-    #ax.set_ylim(-0.05,0.05)
+    ax.set_xlim(ZREFERENCE,ZMAX)
+    ax.set_ylim(YMIN,YMAX)
     
     
-    figname='truebougher'+'_'+sel_filt+'.pdf'
+    figname='truebougher'+'_'+sel_filt+'_DATA'+'.pdf'
     figfilename=os.path.join(dir_top_img,figname)
     plt.savefig(figfilename)
     return fitparam,all_popt,all_perr
@@ -7229,7 +7229,196 @@ def ShowTrueBouguer(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_fi
     
 
 #-------------------------------------------------------------------------------------------
-def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg'):
+def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg',ZREFERENCE=0.0,ZMAX=2.0,YMIN=-0.5,YMAX=0.05):
+    """
+    ShowTrueBouguer:
+    
+    """
+ 
+    
+    fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    
+    
+    NBBands=6
+    
+    labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
+    
+    WLMINAbs=np.array([400.,450.,500.,550,600,650])
+    WLMAXAbs=np.array([450.,500.,550.,600,650,700])
+    
+    NBSPEC=len(thespec)
+    
+    all_z = []
+    all_log10S1vsZ = []
+    all_log10S2vsZ = []
+    all_log10S3vsZ = []
+    all_log10S4vsZ = []
+    all_log10S5vsZ = []
+    all_log10S6vsZ = []
+
+    
+    fitparam = []
+    all_yfit = []   
+    xfit=np.linspace(ZREFERENCE,ZMAX,50)
+ 
+    
+    # loop on spectra
+    for index in np.arange(NBSPEC):
+        
+        if re.search(sel_filt,all_filt[index]): 
+        
+            thez=thezam[index]
+              
+            wl_current=thewl[index]
+            wl_spec=thespec[index]
+        
+          
+        
+            band1=np.where(np.logical_and(wl_current>= WLMINAbs[0],wl_current<WLMAXAbs[0]))
+            band2=np.where(np.logical_and(wl_current>= WLMINAbs[1],wl_current<WLMAXAbs[1]))    
+            band3=np.where(np.logical_and(wl_current>= WLMINAbs[2],wl_current<WLMAXAbs[2])) 
+            band4=np.where(np.logical_and(wl_current>= WLMINAbs[3],wl_current<WLMAXAbs[3])) 
+            band5=np.where(np.logical_and(wl_current>= WLMINAbs[4],wl_current<WLMAXAbs[4])) 
+            band6=np.where(np.logical_and(wl_current>= WLMINAbs[5],wl_current<WLMAXAbs[5])) 
+        
+            all_S1=wl_spec[band1]
+            all_S2=wl_spec[band2]
+            all_S3=wl_spec[band3]
+            all_S4=wl_spec[band4]
+            all_S5=wl_spec[band5]
+            all_S6=wl_spec[band6]
+        
+            all_log10S1 = 2.5*np.log10(all_S1)
+            all_log10S2 = 2.5*np.log10(all_S2)
+            all_log10S3 = 2.5*np.log10(all_S3)
+            all_log10S4 = 2.5*np.log10(all_S4)
+            all_log10S5 = 2.5*np.log10(all_S5)
+            all_log10S6 = 2.5*np.log10(all_S6)
+    
+            all_z.append(thez)
+            
+            all_log10S1vsZ.append(np.average(all_log10S1))
+            all_log10S2vsZ.append(np.average(all_log10S2))
+            all_log10S3vsZ.append(np.average(all_log10S3))
+            all_log10S4vsZ.append(np.average(all_log10S4))
+            all_log10S5vsZ.append(np.average(all_log10S5))
+            all_log10S6vsZ.append(np.average(all_log10S6))
+
+    
+    ###########    
+    # band 1
+    ############
+    z = np.polyfit(all_z,all_log10S1vsZ, 1)
+    fitparam.append(z)  
+    print 'band1', z
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
+    ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
+   
+    
+    #########
+    # band 2
+    #########
+    z = np.polyfit(all_z,all_log10S2vsZ, 1)
+    fitparam.append(z)  
+
+    print 'band2', z
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)        
+    ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
+ 
+    
+    ###########
+    # band 3
+    ########
+    z = np.polyfit(all_z,all_log10S3vsZ, 1)
+    fitparam.append(z)   
+    
+    print 'band3', z
+     
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
+    ax.plot(all_z,all_log10S3vsZ,'o-',color='magenta',label=labels[2])  
+    
+    #########
+    # band 4
+    ##########
+    z = np.polyfit(all_z,all_log10S4vsZ, 1)
+    fitparam.append(z)  
+    
+    print 'band4', z
+     
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
+    ax.plot(all_z,all_log10S4vsZ-y0fit,'o-',color='magenta',label=labels[3])
+    
+    #########
+    # band 5
+    ########
+    z = np.polyfit(all_z,all_log10S5vsZ, 1)
+    fitparam.append(z) 
+    
+    print 'band5', z
+      
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
+    ax.plot(all_z,all_log10S5vsZ-y0fit,'o-',color='black',label=labels[4])
+    
+    
+    #########
+    # band 6
+    #########
+    z = np.polyfit(all_z,all_log10S6vsZ, 1)
+    fitparam.append(z)
+    
+    print 'band6', z
+    
+    p = np.poly1d(z)
+    yfit=p(xfit)
+    y0fit=p(ZREFERENCE)
+    all_yfit.append(yfit-y0fit)
+    ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
+    ax.plot(all_z,all_log10S6vsZ-y0fit,'o-',color='grey',label=labels[5])   
+    
+    
+    ax.grid(True)
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
+    title="BOUGUER line for object {} for disperser {} (SIMULATION) ".format(object_name,sel_filt)
+    ax.set_title(title,fontsize=40,fontweight='bold')
+    ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
+    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
+    ax.legend(loc="best",fontsize=25)
+    ax.set_xlim(ZREFERENCE,ZMAX)
+    ax.set_ylim(YMIN,YMAX)
+    
+    
+    figname='truebougher'+'_'+sel_filt+'_SIM'+'.pdf'
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+    return fitparam
+#--------------------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------------------
+def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg',YMIN=-0.5,YMAX=0.05):
     """
     ShowTrueBouguer:
     
@@ -7654,9 +7843,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-.',color='grey',lw=0.5)      
-    #------------------------------------------------------------------------------
-    
-    
+    #------------------------------------------------------------------------------  
     
     ax.grid(True)
     #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
@@ -7668,11 +7855,10 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
     ax.legend(loc="best",fontsize=25)
-    #ax.set_xlim(1.,1.1)
-    #ax.set_ylim(-0.05,0.05)
+    ax.set_xlim(ZREFERENCE,ZMAX)
+    ax.set_ylim(YMIN,YMAX)
     
-    
-    figname='truebougher'+'_'+sel_filt+'.pdf'
+    figname='truebougher'+'_'+sel_filt+'_DATASIM'+'.pdf'
     figfilename=os.path.join(dir_top_img,figname)
     plt.savefig(figfilename)
     return fitparam,all_popt,all_perr, fitparam_SIM
@@ -7680,30 +7866,51 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
 def FuncRayleigh(x,a):
     return a*(400/x)**4/(1-0.0752*(400./x)**2)
 #------------------------------------------------------------------------------------------
-def PlotRayleigh(thepopt,theperr,dir_top_img,object_name):
+def PlotRayleigh(thepopt,theperr,dispname,dir_top_img,object_name,runtype='DATA'):
+   
+    
     X= [425.,475.,525.,575.,625.,675.]
-    Y= np.array(thepopt)[:,0]
-    EY=np.array(theperr)[:,0]*10
+   
+    
+    if theperr==None:
+        print "Missing errors"
+        error_flag=False
+        Y= np.array(thepopt)[:,0]
+        EY=None
+    else:
+        print "Errors  OK "
+        error_flag=True
+        Y= np.array(thepopt)[:,0]
+        EY=np.array(theperr)[:,0]
     
     fig, ax = plt.subplots(1, 1, figsize=(8,6))
-    ax.errorbar(X,Y,yerr=EY,fmt='o',color='red')
     
-    title="Slope of BOUGUER line vs wavelength for object {}".format(object_name)
+    if(error_flag):
+        ax.errorbar(X,Y,yerr=EY,fmt='o',color='red')
+    else:
+        ax.plot(X,Y,'o',color='red')
+    
+    title="Slope of BOUGUER line vs wavelength for {}, object {} ({})".format(dispname,object_name,runtype)
     ax.set_title(title)
     ax.set_xlabel("$\lambda$ (nm)")
     ax.set_ylabel("slope/airmass (mag)")
     ax.grid(True)
     
-    
-    popt, pcov = curve_fit(FuncRayleigh,X,Y,sigma=EY)
+    if error_flag:
+        popt, pcov = curve_fit(FuncRayleigh,X,Y,sigma=EY)
+    else:
+        popt, pcov = curve_fit(FuncRayleigh,X,Y)
+       
     perr = np.sqrt(np.diag(pcov))
     xfit=np.linspace(400.,700.0,50)
     yfit=FuncRayleigh(xfit,popt[0])
     plt.plot(xfit,yfit)
     
+    figname="fitrayleighwithbouguer_{}_{}.pdf".format(dispname,runtype)
     figfilename=os.path.join(dir_top_img,'fitrayleighwithbouguer.pdf')
     plt.savefig(figfilename)
     
     print popt[0] ,' at 400 nm'
+    return popt[0]
 #----------------------------------------------------------------------------------    
 
