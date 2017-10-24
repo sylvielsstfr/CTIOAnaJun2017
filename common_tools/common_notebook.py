@@ -7427,8 +7427,8 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     ZREFERENCE=0.0
     ZMAX=2.0
     
-    fig, ax = plt.subplots(1, 1, figsize=(25,15))
-    
+    #fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
     
     NBBands=6
     labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
@@ -7984,3 +7984,225 @@ def plotDataSimRatio(all_ratio_wl,all_ratio,all_filt2,dir_top_img,XMIN=350,XMAX=
     fig.savefig(figfilename)
 
 #-------------------------------------------------------------------------------------
+def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp):
+    """
+    ShowModifBouguer:
+    
+        compute fluctuation on Y by dividing by 1/sqrt(N)
+    """
+    
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    
+  
+    labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
+    WLMINAbs=np.array([400.,450.,500.,550,600,650])
+    WLMAXAbs=np.array([450.,500.,550.,600,650,700])
+    
+    NBRATIO=len(theratio)
+    
+    all_z = []
+    all_log10R1vsZ = []
+    all_log10R2vsZ = []
+    all_log10R3vsZ = []
+    all_log10R4vsZ = []
+    all_log10R5vsZ = []
+    all_log10R6vsZ = []
+    all_log10R1vsZE = []
+    all_log10R2vsZE = []
+    all_log10R3vsZE = []
+    all_log10R4vsZE = []
+    all_log10R5vsZE = []
+    all_log10R6vsZE = []
+    
+    # loop on ratio
+    for index in np.arange(NBRATIO):
+       
+        if re.search(sel_disp,all_filt[index]):  
+        
+            thez=thezam[index]
+              
+            wl_current=thewl[index]
+            wl_ratio=theratio[index]
+                
+            band1=np.where(np.logical_and(wl_current>= WLMINAbs[0],wl_current<WLMAXAbs[0]))
+            band2=np.where(np.logical_and(wl_current>= WLMINAbs[1],wl_current<WLMAXAbs[1]))    
+            band3=np.where(np.logical_and(wl_current>= WLMINAbs[2],wl_current<WLMAXAbs[2])) 
+            band4=np.where(np.logical_and(wl_current>= WLMINAbs[3],wl_current<WLMAXAbs[3])) 
+            band5=np.where(np.logical_and(wl_current>= WLMINAbs[4],wl_current<WLMAXAbs[4])) 
+            band6=np.where(np.logical_and(wl_current>= WLMINAbs[5],wl_current<WLMAXAbs[5])) 
+        
+            all_R1=wl_ratio[band1]
+            all_R2=wl_ratio[band2]
+            all_R3=wl_ratio[band3]
+            all_R4=wl_ratio[band4]
+            all_R5=wl_ratio[band5]
+            all_R6=wl_ratio[band6]
+        
+            all_log10R1 = 2.5*np.log10(all_R1)
+            all_log10R2 = 2.5*np.log10(all_R2)
+            all_log10R3 = 2.5*np.log10(all_R3)
+            all_log10R4 = 2.5*np.log10(all_R4)
+            all_log10R5 = 2.5*np.log10(all_R5)
+            all_log10R6 = 2.5*np.log10(all_R6)
+    
+            # append
+            all_z.append(thez)
+        
+            all_log10R1vsZ.append(np.average(all_log10R1))
+            all_log10R2vsZ.append(np.average(all_log10R2))
+            all_log10R3vsZ.append(np.average(all_log10R3))
+            all_log10R4vsZ.append(np.average(all_log10R4))
+            all_log10R5vsZ.append(np.average(all_log10R5))
+            all_log10R6vsZ.append(np.average(all_log10R6))
+            
+            all_log10R1vsZE.append(np.std(all_log10R1)/np.sqrt(all_log10R1.shape[0]))
+            all_log10R2vsZE.append(np.std(all_log10R2)/np.sqrt(all_log10R2.shape[0]))
+            all_log10R3vsZE.append(np.std(all_log10R3)/np.sqrt(all_log10R3.shape[0]))
+            all_log10R4vsZE.append(np.std(all_log10R4)/np.sqrt(all_log10R4.shape[0]))
+            all_log10R5vsZE.append(np.std(all_log10R5)/np.sqrt(all_log10R5.shape[0]))
+            all_log10R6vsZE.append(np.std(all_log10R6)/np.sqrt(all_log10R6.shape[0]))
+    
+    all_z=np.array(all_z)
+    index_zmin=np.where(all_z==all_z.min())[0][0]    
+        
+    ax.errorbar(all_z,all_log10R1vsZ-all_log10R1vsZ[index_zmin],yerr=all_log10R1vsZE,fmt='--o',color='blue',label=labels[0])
+    ax.errorbar(all_z,all_log10R2vsZ-all_log10R2vsZ[index_zmin],yerr=all_log10R2vsZE,fmt='--o',color='green',label=labels[1])
+    ax.errorbar(all_z,all_log10R3vsZ-all_log10R3vsZ[index_zmin],yerr=all_log10R3vsZE,fmt='--o',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10R4vsZ-all_log10R4vsZ[index_zmin],yerr=all_log10R4vsZE,fmt='--o',color='magenta',label=labels[3])
+    ax.errorbar(all_z,all_log10R5vsZ-all_log10R5vsZ[index_zmin],yerr=all_log10R5vsZE,fmt='--o',color='black',label=labels[4])
+    ax.errorbar(all_z,all_log10R6vsZ-all_log10R6vsZ[index_zmin],yerr=all_log10R6vsZE,fmt='--o',color='grey',label=labels[5])  
+    
+    #ax.plot(all_z,all_log10R1vsZ,'o-',label=labels[0])
+    #ax.plot(all_z,all_log10R2vsZ,'o-',label=labels[1])
+    #ax.plot(all_z,all_log10R3vsZ,'o-',label=labels[2])
+    #ax.plot(all_z,all_log10R4vsZ,'o-',label=labels[3])
+    #ax.plot(all_z,all_log10R5vsZ,'o-',label=labels[4])
+    #ax.plot(all_z,all_log10R6vsZ,'o-',label=labels[5])
+    
+    ax.grid(True)
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
+    title="Modified BOUGUER line for disperser {}, object {}".format(sel_disp,object_name)
+    ax.set_title(title)
+    ax.set_xlabel("airmass")
+    ax.set_ylabel("$\Delta M=2.5*log_{10}(R)=2.5*log_{10}(F_{data}/F_{sim})$ (mag)")
+    ax.legend(loc="best")
+    figname='modified_bouguer'+'_'+sel_disp+'_DATAOVERSIM.pdf'
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+#------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+def ShowModifBouguer2(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp):
+    """
+    ShowModifBouguer:
+    
+         compute fluctuation on Y NOT by dividing by 1/sqrt(N)
+    """
+    
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    
+  
+    labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
+    WLMINAbs=np.array([400.,450.,500.,550,600,650])
+    WLMAXAbs=np.array([450.,500.,550.,600,650,700])
+    
+    NBRATIO=len(theratio)
+    
+    all_z = []
+    all_log10R1vsZ = []
+    all_log10R2vsZ = []
+    all_log10R3vsZ = []
+    all_log10R4vsZ = []
+    all_log10R5vsZ = []
+    all_log10R6vsZ = []
+    all_log10R1vsZE = []
+    all_log10R2vsZE = []
+    all_log10R3vsZE = []
+    all_log10R4vsZE = []
+    all_log10R5vsZE = []
+    all_log10R6vsZE = []
+    
+    # loop on ratio
+    for index in np.arange(NBRATIO):
+       
+        if re.search(sel_disp,all_filt[index]):  
+        
+            thez=thezam[index]
+              
+            wl_current=thewl[index]
+            wl_ratio=theratio[index]
+                
+            band1=np.where(np.logical_and(wl_current>= WLMINAbs[0],wl_current<WLMAXAbs[0]))
+            band2=np.where(np.logical_and(wl_current>= WLMINAbs[1],wl_current<WLMAXAbs[1]))    
+            band3=np.where(np.logical_and(wl_current>= WLMINAbs[2],wl_current<WLMAXAbs[2])) 
+            band4=np.where(np.logical_and(wl_current>= WLMINAbs[3],wl_current<WLMAXAbs[3])) 
+            band5=np.where(np.logical_and(wl_current>= WLMINAbs[4],wl_current<WLMAXAbs[4])) 
+            band6=np.where(np.logical_and(wl_current>= WLMINAbs[5],wl_current<WLMAXAbs[5])) 
+        
+            all_R1=wl_ratio[band1]
+            all_R2=wl_ratio[band2]
+            all_R3=wl_ratio[band3]
+            all_R4=wl_ratio[band4]
+            all_R5=wl_ratio[band5]
+            all_R6=wl_ratio[band6]
+        
+            all_log10R1 = 2.5*np.log10(all_R1)
+            all_log10R2 = 2.5*np.log10(all_R2)
+            all_log10R3 = 2.5*np.log10(all_R3)
+            all_log10R4 = 2.5*np.log10(all_R4)
+            all_log10R5 = 2.5*np.log10(all_R5)
+            all_log10R6 = 2.5*np.log10(all_R6)
+    
+            # append
+            all_z.append(thez)
+        
+            all_log10R1vsZ.append(np.average(all_log10R1))
+            all_log10R2vsZ.append(np.average(all_log10R2))
+            all_log10R3vsZ.append(np.average(all_log10R3))
+            all_log10R4vsZ.append(np.average(all_log10R4))
+            all_log10R5vsZ.append(np.average(all_log10R5))
+            all_log10R6vsZ.append(np.average(all_log10R6))
+            
+            all_log10R1vsZE.append(np.std(all_log10R1))
+            all_log10R2vsZE.append(np.std(all_log10R2))
+            all_log10R3vsZE.append(np.std(all_log10R3))
+            all_log10R4vsZE.append(np.std(all_log10R4))
+            all_log10R5vsZE.append(np.std(all_log10R5))
+            all_log10R6vsZE.append(np.std(all_log10R6))
+    
+    all_z=np.array(all_z)
+    index_zmin=np.where(all_z==all_z.min())[0][0]    
+        
+    ax.errorbar(all_z,all_log10R1vsZ-all_log10R1vsZ[index_zmin],yerr=all_log10R1vsZE,fmt='--o',color='blue',label=labels[0])
+    ax.errorbar(all_z,all_log10R2vsZ-all_log10R2vsZ[index_zmin],yerr=all_log10R2vsZE,fmt='--o',color='green',label=labels[1])
+    ax.errorbar(all_z,all_log10R3vsZ-all_log10R3vsZ[index_zmin],yerr=all_log10R3vsZE,fmt='--o',color='red',label=labels[2])
+    ax.errorbar(all_z,all_log10R4vsZ-all_log10R4vsZ[index_zmin],yerr=all_log10R4vsZE,fmt='--o',color='magenta',label=labels[3])
+    ax.errorbar(all_z,all_log10R5vsZ-all_log10R5vsZ[index_zmin],yerr=all_log10R5vsZE,fmt='--o',color='black',label=labels[4])
+    ax.errorbar(all_z,all_log10R6vsZ-all_log10R6vsZ[index_zmin],yerr=all_log10R6vsZE,fmt='--o',color='grey',label=labels[5])  
+    
+    #ax.plot(all_z,all_log10R1vsZ,'o-',label=labels[0])
+    #ax.plot(all_z,all_log10R2vsZ,'o-',label=labels[1])
+    #ax.plot(all_z,all_log10R3vsZ,'o-',label=labels[2])
+    #ax.plot(all_z,all_log10R4vsZ,'o-',label=labels[3])
+    #ax.plot(all_z,all_log10R5vsZ,'o-',label=labels[4])
+    #ax.plot(all_z,all_log10R6vsZ,'o-',label=labels[5])
+    
+    ax.grid(True)
+    #ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
+    title="Modified BOUGUER line for disperser {}, object {}".format(sel_disp,object_name)
+    ax.set_title(title)
+    ax.set_xlabel("airmass")
+    ax.set_ylabel("$\Delta M=2.5*log_{10}(R)=2.5*log_{10}(F_{data}/F_{sim})$ (mag)")
+    ax.legend(loc="best")
+    figname='modified_bouguer2'+'_'+sel_disp+'_DATAOVERSIM.pdf'
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+#------------------------------------------------------------------------------------------------------------------
+    
+        
+    
