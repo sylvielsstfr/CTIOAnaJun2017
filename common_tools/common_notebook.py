@@ -42,6 +42,7 @@ import math as m
 
 # lib about pdf
 from matplotlib.backends.backend_pdf import PdfPages 
+from matplotlib.colors import LogNorm
 # libs about time handling
 import datetime
 from datetime import timedelta
@@ -3126,6 +3127,233 @@ def ShowOneContour(index,all_images,all_pointing,thex0,they0,all_titles,object_n
     
 #-------------------------------------------------------------------------------------------------------------------------------
 
+def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
+    --------------
+    
+    Show contour lines of 2D spectrum for one image
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: the image 
+    
+    """
+    plt.figure(figsize=(15,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    YMIN=-100
+    YMAX=100
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    
+    #center is approximately the one on the original raw image (may be changed)
+    #x0=int(all_pointing[index][0])
+    x0=int(thex0[index])
+   
+    
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+    
+    # refine center in X,Y
+    star_region_X=full_image[:,x0-star_halfwidth:x0+star_halfwidth]
+    
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+    
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    x0=int(avX+x0-star_halfwidth)
+      
+    
+    # find the center in Y on the spectrum
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    # cut the image in vertical and normalise by exposition time
+    reduc_image=full_image[y0+YMIN:y0+YMAX,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    # calibration in wavelength
+    #grating_name=all_filt[index].replace('dia ','')
+    grating_name=get_disperser_filtname(all_filt[index])
+    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],True)
+    
+    #if grating_name=='Ron200':
+    #    holo = Hologram('Ron400',verbose=True)
+    #else:    
+    #    holo = Hologram(grating_name,verbose=True)
+    #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    #if grating_name=='Ron200':
+    #    lambdas=lambdas*2.
+        
+
+    X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+    T=np.transpose(reduc_image)
+        
+        
+    plt.contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet',origin='lower')
+    C = plt.contour(X, Y, reduc_image ,100, colors='white', linewidth=.5,origin='lower')
+        
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+            plt.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+            plt.text(line['lambda'],YMAX*0.8,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+    
+    
+    
+    plt.axis([X.min(), X.max(), Y.min(), Y.max()]); plt.grid(True)
+    plt.title(all_titles[index])
+    plt.grid(color='white', ls='solid')
+    plt.text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('pixels')
+    plt.ylim(YMIN,YMAX)
+    plt.xlim(0.,1200.)
+    plt.savefig(figfilename)
+    
+#-------------------------------------------------------------------------------------------------------------------------------
+def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
+    --------------
+    
+    Show contour lines of 2D spectrum for one image
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: the image 
+    
+    """
+    plt.figure(figsize=(15,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    YMIN=-100
+    YMAX=100
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    
+    #center is approximately the one on the original raw image (may be changed)
+    #x0=int(all_pointing[index][0])
+    x0=int(thex0[index])
+   
+    
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+    
+    # refine center in X,Y
+    star_region_X=full_image[:,x0-star_halfwidth:x0+star_halfwidth]
+    
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+    
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    x0=int(avX+x0-star_halfwidth)
+      
+    
+    # find the center in Y on the spectrum
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    # cut the image in vertical and normalise by exposition time
+    reduc_image=full_image[y0-5:y0+5,:]=0
+    reduc_image=full_image[y0+YMIN:y0+YMAX,x0:spec_index_max]/all_expo[index]
+  
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    # calibration in wavelength
+    #grating_name=all_filt[index].replace('dia ','')
+    grating_name=get_disperser_filtname(all_filt[index])
+    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],True)
+    
+    #if grating_name=='Ron200':
+    #    holo = Hologram('Ron400',verbose=True)
+    #else:    
+    #    holo = Hologram(grating_name,verbose=True)
+    #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+    #if grating_name=='Ron200':
+    #    lambdas=lambdas*2.
+        
+
+    X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+    T=np.transpose(reduc_image)
+        
+        
+    cs=plt.contourf(X, Y, reduc_image, 50, alpha=.75, cmap='jet',origin='lower')
+    #C = plt.contour(X, Y, reduc_image ,10, colors='white', linewidth=.1,origin='lower')
+    
+    cbar = plt.colorbar(cs)  
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+            plt.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+            plt.text(line['lambda'],YMAX*0.8,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+    
+    
+    
+    plt.axis([X.min(), X.max(), Y.min(), Y.max()]); plt.grid(True)
+    plt.title(all_titles[index])
+    plt.grid(color='white', ls='solid')
+    plt.text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('pixels')
+    plt.ylim(YMIN,YMAX)
+    plt.xlim(0.,1200.)
+    plt.savefig(figfilename)
+    
+#-------------------------------------------------------------------------------------------------------------------------------
 
 def ShowOneOrder_contour(all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
     """
@@ -3295,7 +3523,351 @@ def ShowOneOrder_contour(all_images,all_pointing,thex0,they0,all_titles,object_n
     pp.close()  
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def ShowOneOrder_contourBKG(all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneOrder_contour:      
+    ====================
     
+    Show the contour lines of 2D-Spectrum order +1 for each images
+
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: 
+        all the image in a pdf file 
+    
+    """
+    NBIMGPERROW=2
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    
+    YMIN=-100
+    YMAX=100
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    title='Images of {}'.format(object_name)
+    
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    for index in np.arange(0,NBIMAGES):
+        
+      
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+         
+        
+        
+        #center is approximately the one on the original raw image (may be changed)  
+        x0=int(thex0[index])
+    
+        
+        # Extract the image    
+        full_image=np.copy(all_images[index])
+        
+        # refine center in X,Y
+        star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+        profile_X=np.sum(star_region_X,axis=0)
+        profile_Y=np.sum(star_region_X,axis=1)
+        
+        NX=profile_X.shape[0]
+        NY=profile_Y.shape[0]
+
+        X_=np.arange(NX)
+        Y_=np.arange(NY)
+    
+        avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+        avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+        x0=int(avX+x0-star_halfwidth)
+       
+        
+    
+        # find the center in Y
+        yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+        y0=np.where(yprofile==yprofile.max())[0][0]
+       
+        
+        
+
+        # cut the image to have right spectrum (+1 order)
+        # the origin is the is the star center
+        reduc_image=np.copy(full_image[y0+YMIN:y0+YMAX,x0:spec_index_max])/all_expo[index] 
+        reduc_image[:,0:100]=0  # erase central star
+    
+   
+    
+        X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+        Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+        
+        Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+        # calibration of wavelength
+        #grating_name=all_filt[index].replace('dia ','')
+        grating_name=get_disperser_filtname(all_filt[index])
+        lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+        
+        #if grating_name=='Ron200':
+        #     holo = Hologram('Ron400',verbose=False)
+        #else:    
+        #    holo = Hologram(grating_name,verbose=False)
+        #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+        #if grating_name=='Ron200':
+        #    lambdas=lambdas*2.
+        
+    
+        X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+        T=np.transpose(reduc_image)
+                   
+        
+        
+        axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet')
+        C = axarr[iy,ix].contour(X, Y, reduc_image , 100, colors='white', linewidth=.5)
+        
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],YMAX*0.8,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); 
+        axarr[iy,ix].grid(True)
+        thetitle="{}) : {}".format(index,all_titles[index]) 
+        axarr[iy,ix].set_title(thetitle)
+    
+        axarr[iy,ix].grid(color='white', ls='solid')
+        axarr[iy,ix].text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('pixels')
+        axarr[iy,ix].set_ylim(YMIN,YMAX)
+        axarr[iy,ix].set_xlim(0.,1100.)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            print "pdf Page written ",PageNum
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    print "Final pdf Page written ",PageNum
+    f.show()
+    pp.close()  
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def ShowOneOrder_contourCutBKG(all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneOrder_contour:      
+    ====================
+    
+    Show the contour lines of 2D-Spectrum order +1 for each images
+
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: 
+        all the image in a pdf file 
+    
+    """
+    NBIMGPERROW=2
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    
+    YMIN=-100
+    YMAX=100
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    title='Images of {}'.format(object_name)
+    
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    for index in np.arange(0,NBIMAGES):
+        
+      
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+         
+        
+        
+        #center is approximately the one on the original raw image (may be changed)  
+        x0=int(thex0[index])
+    
+        
+        # Extract the image    
+        full_image=np.copy(all_images[index])
+        
+        # refine center in X,Y
+        star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+        profile_X=np.sum(star_region_X,axis=0)
+        profile_Y=np.sum(star_region_X,axis=1)
+        
+        NX=profile_X.shape[0]
+        NY=profile_Y.shape[0]
+
+        X_=np.arange(NX)
+        Y_=np.arange(NY)
+    
+        avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+        avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+        x0=int(avX+x0-star_halfwidth)
+       
+        
+    
+        # find the center in Y
+        yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+        y0=np.where(yprofile==yprofile.max())[0][0]
+       
+        
+        
+
+        # cut the image to have right spectrum (+1 order)
+        # the origin is the is the star center
+        reduc_image=full_image[y0-5:y0+5,:]=0
+        reduc_image=np.copy(full_image[y0+YMIN:y0+YMAX,x0:spec_index_max])/all_expo[index] 
+        reduc_image[:,0:100]=0  # erase central star
+    
+   
+    
+        X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+        Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+        
+        Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+        # calibration of wavelength
+        #grating_name=all_filt[index].replace('dia ','')
+        grating_name=get_disperser_filtname(all_filt[index])
+        lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+        
+        #if grating_name=='Ron200':
+        #     holo = Hologram('Ron400',verbose=False)
+        #else:    
+        #    holo = Hologram(grating_name,verbose=False)
+        #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+        #if grating_name=='Ron200':
+        #    lambdas=lambdas*2.
+        
+    
+        X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+        T=np.transpose(reduc_image)
+                   
+        
+        
+        axarr[iy,ix].contourf(X, Y, reduc_image, 50, alpha=.75,cmap='jet')
+        #C = axarr[iy,ix].contour(X, Y, reduc_image , 50, colors='white',linewidth=.1)
+        
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],YMAX*0.8,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); 
+        axarr[iy,ix].grid(True)
+        thetitle="{}) : {}".format(index,all_titles[index]) 
+        axarr[iy,ix].set_title(thetitle)
+    
+        axarr[iy,ix].grid(color='white', ls='solid')
+        axarr[iy,ix].text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('pixels')
+        axarr[iy,ix].set_ylim(YMIN,YMAX)
+        axarr[iy,ix].set_xlim(0.,1100.)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            print "pdf Page written ",PageNum
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    print "Final pdf Page written ",PageNum
+    f.show()
+    pp.close()  
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+
+        
 def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
     """
     ShowManyTransverseSpectrum:
@@ -6969,7 +7541,8 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     
     """
     
-    fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    #fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
     
     
     NBBands=6
@@ -7073,7 +7646,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
     #ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
-    ax.errorbar(all_z,all_log10S1vsZ-y0fit,yerr=all_log10S1vsZE,fmt='--o',color='blue',lw=2,label=labels[0])
+    ax.errorbar(all_z,all_log10S1vsZ-y0fit,yerr=all_log10S1vsZE,fmt='--o',color='blue',markersize=10,lw=2,label=labels[0])
     
     #########
     # band 2
@@ -7100,7 +7673,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)  
     #ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
-    ax.errorbar(all_z,all_log10S2vsZ-y0fit,yerr=all_log10S2vsZE,fmt='--o',color='green',lw=2,label=labels[1])
+    ax.errorbar(all_z,all_log10S2vsZ-y0fit,yerr=all_log10S2vsZE,fmt='--o',color='green',markersize=10,lw=2,label=labels[1])
     
     ###########
     # band 3
@@ -7126,7 +7699,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S3vsZ-y0fit,yerr=all_log10S3vsZE,fmt='--o',color='red',lw=2,label=labels[2])
+    ax.errorbar(all_z,all_log10S3vsZ-y0fit,yerr=all_log10S3vsZE,fmt='--o',color='red',markersize=10,lw=2,label=labels[2])
     #ax.plot(all_z,all_log10S4vsZ,'o-',color='magenta',label=labels[3])
     #ax.plot(all_z,all_log10S5vsZ,'o-',color='black',label=labels[4])
     #ax.plot(all_z,all_log10S6vsZ,'o-',color='grey',label=labels[5])
@@ -7154,7 +7727,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S4vsZ-y0fit,yerr=all_log10S4vsZE,fmt='--o',color='magenta',lw=2,label=labels[3])
+    ax.errorbar(all_z,all_log10S4vsZ-y0fit,yerr=all_log10S4vsZE,fmt='--o',color='magenta',markersize=10,lw=2,label=labels[3])
     
     #########
     # band 5
@@ -7179,7 +7752,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S5vsZ-y0fit,yerr=all_log10S5vsZE,fmt='--o',color='black',lw=2,label=labels[4])
+    ax.errorbar(all_z,all_log10S5vsZ-y0fit,yerr=all_log10S5vsZE,fmt='--o',color='black',markersize=10,lw=2,label=labels[4])
     
     #########
     # band 6
@@ -7204,7 +7777,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S6vsZ-y0fit,yerr=all_log10S6vsZE,fmt='--o',color='grey',lw=2,label=labels[5])
+    ax.errorbar(all_z,all_log10S6vsZ-y0fit,yerr=all_log10S6vsZE,fmt='--o',color='grey',markersize=10,lw=2,label=labels[5])
     
     
     ax.grid(True)
@@ -7216,9 +7789,9 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     ax.set_title(title,fontsize=40,fontweight='bold')
     ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
-    ax.legend(loc="best",fontsize=25)
+    ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
-    ax.set_ylim(YMIN,YMAX)
+    #ax.set_ylim(YMIN,YMAX)
     
     
     figname='truebougher'+'_'+sel_filt+'_DATA'+'.pdf'
@@ -7236,7 +7809,8 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     """
  
     
-    fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    #fig, ax = plt.subplots(1, 1, figsize=(25,15))
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
     
     
     NBBands=6
@@ -7316,7 +7890,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
-    ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
+    ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',markersize=10,label=labels[0])
    
     
     #########
@@ -7332,7 +7906,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)        
-    ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
+    ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',markersize=10,label=labels[1])
  
     
     ###########
@@ -7348,7 +7922,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
-    ax.plot(all_z,all_log10S3vsZ,'o-',color='magenta',label=labels[2])  
+    ax.plot(all_z,all_log10S3vsZ,'o-',color='magenta',markersize=10,label=labels[2])  
     
     #########
     # band 4
@@ -7363,7 +7937,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
-    ax.plot(all_z,all_log10S4vsZ-y0fit,'o-',color='magenta',label=labels[3])
+    ax.plot(all_z,all_log10S4vsZ-y0fit,'o-',color='magenta',markersize=10,label=labels[3])
     
     #########
     # band 5
@@ -7378,7 +7952,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
-    ax.plot(all_z,all_log10S5vsZ-y0fit,'o-',color='black',label=labels[4])
+    ax.plot(all_z,all_log10S5vsZ-y0fit,'o-',color='black',markersize=10,label=labels[4])
     
     
     #########
@@ -7394,7 +7968,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
-    ax.plot(all_z,all_log10S6vsZ-y0fit,'o-',color='grey',label=labels[5])   
+    ax.plot(all_z,all_log10S6vsZ-y0fit,'o-',color='grey',markersize=10,label=labels[5])   
     
     
     ax.grid(True)
@@ -7406,7 +7980,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     ax.set_title(title,fontsize=40,fontweight='bold')
     ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
-    ax.legend(loc="best",fontsize=25)
+    ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
     ax.set_ylim(YMIN,YMAX)
     
@@ -7579,7 +8153,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='blue',lw=2)        
     #ax.plot(all_z,all_log10S1vsZ-y0fit,'o-',color='blue',label=labels[0])
-    ax.errorbar(all_z,all_log10S1vsZ-y0fit,yerr=all_log10S1vsZE,fmt='--o',color='blue',lw=2,label=labels[0])
+    ax.errorbar(all_z,all_log10S1vsZ-y0fit,yerr=all_log10S1vsZE,fmt='--o',color='blue',markersize=10,lw=2,label=labels[0])
     
     #########
     # band 2
@@ -7606,7 +8180,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='green',lw=2)  
     #ax.plot(all_z,all_log10S2vsZ-y0fit,'o-',color='green',label=labels[1])
-    ax.errorbar(all_z,all_log10S2vsZ-y0fit,yerr=all_log10S2vsZE,fmt='--o',color='green',lw=2,label=labels[1])
+    ax.errorbar(all_z,all_log10S2vsZ-y0fit,yerr=all_log10S2vsZE,fmt='--o',color='green',markersize=10,lw=2,label=labels[1])
     
     ###########
     # band 3
@@ -7632,7 +8206,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S3vsZ-y0fit,yerr=all_log10S3vsZE,fmt='--o',color='red',lw=2,label=labels[2])
+    ax.errorbar(all_z,all_log10S3vsZ-y0fit,yerr=all_log10S3vsZE,fmt='--o',color='red',markersize=10,lw=2,label=labels[2])
     #ax.plot(all_z,all_log10S4vsZ,'o-',color='magenta',label=labels[3])
     #ax.plot(all_z,all_log10S5vsZ,'o-',color='black',label=labels[4])
     #ax.plot(all_z,all_log10S6vsZ,'o-',color='grey',label=labels[5])
@@ -7660,7 +8234,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='magenta',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S4vsZ-y0fit,yerr=all_log10S4vsZE,fmt='--o',color='magenta',lw=2,label=labels[3])
+    ax.errorbar(all_z,all_log10S4vsZ-y0fit,yerr=all_log10S4vsZE,fmt='--o',color='magenta',markersize=10,lw=2,label=labels[3])
     
     #########
     # band 5
@@ -7685,7 +8259,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='black',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S5vsZ-y0fit,yerr=all_log10S5vsZE,fmt='--o',color='black',lw=2,label=labels[4])
+    ax.errorbar(all_z,all_log10S5vsZ-y0fit,yerr=all_log10S5vsZE,fmt='--o',color='black',markersize=10,lw=2,label=labels[4])
     
     #########
     # band 6
@@ -7710,7 +8284,7 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='grey',lw=2)  
     #ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',label=labels[2])
-    ax.errorbar(all_z,all_log10S6vsZ-y0fit,yerr=all_log10S6vsZE,fmt='--o',color='grey',lw=2,label=labels[5])
+    ax.errorbar(all_z,all_log10S6vsZ-y0fit,yerr=all_log10S6vsZE,fmt='--o',color='grey',markersize=10,lw=2,label=labels[5])
 
 
     #######################
@@ -7854,9 +8428,9 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     ax.set_title(title,fontsize=40,fontweight='bold')
     ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
-    ax.legend(loc="best",fontsize=25)
+    ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
-    ax.set_ylim(YMIN,YMAX)
+    #ax.set_ylim(YMIN,YMAX)
     
     figname='truebougher'+'_'+sel_filt+'_DATASIM'+'.pdf'
     figfilename=os.path.join(dir_top_img,figname)
@@ -7982,7 +8556,18 @@ def plotDataSimRatio(all_ratio_wl,all_ratio,all_filt2,dir_top_img,XMIN=350,XMAX=
     figname='RatioSpecDataSim.pdf'
     figfilename=os.path.join(dir_top_img,figname)
     fig.savefig(figfilename)
-
+#------------------------------------------------------------------------
+def FitABouguerLine(thex,they,theey):
+    
+    x=np.copy(thex)
+    y=np.copy(they)
+    ey=np.copy(theey)
+    z = np.polyfit(x,y, 1)    
+    popt, pcov = curve_fit(bougline,x,y,p0=z,sigma=ey)
+    perr = np.sqrt(np.diag(pcov))
+    return popt,perr
+#------------------------------------------------        
+    
 #-------------------------------------------------------------------------------------
 def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp):
     """
@@ -8071,6 +8656,61 @@ def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_
     ax.errorbar(all_z,all_log10R4vsZ-all_log10R4vsZ[index_zmin],yerr=all_log10R4vsZE,fmt='--o',color='magenta',label=labels[3])
     ax.errorbar(all_z,all_log10R5vsZ-all_log10R5vsZ[index_zmin],yerr=all_log10R5vsZE,fmt='--o',color='black',label=labels[4])
     ax.errorbar(all_z,all_log10R6vsZ-all_log10R6vsZ[index_zmin],yerr=all_log10R6vsZE,fmt='--o',color='grey',label=labels[5])  
+    
+    # Fit
+    fitparam1 = []
+    fitparam2 = []
+    
+    fitparam1err = []
+    fitparam2err = []
+    
+    x1fit=np.linspace(1.,2.0,50)
+    
+    popt,perr=FitABouguerLine(all_z,all_log10R1vsZ-all_log10R1vsZ[index_zmin],all_log10R1vsZE)
+    pol = np.poly1d(popt)
+    y1fit=pol(x1fit)
+    plt.plot(x1fit,y1fit,'b-.',lw=1)   
+    fitparam1.append(popt)
+    fitparam1err.append(perr)
+    
+    popt,perr=FitABouguerLine(all_z,all_log10R2vsZ-all_log10R2vsZ[index_zmin],all_log10R2vsZE)
+    pol = np.poly1d(popt)
+    y1fit=pol(x1fit)
+    plt.plot(x1fit,y1fit,'g-.',lw=1)   
+    fitparam1.append(popt)
+    fitparam1err.append(perr)
+    
+    
+    popt,perr=FitABouguerLine(all_z,all_log10R3vsZ-all_log10R3vsZ[index_zmin],all_log10R3vsZE)
+    pol = np.poly1d(popt)
+    y1fit=pol(x1fit)
+    plt.plot(x1fit,y1fit,'r-.',lw=1)   
+    fitparam1.append(popt)
+    fitparam1err.append(perr)
+    
+    popt,perr=FitABouguerLine(all_z,all_log10R4vsZ-all_log10R4vsZ[index_zmin],all_log10R4vsZE)
+    pol = np.poly1d(popt)
+    y1fit=pol(x1fit)
+    plt.plot(x1fit,y1fit,'m-.',lw=1)   
+    fitparam1.append(popt)
+    fitparam1err.append(perr)
+    
+    popt,perr=FitABouguerLine(all_z,all_log10R5vsZ-all_log10R5vsZ[index_zmin],all_log10R5vsZE)
+    pol = np.poly1d(popt)
+    y1fit=pol(x1fit)
+    plt.plot(x1fit,y1fit,'k-.',lw=1)   
+    fitparam1.append(popt)
+    fitparam1err.append(perr)    
+    
+    popt,perr=FitABouguerLine(all_z,all_log10R6vsZ-all_log10R6vsZ[index_zmin],all_log10R6vsZE)
+    pol = np.poly1d(popt)
+    y1fit=pol(x1fit)
+    plt.plot(x1fit,y1fit,'y-.',lw=1)   
+    fitparam1.append(popt)
+    fitparam1err.append(perr)    
+    
+    
+    #popt,perr=FitABouguerLine(all_z,all_log10R1vsZ-all_log10R1vsZ[index_zmin],all_log10R1vsZE)
     
     #ax.plot(all_z,all_log10R1vsZ,'o-',label=labels[0])
     #ax.plot(all_z,all_log10R2vsZ,'o-',label=labels[1])
@@ -8203,6 +8843,18 @@ def ShowModifBouguer2(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel
     figfilename=os.path.join(dir_top_img,figname)
     plt.savefig(figfilename)
 #------------------------------------------------------------------------------------------------------------------
+#def bougline(x, a, b):
+#    return a*x + b
+#----------------------------------------------------------------------------    
     
-        
+def FitABouguerLine(thex,they,theey):
+    
+    x=np.copy(thex)
+    y=np.copy(they)
+    ey=np.copy(theey)
+    z = np.polyfit(x,y, 1)    
+    popt, pcov = curve_fit(bougline,x,y,p0=z,sigma=ey)
+    perr = np.sqrt(np.diag(pcov))
+    return popt,perr
+#------------------------------------------------        
     
