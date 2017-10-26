@@ -7787,9 +7787,9 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
     #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
     title="BOUGUER line for object {} for disperser {} (DATA) ".format(object_name,sel_filt)
-    ax.set_title(title,fontsize=40,fontweight='bold')
-    ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
-    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
+    ax.set_title(title,fontsize=20,fontweight='bold')
+    ax.set_xlabel("airmass",fontsize=15,fontweight='bold')
+    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=15,fontweight='bold')
     ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
     #ax.set_ylim(YMIN,YMAX)
@@ -7978,9 +7978,9 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
     #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
     title="BOUGUER line for object {} for disperser {} (SIMULATION) ".format(object_name,sel_filt)
-    ax.set_title(title,fontsize=40,fontweight='bold')
-    ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
-    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
+    ax.set_title(title,fontsize=20,fontweight='bold')
+    ax.set_xlabel("airmass",fontsize=15,fontweight='bold')
+    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=15,fontweight='bold')
     ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
     ax.set_ylim(YMIN,YMAX)
@@ -7993,14 +7993,14 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
 #--------------------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------------------
-def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg',YMIN=-0.5,YMAX=0.05):
+def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,object_name,dir_top_img,sel_filt='HoloAmAg',ZMAX=2.0,YMIN=-0.5,YMAX=0.05):
     """
     ShowTrueBouguer:
     
     """
     
     ZREFERENCE=0.0
-    ZMAX=2.0
+   
     
     #fig, ax = plt.subplots(1, 1, figsize=(25,15))
     fig, ax = plt.subplots(1, 1, figsize=(15,10))
@@ -8427,9 +8427,9 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     #ax.grid(b=True, which='major', colo1r='k', linewidth=2.0)
     #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
     title="BOUGUER line for object {} for disperser {} ".format(object_name,sel_filt)
-    ax.set_title(title,fontsize=40,fontweight='bold')
-    ax.set_xlabel("airmass",fontsize=25,fontweight='bold')
-    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=25,fontweight='bold')
+    ax.set_title(title,fontsize=20,fontweight='bold')
+    ax.set_xlabel("airmass",fontsize=15,fontweight='bold')
+    ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=15,fontweight='bold')
     ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
     #ax.set_ylim(YMIN,YMAX)
@@ -8735,7 +8735,7 @@ def FitABouguerLine(thex,they,theey):
 #------------------------------------------------        
     
 #-------------------------------------------------------------------------------------
-def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp):
+def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp,ZMIN=1.0,ZMAX=2.0):
     """
     ShowModifBouguer:
     
@@ -8892,6 +8892,7 @@ def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_
     #ax.grid(b=True, which='minor', color='k', linewidth=0.5) 
     title="Modified BOUGUER line for disperser {}, object {}".format(sel_disp,object_name)
     ax.set_title(title)
+    ax.set_xlim(ZMIN,ZMAX)
     ax.set_xlabel("airmass")
     ax.set_ylabel("$\Delta M=2.5*log_{10}(R)=2.5*log_{10}(F_{data}/F_{sim})$ (mag)")
     ax.legend(loc="best")
