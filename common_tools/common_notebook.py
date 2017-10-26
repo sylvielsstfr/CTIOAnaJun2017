@@ -62,6 +62,7 @@ days=mdates.DayLocator()  # every day
 hour=mdates.HourLocator()  # every day
 yearsFmt = mdates.DateFormatter('%Y')
 
+import pysynphot as S
 
 # Definitions of some constants
 #------------------------------------------------------------------------------
@@ -7542,7 +7543,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     """
     
     #fig, ax = plt.subplots(1, 1, figsize=(25,15))
-    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    fig, ax = plt.subplots(1, 1, figsize=(15,10))
     
     
     NBBands=6
@@ -7810,7 +7811,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
  
     
     #fig, ax = plt.subplots(1, 1, figsize=(25,15))
-    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    fig, ax = plt.subplots(1, 1, figsize=(15,10))
     
     
     NBBands=6
@@ -8002,7 +8003,8 @@ def ShowTrueBouguerDataSim(thewl,thespec,thesimwl,thesimspec,thezam,all_filt,obj
     ZMAX=2.0
     
     #fig, ax = plt.subplots(1, 1, figsize=(25,15))
-    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    fig, ax = plt.subplots(1, 1, figsize=(15,10))
+    
     
     NBBands=6
     labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
@@ -8497,6 +8499,15 @@ def plotDataSimRatio(all_ratio_wl,all_ratio,all_filt2,dir_top_img,XMIN=350,XMAX=
     c3=0
     c4=0
     c5=0
+    c6=0
+    
+    Ron400_Flag=False
+    Ron200_Flag=False
+    Thor300_Flag=False
+    HoloPhP_Flag=False
+    HoloPhAg_Flag=False
+    HoloAmAg_Flag=False
+    
     
     NDATA=len(all_ratio_wl)
     for idx in np.arange(NDATA):
@@ -8540,6 +8551,17 @@ def plotDataSimRatio(all_ratio_wl,all_ratio,all_filt2,dir_top_img,XMIN=350,XMAX=
             else:
                 ax.plot(all_ratio_wl[idx],all_ratio[idx]*5.,'y-')
                 c5+=1
+            
+        
+        elif re.search('Ron200',all_filt2[idx]) :
+            if c6==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-',label='Ron400')
+                c6+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-')
+                c6+=1
+    
+    
     
     for line in LINES:
         if line == O2B or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA :
@@ -8556,6 +8578,150 @@ def plotDataSimRatio(all_ratio_wl,all_ratio,all_filt2,dir_top_img,XMIN=350,XMAX=
     figname='RatioSpecDataSim.pdf'
     figfilename=os.path.join(dir_top_img,figname)
     fig.savefig(figfilename)
+    
+#----------------------------------------------------------------------------------------------    
+    
+
+#----------------------------------------------------------------------------------    
+
+def plotSingleDataSimRatio(all_ratio_wl,all_ratio,all_filt2,selected_disp,dir_top_img,XMIN=350,XMAX=700,YMIN=0,YMAX=0.8*1e15):
+
+    fig, ax = plt.subplots(1, 1, figsize=(15,8))
+    
+    c1=0
+    c2=0
+    c3=0
+    c4=0
+    c5=0
+    c6=0
+    
+    Ron400_Flag=False
+    Ron200_Flag=False
+    Thor300_Flag=False
+    HoloPhP_Flag=False
+    HoloPhAg_Flag=False
+    HoloAmAg_Flag=False
+    
+    
+    selected_wl = []
+    selected_ratio = []
+    
+    if re.search('Ron400',selected_disp):
+        Ron400_Flag=True
+        
+    if re.search('Ron200',selected_disp):
+        Ron200_Flag=True
+        
+    if re.search('Thor300',selected_disp):
+        Thor300_Flag=True
+        
+    if re.search('HoloPhP',selected_disp):
+        HoloPhP_Flag=True
+
+    if re.search('HoloPhAg',selected_disp):
+        HoloPhAg_Flag=True
+        
+    if re.search('HoloAmAg',selected_disp):
+        HoloAmAg_Flag=True
+        
+    
+    NDATA=len(all_ratio_wl)
+    for idx in np.arange(NDATA):
+        if re.search('Ron400',all_filt2[idx]) and  Ron400_Flag:
+            if c1==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-',label='Ron400')
+                c1+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-')
+                c1+=1
+                
+            selected_wl.append(all_ratio_wl[idx])
+            selected_ratio.append(all_ratio[idx])
+               
+                
+        elif re.search('Thor300',all_filt2[idx]) and Thor300_Flag: 
+            if c2==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'b-',label='Thor300')
+                c2+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'b-')
+                c2+=1
+            selected_wl.append(all_ratio_wl[idx])
+            selected_ratio.append(all_ratio[idx])
+               
+        elif re.search('HoloPhP',all_filt2[idx]) and HoloPhP_Flag: 
+            if c3==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'g-',label='HoloPhP')
+                c3+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'g-')
+                c3+=1
+            selected_wl.append(all_ratio_wl[idx])
+            selected_ratio.append(all_ratio[idx])
+               
+        elif re.search('HoloPhAg',all_filt2[idx]) and HoloPhAg_Flag:
+            if c4==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'k-',label='HoloPhAg')
+                c4+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'k-')
+                c4+=1
+            selected_wl.append(all_ratio_wl[idx])
+            selected_ratio.append(all_ratio[idx])
+                
+        elif re.search('HoloAmAg',all_filt2[idx]) and  HoloAmAg_Flag:
+            if c5==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'y-',label='HoloAmAg')
+                c5+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'y-')
+                c5+=1
+                
+            selected_wl.append(all_ratio_wl[idx])
+            selected_ratio.append(all_ratio[idx])
+                
+        elif re.search('Ron200',all_filt2[idx]) and  Ron200_Flag:
+            if c6==0:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-',label='Ron200')
+                c6+=1
+            else:
+                ax.plot(all_ratio_wl[idx],all_ratio[idx],'r-')
+                c6+=1
+            selected_wl.append(all_ratio_wl[idx])
+            selected_ratio.append(all_ratio[idx])
+  
+    
+   # NBDATA=len(selected_wl)
+    #all_the_max_y=[]
+    #for idx in np.arange(NBDATA):
+    #    all_the_max_y.append(selected_ratio[idx].max())
+    #print all_the_max_y
+    #all_the_max_y=np.array(selected_ratio)
+    #YMAX=np.max(all_the_max_y)[0]*1.2    
+    
+    
+    for line in LINES:
+        if line == O2B or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA :
+                ax.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
+                ax.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)        
+            
+    ax.grid()        
+    ax.set_ylim(YMIN,YMAX)
+    ax.set_xlim(XMIN,XMAX)
+    ax.legend(loc=2)
+    thetitle="Ratio of spectra : Data/Sim for selected {}".format("Ratio of spectra : Data/Sim")
+    ax.set_title(thetitle,fontsize=20,fontweight='bold')
+    ax.set_xlabel("$\lambda$ (nm)")
+    ax.set_ylabel("ratio (a.u)")
+    figname='RatioSpecDataSim_sel_{}.pdf'.format(selected_disp)
+    figfilename=os.path.join(dir_top_img,figname)
+    fig.savefig(figfilename)
+    
+    return selected_wl,selected_ratio
+#---------------------------------------------------------------------------------------    
+
+    
+    
 #------------------------------------------------------------------------
 def FitABouguerLine(thex,they,theey):
     
@@ -8857,4 +9023,119 @@ def FitABouguerLine(thex,they,theey):
     perr = np.sqrt(np.diag(pcov))
     return popt,perr
 #------------------------------------------------        
+def ComputeSpectrumRatioRatio(all_wl,all_ratio,all_am,selected_indexes):
+    """
+    ComputeSpectrumRatioRatio
+    
+    """
+    all_selected_ratio= []
+    all_selected_wl=[]
+    all_selected_am=[]
+    
+    # select ratio according selected indexes
+    NBSPEC=len(all_ratio)
+    for idx in np.arange(0,NBSPEC):
+        if idx in selected_indexes:
+            all_selected_wl.append(all_wl[idx])
+            all_selected_ratio.append(all_ratio[idx])
+            all_selected_am.append(all_am[idx])
+ 
+    NBSPECSELECTED=len(all_selected_am)
+    all_selected_am=np.array(all_selected_am)
+    idx_zmin=np.where(all_selected_am==all_selected_am.min())[0][0]
+    zmin=all_selected_am[idx_zmin]
+    
+    passb_zmin=S.ArrayBandpass(all_selected_wl[idx_zmin]*10., 1./all_selected_ratio[idx_zmin], name='ratio_zmin')
+    
+    all_ratioratio=[]
+    all_ratioratio_wl=[]
+    all_ratioratio_am=[]
+    all_ratioratio_dzam=[]
+    
+    # loop on selected spectra    
+    for idx in np.arange(0,NBSPECSELECTED):
+        transp_name='ratio_z_{}'.format(idx)
+        sp = S.ArraySpectrum(all_selected_wl[idx]*10., all_selected_ratio[idx], name=transp_name)
+        obs=sp*passb_zmin
+        all_ratioratio.append(obs.flux)
+        all_ratioratio_wl.append(obs.wave/10.)
+        all_ratioratio_am.append(all_selected_am[idx])
+        all_ratioratio_dzam.append(all_selected_am[idx]-zmin)                         
+        
+    return all_ratioratio_wl,all_ratioratio,np.array(all_ratioratio_am),np.array(all_ratioratio_dzam)
+#-------------------------------------------------------------------------------------------------------
+def PlotRatioRatio(all_ratiowl,all_ratioratio,all_dzam,selected_disp,dir_top_img):
+    NBRATIO=len(all_ratioratio)
+    
+    XMIN=350.
+    XMAX=700.
+    YMAX=1.3
+    YMIN=0.7
+    
+    fig, ax = plt.subplots(1, 1, figsize=(15,8))
+    
+    for index in np.arange(NBRATIO):
+        dz=all_dzam[index]
+        
+        thelabel='dz={}'.format(dz)
+        x=all_ratiowl[index]
+        y=all_ratioratio[index]
+        plt.plot(x,y,'o-',label=thelabel)
+
+            
+    ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    ax.grid(b=True, which='major', color='grey', linewidth=1.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5)        
+            
+    ax.set_ylim(YMIN,YMAX)    
+    ax.set_xlim(XMIN,XMAX)      
+            
+    thetitle="Normalised Data/Sim spectra for {}".format(selected_disp)
+    ax.set_title(thetitle)
+    ax.set_ylabel("ratio U")
+    ax.set_xlabel("$\lambda$ (nm)")
+    #ax.legend(loc='best')
+    figname='PlotRatioRatio_{}.pdf'.format(selected_disp)
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+    
+#-------------------------------------------------------------------------------------------------------
+def PlotWRatio(all_ratiowl,all_ratioratio,all_dzam,selected_disp,dir_top_img,YMIN=-1,YMAX=2.):
+    NBRATIO=len(all_ratioratio)
+    
+    XMIN=350.
+    XMAX=700.
+   
+    
+    fig, ax = plt.subplots(1, 1, figsize=(15,8))
+    
+    for index in np.arange(NBRATIO):
+        dz=all_dzam[index]
+        
+        if dz>0:
+            
+            thelabel='dz={}'.format(dz)
+            x=all_ratiowl[index]
+            y=-np.log(np.array(all_ratioratio[index]))/dz
+            plt.plot(x,y,'o-',label=thelabel)
+
+            
+    ax.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    ax.get_yaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
+    ax.grid(b=True, which='major', color='grey', linewidth=1.0)
+    #ax.grid(b=True, which='minor', color='k', linewidth=0.5)        
+            
+    ax.set_ylim(YMIN,YMAX)    
+    ax.set_xlim(XMIN,XMAX)      
+            
+    thetitle="W ratio for {}".format(selected_disp)
+    ax.set_title(thetitle)
+    ax.set_ylabel("ratio W")
+    ax.set_xlabel("$\lambda$ (nm)")
+    #ax.legend(loc='best')
+    figname='PlotWRatio_{}.pdf'.format(selected_disp)
+    figfilename=os.path.join(dir_top_img,figname)
+    plt.savefig(figfilename)
+
     
