@@ -3128,7 +3128,7 @@ def ShowOneContour(index,all_images,all_pointing,thex0,they0,all_titles,object_n
     
 #-------------------------------------------------------------------------------------------------------------------------------
 
-def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt):
     """
     ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
     --------------
@@ -3151,6 +3151,9 @@ def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,objec
     output: the image 
     
     """
+    
+    figname='contourBKG_{}_{}.pdf'.format(all_filt[index],index)
+    
     plt.figure(figsize=(15,6))
     spec_index_min=100  # cut the left border
     spec_index_max=1900 # cut the right border
@@ -3218,9 +3221,10 @@ def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,objec
     T=np.transpose(reduc_image)
         
         
-    plt.contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet',origin='lower')
-    C = plt.contour(X, Y, reduc_image ,100, colors='white', linewidth=.5,origin='lower')
-        
+    cs=plt.contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet',origin='lower')
+    #C = plt.contour(X, Y, reduc_image ,10, colors='white', linewidth=.01,origin='lower')
+    
+    cbar = plt.colorbar(cs)  
     
     for line in LINES:
         if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
@@ -3240,7 +3244,7 @@ def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,objec
     plt.savefig(figfilename)
     
 #-------------------------------------------------------------------------------------------------------------------------------
-def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt):
     """
     ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
     --------------
@@ -3270,6 +3274,8 @@ def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,ob
     
     YMIN=-100
     YMAX=100
+    
+    figname='contourCutBKG_{}_{}.pdf'.format(all_filt[index],index)
     
     figfilename=os.path.join(dir_top_img,figname)   
     
@@ -3304,7 +3310,7 @@ def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,ob
     y0=np.where(yprofile==yprofile.max())[0][0]
 
     # cut the image in vertical and normalise by exposition time
-    reduc_image=full_image[y0-5:y0+5,:]=0
+    reduc_image=full_image[y0-10:y0+10,:]=0
     reduc_image=full_image[y0+YMIN:y0+YMAX,x0:spec_index_max]/all_expo[index]
   
     reduc_image[:,0:100]=0  # erase central star
@@ -3331,9 +3337,10 @@ def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,ob
     X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
     T=np.transpose(reduc_image)
         
-        
-    cs=plt.contourf(X, Y, reduc_image, 50, alpha=.75, cmap='jet',origin='lower')
-    #C = plt.contour(X, Y, reduc_image ,10, colors='white', linewidth=.1,origin='lower')
+   
+    cs=plt.contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet',origin='lower')
+    C = plt.contour(X, Y, reduc_image ,50, colors='white', linewidth=.001,origin='lower')   
+   
     
     cbar = plt.colorbar(cs)  
     
@@ -3485,8 +3492,9 @@ def ShowOneOrder_contour(all_images,all_pointing,thex0,they0,all_titles,object_n
                    
         
         
-        axarr[iy,ix].contourf(X, Y, reduc_image, 10, alpha=.75, cmap='jet')
-        C = axarr[iy,ix].contour(X, Y, reduc_image , 10, colors='black', linewidth=.5)
+        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=1.0, cmap='jet')
+        #C = axarr[iy,ix].contour(X, Y, reduc_image , 50, colors='white', linewidth=.01)
+        #cbar = axarr[iy,ix].colorbar(cs)  
         
         for line in LINES:
             if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
@@ -3655,8 +3663,9 @@ def ShowOneOrder_contourBKG(all_images,all_pointing,thex0,they0,all_titles,objec
                    
         
         
-        axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet')
-        C = axarr[iy,ix].contour(X, Y, reduc_image , 100, colors='white', linewidth=.5)
+        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet')
+        #C = axarr[iy,ix].contour(X, Y, reduc_image , 100, colors='white', linewidth=.5)
+        #cbar = axarr[iy,ix].colorbar(cs)  
         
         for line in LINES:
             if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
@@ -3798,7 +3807,7 @@ def ShowOneOrder_contourCutBKG(all_images,all_pointing,thex0,they0,all_titles,ob
 
         # cut the image to have right spectrum (+1 order)
         # the origin is the is the star center
-        reduc_image=full_image[y0-5:y0+5,:]=0
+        reduc_image=full_image[y0-10:y0+10,:]=0
         reduc_image=np.copy(full_image[y0+YMIN:y0+YMAX,x0:spec_index_max])/all_expo[index] 
         reduc_image[:,0:100]=0  # erase central star
     
@@ -3828,8 +3837,9 @@ def ShowOneOrder_contourCutBKG(all_images,all_pointing,thex0,they0,all_titles,ob
                    
         
         
-        axarr[iy,ix].contourf(X, Y, reduc_image, 50, alpha=.75,cmap='jet')
-        #C = axarr[iy,ix].contour(X, Y, reduc_image , 50, colors='white',linewidth=.1)
+        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=.75,cmap='jet')
+        C = axarr[iy,ix].contour(X, Y, reduc_image , 50, colors='white',linewidth=.01)
+        #cbar = axarr[iy,ix].colorbar(cs)  
         
         for line in LINES:
             if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
@@ -3867,8 +3877,124 @@ def ShowOneOrder_contourCutBKG(all_images,all_pointing,thex0,they0,all_titles,ob
     pp.close()  
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
+def GetNarrowProfile(index,all_images,all_pointing,thex0,they0,lambda0,dlambda,all_expo,all_filt):
+    """
+    """
+   
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    YMIN=-100
+    YMAX=100
+    
+  
+    x0=int(thex0[index])
+   
+    
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+    
+    # refine center in X,Y
+    star_region_X=full_image[:,x0-star_halfwidth:x0+star_halfwidth]
+    
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
 
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+    
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    x0=int(avX+x0-star_halfwidth)
+      
+    
+    # find the center in Y on the spectrum
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    # cut the image in vertical and normalise by exposition time
+   
+    reduc_image=full_image[y0+YMIN:y0+YMAX,x0:spec_index_max]/all_expo[index]
+  
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    # calibration in wavelength
+    #grating_name=all_filt[index].replace('dia ','')
+    grating_name=get_disperser_filtname(all_filt[index])
+    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+    
+    selected_indexes=np.where(np.logical_and(lambdas>=lambda0-dlambda/2.,lambdas<=lambda0+dlambda/2.))[0]
+   
+    vertical_slice=reduc_image[:,selected_indexes]
+   
+    vertical_profile=np.sum(vertical_slice,axis=1)/dlambda
+ 
+
+    return Transverse_Pixel_Size,vertical_profile
+#--------------------------------------------------------------------------------------------------------    
+def ShowNarrowProfile(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt):
+
+
+    dlambda=10.
+    figname='NarrowProfile_{}.pdf'.format(all_filt[index])
+    
+    fig,axarr=plt.subplots(1,2,figsize=(20,6))
+    
+    
+  
+    
+    all_lambdas=np.array([350.,400.,500.,600.,700.,800.,900.,950.])
+    #all_lambdas=np.array([350.,400.,450.,500.,550.,600.,650.,700.,750.,800.,850.,900.,950.])
+    NLAMBDAS=len(all_lambdas)
+   
+    all_tpixels=[]
+    all_tnprofiles=[]
+    all_profiles=[]
+    
+    for idx in np.arange(NLAMBDAS):  
+        pixel,profile=GetNarrowProfile(index,all_images,all_pointing,thex0,they0,all_lambdas[idx],dlambda,all_expo,all_filt) 
+        all_profiles.append(profile)
+        nprofile=profile/profile.max()
+        all_tpixels.append(pixel)
+        all_tnprofiles.append(nprofile)
+   
+    
+    for idx in np.arange(NLAMBDAS):  
+        pixel=all_tpixels[idx]
+        profile=all_tnprofiles[idx]
+        thelabel='$\lambda$={}nm'.format(all_lambdas[idx])
+        axarr[0].semilogy(pixel,profile,label=thelabel,lw=2)   
+        axarr[0].legend(loc='best') 
+        axarr[0].grid(True)
+        axarr[0].set_xlabel("pixel")
+        axarr[0].set_ylabel("normalize profile")
         
+    for idx in np.arange(NLAMBDAS):  
+        pixel=all_tpixels[idx]
+        profile=all_profiles[idx]
+        thelabel='$\lambda$={}nm'.format(all_lambdas[idx])
+        axarr[1].semilogy(pixel,profile,label=thelabel,lw=2)   
+        axarr[1].legend(loc='best') 
+        axarr[1].grid(True)  
+        axarr[1].set_xlabel("pixel")
+        axarr[1].set_ylabel("absolute profile (ADU)")
+      
+    thetitle="Transverse profile for {}".format(all_filt[index])    
+    fig.suptitle(thetitle,size=25)    
+    figfilename=os.path.join(dir_top_img,figname)   
+    fig.savefig(figfilename)
+
+#---------------------------------------------------------------------------------------------------------------------------        
 def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
     """
     ShowManyTransverseSpectrum:
