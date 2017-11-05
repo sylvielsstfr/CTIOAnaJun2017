@@ -3993,6 +3993,59 @@ def ShowNarrowProfile(index,all_images,all_pointing,thex0,they0,all_titles,objec
     fig.suptitle(thetitle,size=25)    
     figfilename=os.path.join(dir_top_img,figname)   
     fig.savefig(figfilename)
+#--------------------------------------------------------------------------------------------------------------------------
+    
+#--------------------------------------------------------------------------------------------------------    
+def ShowManyNarrowProfile(all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,thelambda0,thedlambda0,thedispersersel):
+    """
+    """
+    
+
+    lambda0=int(thelambda0)
+    figname='NarrowProfile_{}_wl_{}nm.pdf'.format(thedispersersel,lambda0)
+    
+    fig,axarr=plt.subplots(1,2,figsize=(20,6))
+    
+    NBIMAGES=len(all_images)
+   
+    all_tpixels=[]
+    all_tnprofiles=[]
+    all_profiles=[]
+    
+    for idx in np.arange(NBIMAGES):
+        if re.search(thedispersersel,all_filt[idx]):
+            pixel,profile=GetNarrowProfile(idx,all_images,all_pointing,thex0,they0,thelambda0,thedlambda0,all_expo,all_filt) 
+            all_profiles.append(profile)
+            nprofile=profile/profile.max()
+            all_tpixels.append(pixel)
+            all_tnprofiles.append(nprofile)
+   
+    NBSELSLICES=len(all_tpixels)
+    
+    for idx in np.arange(NBSELSLICES):  
+        pixel=all_tpixels[idx]
+        profile=all_tnprofiles[idx]
+        axarr[0].semilogy(pixel,profile,lw=2)   
+        axarr[0].grid(True)
+        axarr[0].set_xlabel("pixel")
+        axarr[0].set_ylabel("normalize profile")
+        
+        
+    for idx in np.arange(NBSELSLICES):  
+        pixel=all_tpixels[idx]
+        profile=all_profiles[idx]
+        axarr[1].semilogy(pixel,profile,lw=2)   
+        axarr[1].grid(True)  
+        axarr[1].set_xlabel("pixel")
+        axarr[1].set_ylabel("absolute profile (ADU)")
+      
+    thetitle="Transverse profile for disperser {} and $\lambda$={} nm ".format(thedispersersel,lambda0)    
+    fig.suptitle(thetitle,size=25)    
+    figfilename=os.path.join(dir_top_img,figname)   
+    fig.savefig(figfilename)
+#--------------------------------------------------------------------------------------------------------------------------    
+    
+    
 
 #---------------------------------------------------------------------------------------------------------------------------        
 def ShowManyTransverseSpectrum(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
@@ -8585,7 +8638,7 @@ def PlotRayleigh(thepopt,theperr,dispname,dir_top_img,object_name,runtype='DATA'
         Y= np.array(thepopt)[:,0]
         EY=np.array(theperr)[:,0]
     
-    fig, ax = plt.subplots(1, 1, figsize=(8,6))
+    fig, ax = plt.subplots(1, 1, figsize=(8,5))
     
     if(error_flag):
         ax.errorbar(X,Y,yerr=EY,fmt='o',color='red')
@@ -8609,7 +8662,7 @@ def PlotRayleigh(thepopt,theperr,dispname,dir_top_img,object_name,runtype='DATA'
     plt.plot(xfit,yfit)
     
     figname="fitrayleighwithbouguer_{}_{}.pdf".format(dispname,runtype)
-    figfilename=os.path.join(dir_top_img,'fitrayleighwithbouguer.pdf')
+    figfilename=os.path.join(dir_top_img,figname)
     plt.savefig(figfilename)
     
     print popt[0] ,' at 400 nm'
@@ -9265,4 +9318,4 @@ def PlotWRatio(all_ratiowl,all_ratioratio,all_dzam,selected_disp,dir_top_img,YMI
     figfilename=os.path.join(dir_top_img,figname)
     plt.savefig(figfilename)
 
-    
+ #-----------------------------------------------------------------------------------------------------   
