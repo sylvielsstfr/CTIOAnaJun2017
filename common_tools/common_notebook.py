@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
+from matplotlib import colors, ticker
 
 from astropy.modeling import models
 from astropy import units as u
@@ -3244,6 +3245,124 @@ def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,objec
     plt.savefig(figfilename)
     
 #-------------------------------------------------------------------------------------------------------------------------------
+def ShowOneContourBKGLogScale(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt):
+    """
+    ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
+    --------------
+    
+    Show contour lines of 2D spectrum for one image
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: the image 
+    
+    """
+    
+    figname='contourBKGLogScale_{}_{}.pdf'.format(all_filt[index],index)
+    
+    plt.figure(figsize=(15,6))
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    YMIN=-100
+    YMAX=100
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    
+    #center is approximately the one on the original raw image (may be changed)
+    #x0=int(all_pointing[index][0])
+    x0=int(thex0[index])
+   
+    
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+    
+    # refine center in X,Y
+    star_region_X=full_image[:,x0-star_halfwidth:x0+star_halfwidth]
+    
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+    
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    x0=int(avX+x0-star_halfwidth)
+      
+    
+    # find the center in Y on the spectrum
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    # cut the image in vertical and normalise by exposition time
+    reduc_image=full_image[y0+YMIN:y0+YMAX,x0:spec_index_max]/all_expo[index] 
+    reduc_image[:,0:100]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    # calibration in wavelength
+    #grating_name=all_filt[index].replace('dia ','')
+    grating_name=get_disperser_filtname(all_filt[index])
+    
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+    
+        
+
+    X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+    T=np.transpose(reduc_image)
+        
+        
+    #cs=plt.contourf(X, Y, reduc_image, 100, alpha=.75,locator=ticker.LogLocator(),cmap='jet',origin='lower')
+    #C = plt.contour(X, Y, reduc_image ,10, colors='white', linewidth=.01,origin='lower')
+    
+      #cs=plt.contourf(X, Y, reduc_image, 100, alpha=.75,locator=ticker.LogLocator(),cmap='jet',origin='lower')
+    #C = plt.contour(X, Y, reduc_image ,10, colors='white', linewidth=.01,origin='lower')
+    
+    
+    lvls = np.logspace(0,2,100)
+    
+    cs=plt.contourf(X, Y, reduc_image,norm=LogNorm(),levels=lvls, cmap='jet',origin='lower')
+    #C = plt.contour(X, Y, reduc_image, colors='k', norm=LogNorm(), levels=lvls, linewidth=.01,origin='lower')
+    
+    
+    cbar = plt.colorbar(cs)  
+    
+    for line in LINES:
+        if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+            plt.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+            plt.text(line['lambda'],YMAX*0.8,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+    
+    
+    
+    plt.axis([X.min(), X.max(), Y.min(), Y.max()]); plt.grid(True)
+    plt.title(all_titles[index])
+    plt.grid(color='white', ls='solid')
+    plt.text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+    plt.xlabel('$\lambda$ (nm)')
+    plt.ylabel('pixels')
+    plt.ylim(YMIN,YMAX)
+    plt.xlim(0.,1200.)
+    plt.savefig(figfilename)    
+#-------------------------------------------------------------------------------------------------------------------------------
 def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt):
     """
     ShowOneContour(index,all_images,all_pointing,all_titles,object_name,all_expo,dir_top_img,all_filt,figname)
@@ -3704,6 +3823,180 @@ def ShowOneOrder_contourBKG(all_images,all_pointing,thex0,they0,all_titles,objec
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
 
+def ShowOneOrder_contourBKGLogScale(all_images,all_pointing,thex0,they0,all_titles,object_name,all_expo,dir_top_img,all_filt,figname):
+    """
+    ShowOneOrder_contour:      
+    ====================
+    
+    Show the contour lines of 2D-Spectrum order +1 for each images
+
+    
+    input:
+        - index: selected index
+        - all_images : all set of cut and rotated images
+        - all_pointing : list of reference to find hologram and grater parameter for calibration
+        
+        - thex0, they0 : list of where is the central star in the image
+        - all_titles : list of title of the image
+        - object_name : list of object name
+        - all_expo : list of exposure time
+        - dir_top_img : directory to save the image
+        - all_filt : list of filter-disperser name
+        - figname : filename of figure
+        
+    output: 
+        all the image in a pdf file 
+    
+    """
+    NBIMGPERROW=2
+    NBIMAGES=len(all_images)
+    MAXIMGROW=max(2,m.ceil(NBIMAGES/NBIMGPERROW))
+    
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    
+    YMIN=-100
+    YMAX=100
+    
+    figfilename=os.path.join(dir_top_img,figname)   
+    title='Images of {}'.format(object_name)
+    
+    
+     # fig file specif
+    NBIMGROWPERPAGE=5  # number of rows per pages
+    PageNum=0          # page counter
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    pp = PdfPages(figfilename) # create a pdf file
+    
+    
+    for index in np.arange(0,NBIMAGES):
+        
+      
+        
+        if index%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            f, axarr = plt.subplots(NBIMGROWPERPAGE,NBIMGPERROW,figsize=(25,30))
+            f.suptitle(title,size=20)
+            
+        # index of image in the page    
+        indexcut=index-PageNum*(NBIMGROWPERPAGE*NBIMGPERROW)    
+        ix=indexcut%NBIMGPERROW
+        iy=indexcut/NBIMGPERROW
+        
+         
+        
+        
+        #center is approximately the one on the original raw image (may be changed)  
+        x0=int(thex0[index])
+    
+        
+        # Extract the image    
+        full_image=np.copy(all_images[index])
+        
+        # refine center in X,Y
+        star_region_X=np.copy(full_image[:,x0-star_halfwidth:x0+star_halfwidth])
+        
+        profile_X=np.sum(star_region_X,axis=0)
+        profile_Y=np.sum(star_region_X,axis=1)
+        
+        NX=profile_X.shape[0]
+        NY=profile_Y.shape[0]
+
+        X_=np.arange(NX)
+        Y_=np.arange(NY)
+    
+        avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+        avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+        x0=int(avX+x0-star_halfwidth)
+       
+        
+    
+        # find the center in Y
+        yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+        y0=np.where(yprofile==yprofile.max())[0][0]
+       
+        
+        
+
+        # cut the image to have right spectrum (+1 order)
+        # the origin is the is the star center
+        reduc_image=np.copy(full_image[y0+YMIN:y0+YMAX,x0:spec_index_max])/all_expo[index] 
+        reduc_image[:,0:100]=0  # erase central star
+    
+   
+    
+        X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+        Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+        
+        Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+        # calibration of wavelength
+        #grating_name=all_filt[index].replace('dia ','')
+        grating_name=get_disperser_filtname(all_filt[index])
+        lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+        
+        #if grating_name=='Ron200':
+        #     holo = Hologram('Ron400',verbose=False)
+        #else:    
+        #    holo = Hologram(grating_name,verbose=False)
+        #lambdas=holo.grating_pixel_to_lambda(X_Size_Pixels,all_pointing[index])
+        #if grating_name=='Ron200':
+        #    lambdas=lambdas*2.
+        
+    
+        X,Y=np.meshgrid(lambdas,Transverse_Pixel_Size)     
+        T=np.transpose(reduc_image)
+                   
+    
+        
+        
+        lvls = np.logspace(0,2,100)
+    
+        cs=axarr[iy,ix].contourf(X, Y, reduc_image,norm=LogNorm(),levels=lvls, cmap='jet',origin='lower')
+        #C = plt.contour(X, Y, reduc_image, colors='k', norm=LogNorm(), levels=lvls, linewidth=.01,origin='lower')
+    
+        
+        
+        for line in LINES:
+            if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA:
+                axarr[iy,ix].plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='lime',lw=0.5)
+                axarr[iy,ix].text(line['lambda'],YMAX*0.8,line['label'],verticalalignment='bottom', horizontalalignment='center',color='lime', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].axis([X.min(), X.max(), Y.min(), Y.max()]); 
+        axarr[iy,ix].grid(True)
+        thetitle="{}) : {}".format(index,all_titles[index]) 
+        axarr[iy,ix].set_title(thetitle)
+    
+        axarr[iy,ix].grid(color='white', ls='solid')
+        axarr[iy,ix].text(200,-5.,all_filt[index],verticalalignment='bottom', horizontalalignment='center',color='yellow', fontweight='bold',fontsize=16)
+        
+        
+        axarr[iy,ix].set_xlabel('$\lambda$ (nm)')
+        axarr[iy,ix].set_ylabel('pixels')
+        axarr[iy,ix].set_ylim(YMIN,YMAX)
+        axarr[iy,ix].set_xlim(0.,1100.)
+        
+        
+        # save a new page
+        if (index+1)%(NBIMGPERROW*NBIMGROWPERPAGE) == 0:
+            PageNum+=1  # increase page Number
+            f.savefig(pp, format='pdf')
+            print "pdf Page written ",PageNum
+            f.show()
+        
+          
+    
+    f.savefig(pp, format='pdf') 
+    print "Final pdf Page written ",PageNum
+    f.show()
+    pp.close()  
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+
 #---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -3879,6 +4172,24 @@ def ShowOneOrder_contourCutBKG(all_images,all_pointing,thex0,they0,all_titles,ob
 #---------------------------------------------------------------------------------------------------------------------------------------------
 def GetNarrowProfile(index,all_images,all_pointing,thex0,they0,lambda0,dlambda,all_expo,all_filt):
     """
+    
+    GetNarrowProfile:: Extract a narrow transverse profile:
+        
+        input :
+            index,
+            all_images,
+            all_pointing,
+            thex0,they0,
+            lambda0,dlambda,
+            all_expo,
+            all_filt
+            
+        output:
+            Transverse_Pixel_Size,
+            vertical_profile
+            
+     
+    
     """
    
     spec_index_min=100  # cut the left border
@@ -9318,4 +9629,215 @@ def PlotWRatio(all_ratiowl,all_ratioratio,all_dzam,selected_disp,dir_top_img,YMI
     figfilename=os.path.join(dir_top_img,figname)
     plt.savefig(figfilename)
 
- #-----------------------------------------------------------------------------------------------------   
+ #----------------------------------------------------------------------------------------------------- 
+
+
+
+#-------------------------------------------------------------------------------------------------------- 
+    #---------------------------------------------------------------------------------------------------------------------------------------------
+def GetMoffatAmplitude(index,all_images,all_pointing,thex0,they0,all_expo,all_filt):
+    """
+    
+    GetMoffatAmplitude:: Extract Moffat1D amplitude:
+        
+        input :
+            index,
+            all_images,
+            all_pointing,
+            thex0,they0,
+            lambda0,dlambda,
+            all_expo,
+            all_filt
+            
+        output:
+            Transverse_Pixel_Size,
+            vertical_profile
+            
+     
+    
+    """
+   
+    spec_index_min=100  # cut the left border
+    spec_index_max=1900 # cut the right border
+    star_halfwidth=70
+    
+    YMIN=-100
+    YMAX=100
+    
+  
+    x0=int(thex0[index])
+   
+    
+    # Extract the image    
+    full_image=np.copy(all_images[index])
+    
+    # refine center in X,Y
+    star_region_X=full_image[:,x0-star_halfwidth:x0+star_halfwidth]
+    
+    profile_X=np.sum(star_region_X,axis=0)
+    profile_Y=np.sum(star_region_X,axis=1)
+
+    NX=profile_X.shape[0]
+    NY=profile_Y.shape[0]
+    
+    X_=np.arange(NX)
+    Y_=np.arange(NY)
+    
+    avX,sigX=weighted_avg_and_std(X_,profile_X**4) # take squared on purpose (weigh must be >0)
+    avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
+    
+    x0=int(avX+x0-star_halfwidth)
+      
+    
+    # find the center in Y on the spectrum
+    yprofile=np.sum(full_image[:,spec_index_min:spec_index_max],axis=1)
+    y0=np.where(yprofile==yprofile.max())[0][0]
+
+    # cut the image in vertical and normalise by exposition time
+   
+    reduc_image=full_image[y0+YMIN:y0+YMAX,x0:spec_index_max]/all_expo[index]
+  
+    reduc_image[:,0:spec_index_min]=0  # erase central star
+    
+    X_Size_Pixels=np.arange(0,reduc_image.shape[1])
+    Y_Size_Pixels=np.arange(0,reduc_image.shape[0])
+    
+    # wavelength calibration
+    grating_name=get_disperser_filtname(all_filt[index])
+    lambdas=Pixel_To_Lambdas(grating_name,X_Size_Pixels,all_pointing[index],False)
+    
+    
+    Transverse_Pixel_Size=Y_Size_Pixels-int(float(Y_Size_Pixels.shape[0])/2.)
+    
+    thex=Transverse_Pixel_Size
+
+
+     
+    # loop on X_Size_Pixels to do Moffat fit
+    #amplitude_0  ::  5.64040958792
+    #x_0_0  ::  -0.654155001052
+    #gamma_0  ::  3.16643976336
+    #alpha_0  ::  1.75856843304
+    #slope_1  ::  -0.00017510110447
+    #intercept_1  ::  0.273571501345
+    
+    all_amplitude_0 = []
+    all_x_0_0 = []
+    all_gamma_0 = []
+    all_alpha_0 = []
+    all_slope_1 = []
+    all_intercept_1= []
+    all_fit_flag= []
+    
+    for ix in X_Size_Pixels  :
+        
+        if ix<spec_index_min or ix==len(X_Size_Pixels)-1:
+             all_amplitude_0.append(0.)
+             all_x_0_0.append(0.)
+             all_gamma_0.append(0.)
+             all_alpha_0.append(0.)
+             all_slope_1.append(0.)
+             all_intercept_1.append(0.)
+             all_fit_flag.append(False)
+            
+        else:
+        
+            #transverse_region=reduc_image[:,ix-1:ix+2] # take three bins in X   
+            #transverse_slice=np.median(transverse_region,axis=1)
+            transverse_slice=reduc_image[:,ix]
+        
+       
+            they=transverse_slice
+        
+            # find min and max of amplitude
+            themax_position=np.where(they==they.max())[0][0]
+            themin_position=np.where(they==they.min())[0][0]
+        
+            themax=they[themax_position]
+            themin=they[themin_position]
+        
+            # define the model for the background
+            bkg_init=models.Linear1D(slope=0.0, intercept=themin)
+        
+            # Fit the data using the Moffat model
+            mf_init = models.Moffat1D(amplitude=themax, x_0=0, gamma=10, alpha=1)+bkg_init
+            fitter_mf = fitting.SLSQPLSQFitter()
+            mf = fitter_mf(mf_init, thex, they)
+            
+            
+        
+            #NBPARAM=len(mf.param_names)
+            #print "MOFFAT Fit result  for slice :", ix
+            #for idx in np.arange(NBPARAM):
+            #    print mf.param_names[idx], ' :: ',mf.parameters[idx]
+        
+            #print mf
+            all_fit_flag.append(True)
+            all_amplitude_0.append(mf.parameters[0])
+            all_x_0_0.append(mf.parameters[1])
+            all_gamma_0.append(mf.parameters[2])
+            all_alpha_0.append(mf.parameters[3])
+            all_slope_1.append(mf.parameters[4])
+            all_intercept_1.append(mf.parameters[5])
+            
+    return np.array(all_amplitude_0),np.array(all_x_0_0),np.array(all_gamma_0),np.array(all_alpha_0),np.array(all_slope_1),np.array(all_intercept_1),np.array(all_fit_flag),lambdas
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+
+def ShowMoffatAmplitude(index,all_images,all_pointing,thex0,they0,all_expo,dir_top_img,all_filt):
+    """
+    
+    """  
+    all_amplitude_0, \
+    all_x_0_0, \
+    all_gamma_0, \
+    all_alpha_0, \
+    all_slope_1, \
+    all_intercept_1, \
+    all_fit_flag, \
+    all_lambdas=GetMoffatAmplitude(index,all_images,all_pointing,thex0,they0,all_expo,all_filt)
+    
+    fig, axarr = plt.subplots(3, 2,figsize=(20,20))
+    
+    figname='MoffatFit_{}.pdf'.format(index)
+    
+    axarr[0, 0].plot(all_lambdas, all_amplitude_0,'b-')
+    axarr[0, 0].set_title('Fitted Moffat amplitude')
+    axarr[0, 0].set_xlabel('$\lambda$ (nm)')
+    axarr[0, 0].set_ylabel('signal amplitude (ADU)')
+    
+    
+    axarr[0, 1].plot(all_lambdas, all_x_0_0,'b-')
+    axarr[0, 1].set_title('transverse position')
+    axarr[0, 1].set_xlabel('$\lambda$ (nm)')
+    axarr[0, 1].set_ylabel('y-center (pixel)')
+    
+    axarr[1, 0].plot(all_lambdas, all_gamma_0,'b-')
+    axarr[1, 0].set_title(' Moffat gamma parameter')
+    axarr[1, 0].set_xlabel('$\lambda$ (nm)')
+    axarr[1, 0].set_ylabel('$\gamma$')
+    
+    axarr[1, 1].plot(all_lambdas, all_alpha_0,'b-')
+    axarr[1, 1].set_title(' Moffat alpha parameter')
+    axarr[1, 1].set_xlabel('$\lambda$ (nm)')
+    axarr[1, 1].set_ylabel('alpha')
+    
+    axarr[2, 0].plot(all_lambdas, all_slope_1,'b-')
+    axarr[2, 0].set_title(' Background slope')
+    axarr[2, 0].set_xlabel('$\lambda$ (nm)')
+    axarr[2, 0].set_ylabel('slope (ADU/pixel)')
+    
+    axarr[2, 1].plot(all_lambdas, all_intercept_1,'b-')
+    axarr[2, 1].set_title(' Background intercept')
+    axarr[2, 1].set_xlabel('$\lambda$ (nm)')
+    axarr[2, 1].set_ylabel('bkg amplitude')
+    
+    thetitle='Fits of Moffat PSF , {}) {}'.format(index,all_filt[index])
+    
+    plt.suptitle(thetitle,size=20)
+    
+    figfilename=os.path.join(dir_top_img,figname)
+    print figfilename
+    plt.savefig(figfilename)
+ 
+
+  
