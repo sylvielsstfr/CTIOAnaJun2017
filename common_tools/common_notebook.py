@@ -25,8 +25,12 @@ import scipy.signal
 from IPython.display import Image
 
 import bottleneck as bn  # numpy's masked median is slow...really slow (in version 1.8.1 and lower)
-
-# adapt photutils for photutils v0.4
+# SDC: November 10th 2017
+# change photutils v0.3 to photutils v0.4
+# please update photutils to v0.4
+# conda update -c astropy photutils
+# daofind has bee replaced by DAOStartFinder
+# BiweightScaleBackgroundRMS has replaced by SigmaClip
 import photutils
 #from photutils import daofind
 from photutils import DAOStarFinder as daofind
