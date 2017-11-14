@@ -3115,7 +3115,7 @@ def ShowOneContour(index,all_images,all_pointing,thex0,they0,all_titles,object_n
     T=np.transpose(reduc_image)
         
         
-    plt.contourf(X, Y, reduc_image, 20, alpha=.75, cmap='jet',origin='lower')
+    plt.contourf(X, Y, reduc_image, 100, alpha=1., cmap='jet',origin='lower')
     C = plt.contour(X, Y, reduc_image , 20, colors='black', linewidth=.5,origin='lower')
         
     
@@ -3231,7 +3231,7 @@ def ShowOneContourBKG(index,all_images,all_pointing,thex0,they0,all_titles,objec
     T=np.transpose(reduc_image)
         
         
-    cs=plt.contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet',origin='lower')
+    cs=plt.contourf(X, Y, reduc_image, 100, alpha=1., cmap='jet',origin='lower')
     #C = plt.contour(X, Y, reduc_image ,10, colors='white', linewidth=.01,origin='lower')
     
     cbar = plt.colorbar(cs)  
@@ -3466,7 +3466,7 @@ def ShowOneContourCutBKG(index,all_images,all_pointing,thex0,they0,all_titles,ob
     T=np.transpose(reduc_image)
         
    
-    cs=plt.contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet',origin='lower')
+    cs=plt.contourf(X, Y, reduc_image, 100, alpha=1., cmap='jet',origin='lower')
     C = plt.contour(X, Y, reduc_image ,50, colors='white', linewidth=.001,origin='lower')   
    
     
@@ -3791,7 +3791,7 @@ def ShowOneOrder_contourBKG(all_images,all_pointing,thex0,they0,all_titles,objec
                    
         
         
-        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=.75, cmap='jet')
+        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=1., cmap='jet')
         #C = axarr[iy,ix].contour(X, Y, reduc_image , 100, colors='white', linewidth=.5)
         #cbar = axarr[iy,ix].colorbar(cs)  
         
@@ -4139,7 +4139,7 @@ def ShowOneOrder_contourCutBKG(all_images,all_pointing,thex0,they0,all_titles,ob
                    
         
         
-        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=.75,cmap='jet')
+        cs=axarr[iy,ix].contourf(X, Y, reduc_image, 100, alpha=1.,cmap='jet')
         C = axarr[iy,ix].contour(X, Y, reduc_image , 50, colors='white',linewidth=.01)
         #cbar = axarr[iy,ix].colorbar(cs)  
         
