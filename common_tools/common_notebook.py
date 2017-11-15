@@ -5624,7 +5624,7 @@ def CompareSpectrumProfile(wl,spectra,all_titles,all_airmass,object_name,all_fil
     for line in LINES:
         if line == O2 or line == HALPHA or line == HBETA or line == HGAMMA or line == HDELTA or line ==O2B or line == O2Y or line == O2Z:
             axarr.plot([line['lambda'],line['lambda']],[YMIN,YMAX],'-',color='red',lw=0.5)
-            axarr.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=16)
+            axarr.text(line['lambda'],0.9*(YMAX-YMIN),line['label'],verticalalignment='bottom', horizontalalignment='center',color='red', fontweight='bold',fontsize=10)
      
     
     #axarr.get_xaxis().set_minor_locator(mpl.ticker.AutoMinorLocator())
@@ -7722,7 +7722,7 @@ def ComputeAllEquivalentWidthNonLinearwthStatErr(all_wl,all_spec,all_spec_err,wl
     return EQW_coll, EQWErr_coll
 #--------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------
-def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt,tagabsline,dir_top_img,figname,spec_err=None):
+def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt,tagabsline,dir_top_img,figname,spec_err=None,EQWMIN=2.,EQWMAX=5.):
     """
     """
     am0 = []
@@ -7751,7 +7751,8 @@ def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt
         grating_name=all_filt[idx]
         am=all_am[idx]
         err=0
-        if spec_err != None:
+        #if spec_err != None:
+        if spec_err.any():
             err=spec_err[idx]
         
         
@@ -7803,7 +7804,7 @@ def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt
 
     ax.set_ylabel('Equivalent width (nm)')
     ax.set_xlabel('AirMass')
-
+    ax.set_ylim(EQWMIN,EQWMAX)
 
 
     title='Equivalent Width for {} vs airmass'.format(tagabsline)
@@ -7815,7 +7816,7 @@ def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt
     fig.savefig(figfilename)
  #--------------------------------------------------------------------------------------------  
 
-def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_filt,tagabsline,dir_top_img,figname,spec_err=None):
+def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_filt,tagabsline,dir_top_img,figname,spec_err=None,EQWMIN=2.,EQWMAX=5.):
     """
     """
     am0 = []
@@ -7853,7 +7854,8 @@ def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_
         grating_name=all_filt[idx]
         am=all_am[idx]
         err=0
-        if spec_err != None:
+        #if spec_err != None:
+        if spec_err.any():
             err=spec_err[idx]
         
         
@@ -7925,6 +7927,7 @@ def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_
     ax.set_ylabel('Equivalent width (nm)')
     ax.set_xlabel('time')
 #    ax.set_ylim(0.,5.)
+    ax.set_ylim(EQWMIN,EQWMAX)
 
 
 
@@ -7938,7 +7941,7 @@ def PlotEquivalentWidthVsTime(all_eqw_width,all_eqw_width_sim,all_am,all_dt,all_
 #-----------------------------------------------------------------------------------------------------
     
 #--------------------------------------------------------------------------------------------
-def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,all_am,all_filt,tagabsline,dir_top_img,figname,ratio_err=None):
+def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,all_am,all_filt,tagabsline,dir_top_img,figname,ratio_err=None,RATIOMIN=2.,RATIOMAX=5.):
     """
     """
     am0 = []
@@ -7967,8 +7970,11 @@ def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,
         grating_name=all_filt[idx]
         am=all_am[idx]
         err=0
-        if ratio_err != None:
+        
+        if ratio_err.any():
             err=ratio_err[idx]
+        #if ratio_err != None:
+        #    err=ratio_err[idx]
         
         
         if re.search(Disp_names[0],grating_name):
@@ -8020,7 +8026,7 @@ def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,
     ax.set_ylabel('Equivalent width ratio')
     ax.set_xlabel('AirMass')
 
-
+    ax.set_ylim(RATIOMIN,RATIOMAX)
 
     title='Equivalent Width Ratio for {} vs airmass'.format(tagabsline)
 
@@ -8422,7 +8428,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     y0fit=p(ZREFERENCE)
     all_yfit.append(yfit-y0fit)
     ax.plot(xfit,yfit-y0fit,'-',color='red',lw=2)  
-    ax.plot(all_z,all_log10S3vsZ,'o-',color='magenta',markersize=10,label=labels[2])  
+    ax.plot(all_z,all_log10S3vsZ-y0fit,'o-',color='red',markersize=10,label=labels[2])  
     
     #########
     # band 4
