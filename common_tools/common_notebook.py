@@ -364,7 +364,7 @@ def ShowImagesinPDF(all_images,all_titles,object_name,dir_top_img,all_filt,date 
         
         thetitle="{} : {} : {} ".format(index,all_titles[index],all_filt[index])
         
-        im=axarr[iy,ix].imshow(image,origin='lower',cmap='rainbow',vmin=vmin,vmax=vmax)
+        im=axarr[iy,ix].imshow(image,origin='lower',cmap='jet',vmin=vmin,vmax=vmax)
         axarr[iy,ix].set_title(thetitle,color='blue',fontweight='bold',fontsize=16)
         axarr[iy,ix].grid(color='white', ls='solid')
       
@@ -445,7 +445,7 @@ def ShowOneOrderinPDF(all_images,all_titles,thex0,they0,object_name,all_expo,dir
         themax=reduc_image.flatten().max()    
             
         X,Y=np.meshgrid(np.arange(0,reduc_image.shape[1]),np.arange(reduc_image.shape[0]))       
-        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=vmin,vmax=themax*0.5)    # pcolormesh is impracticalble in pdf file 
+        im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='jet',vmin=vmin,vmax=themax*0.5)    # pcolormesh is impracticalble in pdf file 
         
         
         #im = axarr[iy,ix].imshow(reduc_image,origin='lower', cmap='rainbow',vmin=0,vmax=100)    
@@ -535,7 +535,7 @@ def ShowOneOrder_contourinPDF(all_images,all_titles,thex0,they0,object_name,all_
         T=np.transpose(reduc_image)
         
         #im = axarr[iy,ix].pcolormesh(X,Y,reduc_image, cmap='rainbow',vmin=0,vmax=themax*0.5)    # pcolormesh is impracticalble in pdf file 
-        axarr[iy,ix].contourf(X, Y, reduc_image, 8, alpha=.75, cmap='jet')
+        axarr[iy,ix].contourf(X, Y, reduc_image, 8, alpha=1, cmap='jet')
         C = axarr[iy,ix].contour(X, Y, reduc_image , 8, colors='black', linewidth=.5)
         
             
@@ -8297,7 +8297,7 @@ def ShowTrueBouguerData(thewl,thespec,thezam,all_filt,object_name,dir_top_img,se
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=15,fontweight='bold')
     ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
-    #ax.set_ylim(YMIN,YMAX)
+    ax.set_ylim(YMIN,YMAX)
     
     
     figname='truebougher'+'_'+sel_filt+'_DATA'+'.pdf'
@@ -8488,6 +8488,7 @@ def ShowTrueBouguerSim(thewl,thespec,thezam,all_filt,object_name,dir_top_img,sel
     ax.set_ylabel("$M =2.5 * log_{10}(F_{data})$",fontsize=15,fontweight='bold')
     ax.legend(loc="best",fontsize=20)
     ax.set_xlim(ZREFERENCE,ZMAX)
+    
     ax.set_ylim(YMIN,YMAX)
     
     
@@ -9240,7 +9241,7 @@ def FitABouguerLine(thex,they,theey):
 #------------------------------------------------        
     
 #-------------------------------------------------------------------------------------
-def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp,ZMIN=1.0,ZMAX=2.0):
+def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_disp,ZMIN=1.0,ZMAX=2.0,MMIN=-0.1,MMAX=0.1):
     """
     ShowModifBouguer:
     
@@ -9249,6 +9250,10 @@ def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_
     
     fig, ax = plt.subplots(1, 1, figsize=(12,8))
     
+    
+    
+    
+    ZREFERENCE=0.0
   
     labels=["400-450nm", "450-500nm","500-550nm","550-600nm","600-650nm","650-700nm"]
     WLMINAbs=np.array([400.,450.,500.,550,600,650])
@@ -9339,15 +9344,19 @@ def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_
     
     popt,perr=FitABouguerLine(all_z,all_log10R1vsZ-all_log10R1vsZ[index_zmin],all_log10R1vsZE)
     pol = np.poly1d(popt)
+    
     y1fit=pol(x1fit)
-    plt.plot(x1fit,y1fit,'b-.',lw=1)   
+    y0fit=pol(ZREFERENCE)
+    
+    #plt.plot(x1fit,y1fit-y0fit,'b-.',lw=1)   
     fitparam1.append(popt)
     fitparam1err.append(perr)
     
     popt,perr=FitABouguerLine(all_z,all_log10R2vsZ-all_log10R2vsZ[index_zmin],all_log10R2vsZE)
     pol = np.poly1d(popt)
     y1fit=pol(x1fit)
-    plt.plot(x1fit,y1fit,'g-.',lw=1)   
+    y0fit=pol(ZREFERENCE)
+    #plt.plot(x1fit,y1fit-y0fit,'g-.',lw=1)   
     fitparam1.append(popt)
     fitparam1err.append(perr)
     
@@ -9355,28 +9364,32 @@ def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_
     popt,perr=FitABouguerLine(all_z,all_log10R3vsZ-all_log10R3vsZ[index_zmin],all_log10R3vsZE)
     pol = np.poly1d(popt)
     y1fit=pol(x1fit)
-    plt.plot(x1fit,y1fit,'r-.',lw=1)   
+    y0fit=pol(ZREFERENCE)
+    #plt.plot(x1fit,y1fit-y0fit,'r-.',lw=1)   
     fitparam1.append(popt)
     fitparam1err.append(perr)
     
     popt,perr=FitABouguerLine(all_z,all_log10R4vsZ-all_log10R4vsZ[index_zmin],all_log10R4vsZE)
     pol = np.poly1d(popt)
     y1fit=pol(x1fit)
-    plt.plot(x1fit,y1fit,'m-.',lw=1)   
+    y0fit=pol(ZREFERENCE)
+    #plt.plot(x1fit,y1fit-y0fit,'m-.',lw=1)   
     fitparam1.append(popt)
     fitparam1err.append(perr)
     
     popt,perr=FitABouguerLine(all_z,all_log10R5vsZ-all_log10R5vsZ[index_zmin],all_log10R5vsZE)
     pol = np.poly1d(popt)
     y1fit=pol(x1fit)
-    plt.plot(x1fit,y1fit,'k-.',lw=1)   
+    y0fit=pol(ZREFERENCE)
+    #plt.plot(x1fit,y1fit-y0fit,'k-.',lw=1)   
     fitparam1.append(popt)
     fitparam1err.append(perr)    
     
     popt,perr=FitABouguerLine(all_z,all_log10R6vsZ-all_log10R6vsZ[index_zmin],all_log10R6vsZE)
     pol = np.poly1d(popt)
     y1fit=pol(x1fit)
-    plt.plot(x1fit,y1fit,'y-.',lw=1)   
+    y0fit=pol(ZREFERENCE)
+    #plt.plot(x1fit,y1fit-y0fit,'y-.',lw=1)   
     fitparam1.append(popt)
     fitparam1err.append(perr)    
     
@@ -9398,6 +9411,8 @@ def ShowModifBouguer(thewl,theratio,all_filt,thezam,object_name,dir_top_img,sel_
     title="Modified BOUGUER line for disperser {}, object {}".format(sel_disp,object_name)
     ax.set_title(title)
     ax.set_xlim(ZMIN,ZMAX)
+    ax.set_ylim(MMIN,MMAX)
+    
     ax.set_xlabel("airmass")
     ax.set_ylabel("$\Delta M=2.5*log_{10}(R)=2.5*log_{10}(F_{data}/F_{sim})$ (mag)")
     ax.legend(loc="best")
