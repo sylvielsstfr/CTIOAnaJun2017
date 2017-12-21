@@ -6,22 +6,27 @@ from astropy.coordinates import SkyCoord, Angle
 import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt
 
-import pysynphot as S
-
 from astroquery.simbad import Simbad
 from astroquery.ned import Ned
+
+os.environ['PYSYN_CDBS']
+import pysynphot as S
+
 
 EPOCH = "J2000.0"
 
 class Target():
 
-    def __init__(self,label):
+    def __init__(self,label,verbose=False):
         self.label = label
         self.ra = None
         self.dec = None
         self.coord = None
         self.type = None
+        self.redshift = 0
         self.spectra = []
+        self.verbose = verbose
+        self.emission_spectrum = False
         self.load()
 
     def load(self):
@@ -49,8 +54,9 @@ class Target():
         #    sys.exit('Unknown target %s' % self.label)
         Simbad.add_votable_fields('flux(U)','flux(B)','flux(V)','flux(R)','flux(I)','flux(J)','sptype')
         self.simbad = Simbad.query_object(self.label)
-        print self.simbad
+        if self.verbose: print self.simbad
         self.coord = SkyCoord(self.simbad['RA'][0]+' '+self.simbad['DEC'][0], unit=(units.hourangle, units.deg))
+        self.load_spectra()
 
     def load_spectra(self):
         self.wavelengths = [] # in nm
@@ -63,6 +69,7 @@ class Target():
                 if self.label.lower() in fname.lower() :
                     filenames.append(dirname+fname)
         if len(filenames) > 0 :
+            self.emission_spectrum = False
             for k,f in enumerate(filenames) :
                 if '_mod_' in f : continue
                 print 'Loading %s' % f
@@ -77,6 +84,8 @@ class Target():
             # Try with NED query
             self.ned = Ned.query_object(self.label)
             hdulists = Ned.get_spectra(self.label)
+            self.redshift = self.ned['Redshift'][0]
+            self.emission_spectrum = True
             for k,h in enumerate(hdulists) :
                 if h[0].header['NAXIS'] == 1 :
                     self.spectra.append(h[0].data)

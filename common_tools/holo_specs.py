@@ -1,5 +1,6 @@
 import numpy as np
 import os, sys
+import copy
 from scipy import ndimage
 from scipy import interpolate
 from scipy.optimize import curve_fit
@@ -47,16 +48,34 @@ HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.
 CAII1 =  {'lambda': 393.366,'atmospheric':True,'label':'$Ca_{II}$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 CAII2 =  {'lambda': 396.847,'atmospheric':True,'label':'$Ca_{II}$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 #O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
-O2 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # libradtran paper fig.3
-O2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
+O2_1 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # libradtran paper fig.3
+O2_2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
 O2B = {'lambda': 686.719,'atmospheric':True,'label':'$O_2(B)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 O2Y = {'lambda': 898.765,'atmospheric':True,'label':'$O_2(Y)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 O2Z = {'lambda': 822.696,'atmospheric':True,'label':'$O_2(Z)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 #H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # 
-H2O = {'lambda': 950,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
-H2O = {'lambda': 970,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
-LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,O2B,O2Y,O2Z,H2O,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
+H2O_1 = {'lambda': 950,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
+H2O_2 = {'lambda': 970,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2_1,O2_2,O2B,O2Y,O2Z,H2O_1,H2O_2,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
 LINES = sorted(LINES, key=lambda x: x['lambda'])
+
+
+# Filters
+FGB37 = {'label':'FGB37','min':300,'max':800}
+RG715 = {'label':'RG715','min':690,'max':1100}
+HALPHA_FILTER = {'label':'Halfa','min':HALPHA_CENTER-2*HALPHA_WIDTH,'max':HALPHA_CENTER+2*HALPHA_WIDTH}
+ZGUNN = {'label':'Z-Gunn','min':800,'max':1100}
+FILTERS = [RG715,FGB37,HALPHA_FILTER,ZGUNN]
+
+def sort_redshifted_lines(redshift=0):
+    if redshift > 0 :
+        sorted_LINES = copy.deepcopy(LINES)
+        for LINE in sorted_LINES:
+            if not LINE['atmospheric'] : LINE['lambda'] *= (1+redshift)
+        sorted_LINES = sorted(sorted_LINES, key=lambda x: x['lambda'])
+        return sorted_LINES
+    else:
+        return LINES
 
 
 DATA_DIR = "../../common_tools/data/"
@@ -97,7 +116,8 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
     guess_list = []
     bounds_list = []
     lines_list = []
-    for LINE in LINES:
+    sorted_LINES = sort_redshifted_lines(redshift)
+    for LINE in sorted_LINES:
         if hydrogen_only :
             if not atmospheric_lines :
                 if LINE['atmospheric'] : continue
@@ -109,7 +129,7 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
         #if not((atmospheric_lines and LINE['atmospheric']) or (hydrogen_only and '$H\\' in LINE['label'])) : continue
         # wavelength of the line
         l = LINE['lambda']
-        if not LINE['atmospheric'] : l = l*(1+redshift)
+        #if not LINE['atmospheric'] : l = l*(1+redshift)
         l_index, l_lambdas = find_nearest(lambdas,l)
         if l_index < peak_look or l_index > len(lambdas)-peak_look : continue
         # look for local extrema to detect emission or absorption line
@@ -161,12 +181,15 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
         # guess and bounds to fit this line
         # min sigma at 1 pixel and max sigma at 10 pixels (half width)
         guess = [0,1,0*abs(spec[peak_index]),lambdas[peak_index],3]
+        #if len(guess_list) > 0:
+        #    guess[3] = max(guess_list[-1][3],lambdas[peak_index]) # to keep guess list sorted if lines are too close
         bounds = [[-np.inf,-np.inf,-np.inf,lambdas[index_inf],1], [np.inf,np.inf,2*np.max(spec[index]),lambdas[index_sup],10]  ] 
         if line_strategy == np.less :
             bounds[1][2] = 0
             guess[2] = - 0*spec[peak_index]
         else :
             bounds[0][2] = 0
+        #print LINE['label'],guess, bounds
         index_list.append(index)
         lines_list.append(LINE)
         guess_list.append(guess)
@@ -182,11 +205,17 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
         else :
             merges.append([idx+1])
             idx += 1
+    # reorder merge list with respect to guess list
+    new_merges = []
+    for merge in merges:
+        tmp_guess = [guess_list[i][3] for i in merge]
+        new_merges.append( [x for _,x in sorted(zip(tmp_guess,merge))] )
+    # reorder lists with merges
     new_index_list = []
     new_guess_list = []
     new_bounds_list = []
     new_lines_list = []
-    for merge in merges :
+    for merge in new_merges :
         new_index_list.append([])
         new_guess_list.append([])
         new_bounds_list.append([[],[]])
@@ -233,7 +262,7 @@ def detect_lines(lambdas,spec,redshift=0,emission_spectrum=False,snr_minlevel=3,
         for j in range(len(new_lines_list[k])) :
             LINE = new_lines_list[k][j]
             l = LINE['lambda']
-            if not LINE['atmospheric'] : l = l*(1+redshift)
+            #if not LINE['atmospheric'] : l = l*(1+redshift)
             peak_pos = popt[2+3*j+1]
             # SNR computation
             signal_level = popt[2+3*j]
@@ -380,23 +409,24 @@ def find_order01_positions(holo_center,N_interp,theta_interp,verbose=True):
 
 
 class Grating():
-    def __init__(self,N,label="",D=DISTANCE2CCD,verbose=False):
+    def __init__(self,N,label="",D=DISTANCE2CCD,data_dir=DATA_DIR,verbose=False):
         self.N_input = N
         self.N_err = 1
         self.D = D
         self.label = label
+        self.data_dir = data_dir
         self.load_files(verbose=verbose)
 
     def N(self,x) :
         return self.N_input
 
     def load_files(self,verbose=False):
-        filename = DATA_DIR+self.label+"/N.txt"
+        filename = self.data_dir+self.label+"/N.txt"
         if os.path.isfile(filename):
             a = np.loadtxt(filename)
             self.N_input = a[0]
             self.N_err = a[1]
-        filename = DATA_DIR+self.label+"/hologram_center.txt"
+        filename = self.data_dir+self.label+"/hologram_center.txt"
         if os.path.isfile(filename):
             lines = [line.rstrip('\n') for line in open(filename)]
             self.theta_tilt = float(lines[1].split(' ')[2])
@@ -446,8 +476,8 @@ class Grating():
         
 class Hologram(Grating):
 
-    def __init__(self,label,D=DISTANCE2CCD,lambda_plot=256000,verbose=True):
-        Grating.__init__(self,GROOVES_PER_MM,D=D,label=label,verbose=False)
+    def __init__(self,label,D=DISTANCE2CCD,lambda_plot=256000,data_dir=DATA_DIR,verbose=True):
+        Grating.__init__(self,GROOVES_PER_MM,D=D,label=label,data_dir=data_dir,verbose=verbose)
         self.holo_center = None # center of symmetry of the hologram interferences in pixels
         self.plate_center = None # center of the hologram plate
         self.theta = None # interpolated rotation angle map of the hologram from data in degrees
@@ -470,7 +500,7 @@ class Hologram(Grating):
     
     def load_specs(self,verbose=True):
         if verbose : print 'Load hologram %s:' % self.label
-        filename = DATA_DIR+self.label+"/hologram_grooves_per_mm.txt"
+        filename = self.data_dir+self.label+"/hologram_grooves_per_mm.txt"
         if os.path.isfile(filename):
             a = np.loadtxt(filename)
             self.N_x, self.N_y, self.N_data = a.T
@@ -478,7 +508,7 @@ class Hologram(Grating):
             self.N_fit = fit_poly2d(self.N_x,self.N_y, self.N_data, degree=2) 
             self.N_interp = lambda x : N_interp(x[0],x[1])
         else :
-            filename = DATA_DIR+self.label+"/N.txt"
+            filename = self.data_dir+self.label+"/N.txt"
             if os.path.isfile(filename):
                 a = np.loadtxt(filename)            
                 self.N_interp = lambda x : a[0]
@@ -486,7 +516,7 @@ class Hologram(Grating):
             else :
                 self.N_interp = lambda x : GROOVES_PER_MM
                 self.N_fit = lambda x,y : GROOVES_PER_MM
-        filename = DATA_DIR+self.label+"/hologram_center.txt"
+        filename = self.data_dir+self.label+"/hologram_center.txt"
         if os.path.isfile(filename):
             lines = [line.rstrip('\n') for line in open(filename)]
             self.holo_center = map(float,lines[1].split(' ')[:2])
@@ -494,12 +524,12 @@ class Hologram(Grating):
         else :
             self.holo_center = [0.5*IMSIZE,0.5*IMSIZE]
             self.theta_tilt = 0
-        filename = DATA_DIR+self.label+"/hologram_rotation_angles.txt"
+        filename = self.data_dir+self.label+"/hologram_rotation_angles.txt"
         if os.path.isfile(filename):
             a = np.loadtxt(filename)
             self.theta_x, self.theta_y, self.theta_data = a.T
             theta_interp = interpolate.interp2d(self.theta_x, self.theta_y, self.theta_data, kind='cubic')
-            self.theta = lambda x : theta_interp(x[0],x[1])
+            self.theta = lambda x : theta_interp(x[0],x[1])[0]
         else :
             self.theta = lambda x: self.theta_tilt
         self.plate_center = [0.5*IMSIZE+PLATE_CENTER_SHIFT_X/PIXEL2MM,0.5*IMSIZE+PLATE_CENTER_SHIFT_Y/PIXEL2MM] 

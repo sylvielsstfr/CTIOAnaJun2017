@@ -38,7 +38,7 @@ from photutils import CircularAperture
 #from photutils import Background2D, SigmaClip, MedianBackground
 
 from photutils import Background2D
-from photutils import BiweightScaleBackgroundRMS as SigmaClip
+#from photutils import BiweightScaleBackgroundRMS as SigmaClip
 from photutils import MedianBackground
 
 from skimage.feature import hessian_matrix
@@ -2880,25 +2880,6 @@ def guess_central_position(listofimages,DeltaX,DeltaY,dwc,filt0_idx,filt1_idx,fi
     
     return x_guess,y_guess
 
-#-----------------------------------------------------------------------------------
-def weighted_avg_and_std(values, weights):
-    """
-    Return the weighted average and standard deviation.
-
-    values, weights -- Numpy ndarrays with the same shape.
-    
-    For example for the PSF
-    
-    x=pixel number
-    y=Intensity in pixel
-    
-    values-x
-    weights=y=f(x)
-    
-    """
-    average = np.average(values, weights=weights)
-    variance = np.average((values-average)**2, weights=weights)  # Fast and numerically precise
-    return (average, np.sqrt(variance))
 
 #---------------------------------------------------------------------------------
 

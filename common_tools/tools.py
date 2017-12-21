@@ -6,6 +6,9 @@ import numpy as np
 from astropy.modeling import models, fitting
 import warnings
 
+from skimage.feature import hessian_matrix
+
+
 def gauss(x,A,x0,sigma):
     return A*np.exp(-(x-x0)**2/(2*sigma**2))
 
@@ -77,3 +80,45 @@ def resize_image(data,Nx_final,Ny_final):
     # following line is not useful with mode='F', uncomment it with mode='I'
     #data_rescaled=(np.max(data)-np.min(data))*(data_resampled-np.min(data_resampled))/(np.max(data_resampled)-np.min(data_resampled))+np.min(data)
     return(data_rescaled)
+
+
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+
+    values, weights -- Numpy ndarrays with the same shape.
+    
+    For example for the PSF
+    
+    x=pixel number
+    y=Intensity in pixel
+    
+    values-x
+    weights=y=f(x)
+    
+    """
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)  # Fast and numerically precise
+    return (average, np.sqrt(variance))
+
+def hessian_and_theta(data,margin_cut=1):
+    # compute hessian matrices on the image
+    Hxx, Hxy, Hyy = hessian_matrix(data, sigma=3, order = 'xy')
+    lambda_plus = 0.5*( (Hxx+Hyy) + np.sqrt( (Hxx-Hyy)**2 +4*Hxy*Hxy) )
+    lambda_minus = 0.5*( (Hxx+Hyy) - np.sqrt( (Hxx-Hyy)**2 +4*Hxy*Hxy) )
+    theta = 0.5*np.arctan2(2*Hxy,Hyy-Hxx)*180/np.pi
+    # remove the margins
+    lambda_minus = lambda_minus[margin_cut:-margin_cut,margin_cut:-margin_cut]
+    lambda_plus = lambda_plus[margin_cut:-margin_cut,margin_cut:-margin_cut]
+    theta = theta[margin_cut:-margin_cut,margin_cut:-margin_cut]
+    return lambda_plus, lambda_minus, theta
+
+def filter_stars_from_bgd(data,margin_cut=1):
+    lambda_plus, lambda_minus, theta = hessian_and_theta(np.copy(data), margin_cut=1)
+    # thresholds
+    lambda_threshold = np.median(lambda_minus)-2*np.std(lambda_minus)
+    mask = np.where(lambda_minus<lambda_threshold)
+    data[mask]=np.nan
+    return data
+
+
