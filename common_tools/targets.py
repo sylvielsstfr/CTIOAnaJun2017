@@ -27,6 +27,7 @@ class Target():
         self.spectra = []
         self.verbose = verbose
         self.emission_spectrum = False
+        self.hydrogen_only = False
         self.load()
 
     def load(self):
@@ -70,6 +71,7 @@ class Target():
                     filenames.append(dirname+fname)
         if len(filenames) > 0 :
             self.emission_spectrum = False
+            self.hydrogen_only = True
             for k,f in enumerate(filenames) :
                 if '_mod_' in f : continue
                 print 'Loading %s' % f
@@ -86,6 +88,7 @@ class Target():
             hdulists = Ned.get_spectra(self.label)
             self.redshift = self.ned['Redshift'][0]
             self.emission_spectrum = True
+            self.hydrogen_only = False
             for k,h in enumerate(hdulists) :
                 if h[0].header['NAXIS'] == 1 :
                     self.spectra.append(h[0].data)

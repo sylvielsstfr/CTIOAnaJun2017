@@ -47,16 +47,16 @@ HEI =  {'lambda': 587.5,'atmospheric':False,'label':'$He_{I}$','pos':[0.007,0.02
 HEII =  {'lambda': 468.6,'atmospheric':False,'label':'$He_{II}$','pos':[0.007,0.02]}
 CAII1 =  {'lambda': 393.366,'atmospheric':True,'label':'$Ca_{II}$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 CAII2 =  {'lambda': 396.847,'atmospheric':True,'label':'$Ca_{II}$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
-#O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
-O2_1 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # libradtran paper fig.3
-O2_2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
+O2 = {'lambda': 762.1,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]} # http://onlinelibrary.wiley.com/doi/10.1029/98JD02799/pdf
+#O2_1 = {'lambda': 760.6,'atmospheric':True,'label':'','pos':[0.007,0.02]} # libradtran paper fig.3
+#O2_2 = {'lambda': 763.2,'atmospheric':True,'label':'$O_2$','pos':[0.007,0.02]}  # libradtran paper fig.3
 O2B = {'lambda': 686.719,'atmospheric':True,'label':'$O_2(B)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 O2Y = {'lambda': 898.765,'atmospheric':True,'label':'$O_2(Y)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 O2Z = {'lambda': 822.696,'atmospheric':True,'label':'$O_2(Z)$','pos':[0.007,0.02]} # https://en.wikipedia.org/wiki/Fraunhofer_lines
 #H2O = {'lambda': 960,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # 
 H2O_1 = {'lambda': 950,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
 H2O_2 = {'lambda': 970,'atmospheric':True,'label':'$H_2 O$','pos':[0.007,0.02]}  # libradtran paper fig.3
-LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2_1,O2_2,O2B,O2Y,O2Z,H2O_1,H2O_2,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
+LINES = [HALPHA,HBETA,HGAMMA,HDELTA,O2,O2B,O2Y,O2Z,H2O_1,H2O_2,OIII,CII1,CII2,CIV,CII3,CIII1,CIII2,HEI,HEII,CAII1,CAII2]
 LINES = sorted(LINES, key=lambda x: x['lambda'])
 
 
@@ -968,7 +968,8 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
         D_step = DISTANCE2CCD_ERR / 4
         while D < DISTANCE2CCD+4*DISTANCE2CCD_ERR and D > DISTANCE2CCD-4*DISTANCE2CCD_ERR and counts < 30 :
             holo.D = D
-            lambdas_test = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
+            lambdas_test, spec = extract_spectrum(spectra[index],holo,[left_cut,right_cut],thex0[index],order0_positions[index],order=order)
+            #lambdas_test = holo.grating_pixel_to_lambda(pixels,order0_positions[index],order=order)
             lambda_shift = detect_lines(lambdas_test,spec,redshift=redshift,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=False)
             shifts.append(lambda_shift)
             counts += 1
@@ -992,10 +993,10 @@ def CalibrateSpectra(spectra,redshift,thex0,order0_positions,all_titles,object_n
             print 'Wavelenght total shift: %.2fnm (after %d steps)' % (shift,len(shifts))
             print '\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR)
         specs.append([lambdas,spec])
-    PlotCalibratedSpectra(specs,redshift,all_titles,object_name,all_filt,target=target,order=order,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,nofit=nofit,verbose=verbose,dir_top_images=dir_top_images)
+    PlotCalibratedSpectra(specs,redshift,all_titles,object_name,all_filt,target=target,order=order,emission_spectrum=emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,nofit=nofit,verbose=verbose,dir_top_images=dir_top_images)
     return specs, Ds
 
-def PlotCalibratedSpectra(specs,redshift,all_titles,object_name,all_filt,target=None,order=1,atmospheric_lines=True,hydrogen_only=False,nofit=False,verbose=False,dir_top_images=None):
+def PlotCalibratedSpectra(specs,redshift,all_titles,object_name,all_filt,target=None,order=1,emission_spectrum=False,atmospheric_lines=True,hydrogen_only=False,nofit=False,verbose=False,dir_top_images=None):
     NBSPEC=len(specs)
     if target is not None :
         target.load_spectra()

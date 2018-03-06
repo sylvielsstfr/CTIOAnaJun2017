@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import sys
+import sys,os
 import copy
 sys.path.append("../common_tools/")
 from tools import *
@@ -54,12 +54,7 @@ class Image():
         hdu_list = fits.open(filename)
         self.header = hdu_list[0].header
         self.data = hdu_list[0].data
-        self.date_obs = self.header['DATE-OBS']
-        self.airmass = self.header['AIRMASS']
-        self.expo = self.header['EXPTIME']
-        self.filters = self.header['FILTERS']
-        self.filter = self.header['FILTER1']
-        self.disperser = self.header['FILTER2']
+        extract_info_from_CTIO_header(self,self.header)
         IMSIZE = int(self.header['XLENGTH'])
         PIXEL2ARCSEC = float(self.header['XPIXSIZE'])
         if self.header['YLENGTH'] != IMSIZE:
@@ -81,30 +76,6 @@ class Image():
         """
         x0 = guess[0]
         y0 = guess[1]
-        #y0 = int(0.5*IMSIZE + (self.coord.dec.arcsec - self.target.coord.dec.arcsec)/PIXEL2ARCSEC)
-        #x0 = int(0.5*IMSIZE + (self.coord.ra.arcsec - self.target.coord.ra.arcsec)*np.cos(self.coord.dec.radian)/PIXEL2ARCSEC)
-        #print x0,y0,PIXEL2ARCSEC
-
-
-
-        #ra0 = self.coord.ra.radian
-        #dec0 = self.coord.dec.radian
-        #ra = self.target.coord.ra.radian
-        #dec = self.target.coord.dec.radian
-        #bottom = np.sin(dec)*np.sin(dec0) + np.cos(dec)*np.cos(dec0)*np.cos(ra-ra0)
-        #xi = np.cos(dec) * np.sin(ra-ra0) / bottom
-        #eta = (np.sin(dec)*np.cos(dec0) - np.cos(dec)*np.sin(dec0)*np.cos(ra-ra0)) / bottom
-        #xi = xi * 180.0 / np.pi * 3600.
-        #eta = eta * 180.0 / np.pi * 3600. 
-        #x0 = int(0.5*IMSIZE - xi / PIXEL2ARCSEC )
-        #y0 = int(0.5*IMSIZE - eta / PIXEL2ARCSEC)
-        #print xi/60., eta/60.
-        #print self.coord
-        #print self.target.coord
-        #print (self.coord.dec.arcmin - self.target.coord.dec.arcmin)
-        #print (self.coord.ra.arcmin - self.target.coord.ra.arcmin)
-        #print (self.coord.ra.arcmin - self.target.coord.ra.arcmin)*np.cos(self.coord.dec.radian)
-        #print x0,y0,PIXEL2ARCSEC
         Dx = XWINDOW
         Dy = YWINDOW
         if rotated:
@@ -120,11 +91,6 @@ class Image():
             sub_image = np.copy(self.data_rotated[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
         else:
             sub_image = np.copy(self.data[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
-        #fig = plt.figure()
-        #plt.imshow(self.data,origin='lower',vmin=0,vmax=0.02*np.max(self.data),cmap='rainbow')
-        #plt.plot([x0],[y0],'ko')
-        #print x0, y0
-        #plt.show()
         NX=sub_image.shape[1]
         NY=sub_image.shape[0]        
         profile_X=np.sum(sub_image,axis=0)
@@ -301,8 +267,9 @@ class Spectrum():
         self.target = None
         if filename != "" :
             self.filename = filename
-            self.load(filename)
+            self.load_spectrum(filename)
         if Image is not None:
+            self.header = Image.header
             self.date_obs = Image.date_obs
             self.airmass = Image.airmass
             self.expo = Image.expo
@@ -323,15 +290,14 @@ class Spectrum():
         global LAMBDA_MIN, LAMBDA_MAX
         print self.filter
         for f in FILTERS:
-            if f['label'] == self.filter:
-                
+            if f['label'] == self.filter:               
                 LAMBDA_MIN = f['min']
                 LAMBDA_MAX = f['max']
                 self.my_logger.info('Load filter %s: lambda between %.1f and %.1f' % (f['label'],LAMBDA_MIN, LAMBDA_MAX))
                 break
             
 
-    def plot_spectrum(self,xlim=None,order=1,atmospheric_lines=True,hydrogen_only=False,emission_spectrum=False,nofit=False):
+    def plot_spectrum(self,xlim=None,order=1,atmospheric_lines=True,nofit=False):
         xs = self.lambdas
         if xs is None : xs = np.arange(self.data.shape[0])
         #redshift = 0
@@ -339,7 +305,7 @@ class Spectrum():
         fig = plt.figure(figsize=[12,6])
         plt.plot(xs,self.data,'r-',lw=2,label='Order %d spectrum' % order)
         if self.lambdas is not None:
-            plot_atomic_lines(plt.gca(),redshift=self.target.redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,fontsize=12)
+            plot_atomic_lines(plt.gca(),redshift=self.target.redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,fontsize=12)
         plt.grid(True)
         plt.xlim([LAMBDA_MIN,LAMBDA_MAX])
         plt.ylim(0.,np.max(self.data)*1.2)
@@ -349,11 +315,11 @@ class Spectrum():
             plt.xlim(xlim)
             plt.ylim(0.,np.max(self.data[xlim[0]:xlim[1]])*1.2)
         if not nofit and self.lambdas is not None:
-            lambda_shift = detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=plt.gca(),verbose=False)
+            lambda_shift = detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=plt.gca(),verbose=False)
         plt.show()
 
-    def calibrate(self,order=1,emission_spectrum=False,atmospheric_lines=True,hydrogen_only=False):
-        self.my_logger.warning('Set redhisft and optsions for tests')
+    def calibrate(self,order=1,atmospheric_lines=True):
+        self.my_logger.warning('Set redshift and options for tests')
         #if self.target is not None :redshift = self.target.redshift
         #emission_spectrum = False
         atmospheric_lines = True
@@ -373,7 +339,7 @@ class Spectrum():
         while D < DISTANCE2CCD+4*DISTANCE2CCD_ERR and D > DISTANCE2CCD-4*DISTANCE2CCD_ERR and counts < 30 :
             self.disperser.D = D
             lambdas_test = self.disperser.grating_pixel_to_lambda(delta_pixels,self.target_pixcoords,order=order)
-            lambda_shift = detect_lines(lambdas_test,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=VERBOSE)
+            lambda_shift = detect_lines(lambdas_test,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=VERBOSE)
             shifts.append(lambda_shift)
             counts += 1
             if abs(lambda_shift)<0.1 :
@@ -391,14 +357,29 @@ class Spectrum():
             D += D_step
         shift = np.mean(lambdas_test - self.lambdas)
         self.lambdas = lambdas_test
-        detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,ax=None,verbose=VERBOSE)
+        detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=VERBOSE)
         if VERBOSE :
             print 'Wavelenght total shift: %.2fnm (after %d steps)' % (shift,len(shifts))
             print '\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR)
         #if DEBUG:
-        self.plot_spectrum(xlim=None,order=order,atmospheric_lines=atmospheric_lines,hydrogen_only=hydrogen_only,emission_spectrum=self.target.emission_spectrum,nofit=False)
+        self.plot_spectrum(xlim=None,order=order,atmospheric_lines=atmospheric_lines,nofit=False)
 
+    def save_spectrum(self,output_filename,overwrite=False):
+        hdu = fits.PrimaryHDU()
+        hdu.data = [self.lambdas,self.data]
+        self.header['UNIT1'] = "nanometer"
+        self.header['UNIT2'] = "spectrum unit thing"
+        self.header['COMMENTS'] = 'First column gives the wavelength in unit UNIT1, second column gives the spectrum in unit UNIT2'
+        hdu.header = self.header
+        hdu.writeto(output_filename,overwrite=overwrite)
 
+    def load_spectrum(self,input_filename):
+        hdu = fits.open(input_filename)
+        self.header = hdu[0].header
+        self.lambdas = hdu[0].data[0]
+        self.data = hdu[0].data[1]
+        extract_info_from_CTIO_header(self, self.header)
+        
 
 def Spectractor(filename,outputdir,guess,target):
     """ Spectractor
@@ -414,6 +395,9 @@ def Spectractor(filename,outputdir,guess,target):
     image = Image(filename,target=target)
     # Set output path
     ensure_dir(outputdir)
+    output_filename = filename.split('/')[-1]
+    output_filename = output_filename.replace('.fits','_spectrum.fits')
+    output_filename = os.path.join(outputdir,output_filename)
     # Cut the image
     
     # Find the exact target position in the raw cut image: several methods
@@ -437,21 +421,19 @@ def Spectractor(filename,outputdir,guess,target):
     # Run libratran ?
 
     # Save the spectra
-    
+    spectrum.save_spectrum(output_filename,overwrite=True)
 
 if __name__ == "__main__":
     import commands, string, re, time, os
     from optparse import OptionParser
 
     parser = OptionParser()
-    parser.add_option("-N", "--Narray", dest="Narray",
-                      help="Size of map X,Y,Z (default=50,50,50).",default="50,50,50")
     parser.add_option("-d", "--debug", dest="debug",action="store_true",
                       help="Enter debug mode (more verbose and plots).",default=False)
-    parser.add_option("-b", "--beta", dest="beta",
-                      help="Beta values to use, can be an array (default=3.0).",default="3.0")
     parser.add_option("-v", "--verbose", dest="verbose",
                       help="Verbose.",default=0)
+    parser.add_option("-o", "--output_directory", dest="output_directory", default="test/",
+                      help="Write results in given output directory.")
     (opts, args) = parser.parse_args()
 
     VERBOSE = int(opts.verbose)
@@ -462,7 +444,6 @@ if __name__ == "__main__":
         
     filename="../../CTIODataJune2017_reducedRed/data_05jun17/reduc_20170605_00.fits"
     filename="../ana_05jun17/OverScanRemove/trim_images/trim_20170605_007.fits"
-    outputdir="test"
     guess = [745,643]
     target="3C273"
 
@@ -476,4 +457,4 @@ if __name__ == "__main__":
     #guess = [840, 530]
     #target = "HD205905"
 
-    Spectractor(filename,outputdir,guess,target)
+    Spectractor(filename,opts.output_directory,guess,target)
