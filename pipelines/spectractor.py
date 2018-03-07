@@ -322,9 +322,7 @@ class Spectrum():
         plt.show()
 
     def calibrate(self,order=1,atmospheric_lines=True):
-        self.my_logger.warning('\n\tSet redshift and options for tests')
-        #if self.target is not None :redshift = self.target.redshift
-        #emission_spectrum = False
+        self.my_logger.warning('\n\tManual settings for tests')
         atmospheric_lines = True
         self.my_logger.info('\n\tCalibrating order %d spectrum...' % order)
         self.lambdas, self.data = extract_spectrum(self.data,self.disperser,[0,self.data.shape[0]],self.target_pixcoords_rotated[0],self.target_pixcoords,order=order)
