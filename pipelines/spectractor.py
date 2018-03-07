@@ -15,7 +15,7 @@ import astropy.units as units
 
 from skimage.feature import hessian_matrix
 
-import logging
+import coloredlogs, logging
 
 MY_FORMAT = "%(asctime)-24s %(name)-12s %(funcName)-20s %(levelname)-6s %(message)s"   #### ce sont des variables de classes
 logging.basicConfig(format=MY_FORMAT, level=logging.WARNING)
@@ -24,9 +24,13 @@ def set_logger(logger):
     my_logger = logging.getLogger(logger)
     if VERBOSE > 0:
         my_logger.setLevel(logging.INFO)
+        coloredlogs.install(fmt=MY_FORMAT,level=logging.INFO)
     else:
         my_logger.setLevel(logging.WARNING)
-    if DEBUG: my_logger.setLevel(logging.DEBUG)
+        coloredlogs.install(fmt=MY_FORMAT,level=logging.WARNING)
+    if DEBUG:
+        my_logger.setLevel(logging.DEBUG)
+        coloredlogs.install(fmt=MY_FORMAT,level=logging.DEBUG)
     return my_logger
 
 
@@ -177,9 +181,9 @@ class Image():
         theta_hist = []
         theta_hist = theta_mask[~np.isnan(theta_mask)].flatten()
         theta_median = np.median(theta_hist)
-        if abs(theta_median-theta_guess)>0.1:
-            self.my_logger.warning('Interpolated angle and fitted angle disagrees with more than 0.1 degree:  %.2f vs %.2f' % (theta_median,theta_guess))
-
+        theta_critical = 180.*np.arctan(10./IMSIZE)/np.pi
+        if abs(theta_median-theta_guess)>theta_critical:
+            self.my_logger.warning('Interpolated angle and fitted angle disagrees with more than 10 pixels over %d pixels:  %.2f vs %.2f' % (IMSIZE,theta_median,theta_guess))
         if DEBUG:
             f, (ax1, ax2) = plt.subplots(1,2,figsize=(10,6))
             xindex=np.arange(data.shape[1])
@@ -288,7 +292,6 @@ class Spectrum():
 
     def load_filter(self):
         global LAMBDA_MIN, LAMBDA_MAX
-        print self.filter
         for f in FILTERS:
             if f['label'] == self.filter:               
                 LAMBDA_MIN = f['min']
@@ -339,7 +342,7 @@ class Spectrum():
         while D < DISTANCE2CCD+4*DISTANCE2CCD_ERR and D > DISTANCE2CCD-4*DISTANCE2CCD_ERR and counts < 30 :
             self.disperser.D = D
             lambdas_test = self.disperser.grating_pixel_to_lambda(delta_pixels,self.target_pixcoords,order=order)
-            lambda_shift = detect_lines(lambdas_test,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=VERBOSE)
+            lambda_shift = detect_lines(lambdas_test,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=DEBUG)
             shifts.append(lambda_shift)
             counts += 1
             if abs(lambda_shift)<0.1 :
@@ -357,12 +360,10 @@ class Spectrum():
             D += D_step
         shift = np.mean(lambdas_test - self.lambdas)
         self.lambdas = lambdas_test
-        detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=VERBOSE)
-        if VERBOSE :
-            print 'Wavelenght total shift: %.2fnm (after %d steps)' % (shift,len(shifts))
-            print '\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR)
-        #if DEBUG:
-        self.plot_spectrum(xlim=None,order=order,atmospheric_lines=atmospheric_lines,nofit=False)
+        detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=DEBUG)
+        self.my_logger.info('Wavelenght total shift: %.2fnm (after %d steps)\n\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (shift,len(shifts),D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR))
+        if VERBOSE:
+            self.plot_spectrum(xlim=None,order=order,atmospheric_lines=atmospheric_lines,nofit=False)
 
     def save_spectrum(self,output_filename,overwrite=False):
         hdu = fits.PrimaryHDU()
@@ -372,6 +373,8 @@ class Spectrum():
         self.header['COMMENTS'] = 'First column gives the wavelength in unit UNIT1, second column gives the spectrum in unit UNIT2'
         hdu.header = self.header
         hdu.writeto(output_filename,overwrite=overwrite)
+        self.my_logger.info('Spectrum saved in %s' % output_filename)
+
 
     def load_spectrum(self,input_filename):
         hdu = fits.open(input_filename)
@@ -379,6 +382,7 @@ class Spectrum():
         self.lambdas = hdu[0].data[0]
         self.data = hdu[0].data[1]
         extract_info_from_CTIO_header(self, self.header)
+        self.my_logger.info('Spectrum loaded from %s' % input_filename)
         
 
 def Spectractor(filename,outputdir,guess,target):
@@ -430,16 +434,16 @@ if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-d", "--debug", dest="debug",action="store_true",
                       help="Enter debug mode (more verbose and plots).",default=False)
-    parser.add_option("-v", "--verbose", dest="verbose",
-                      help="Verbose.",default=0)
+    parser.add_option("-v", "--verbose", dest="verbose",action="store_true",
+                      help="Enter verbose (print more stuff).",default=False)
     parser.add_option("-o", "--output_directory", dest="output_directory", default="test/",
-                      help="Write results in given output directory.")
+                      help="Write results in given output directory (default: ./tests/).")
     (opts, args) = parser.parse_args()
 
-    VERBOSE = int(opts.verbose)
+    VERBOSE = opts.verbose
     if opts.debug:
         DEBUG=True
-        VERBOSE=1
+        VERBOSE=True
         
         
     filename="../../CTIODataJune2017_reducedRed/data_05jun17/reduc_20170605_00.fits"
