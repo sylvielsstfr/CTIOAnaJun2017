@@ -17,7 +17,7 @@ from skimage.feature import hessian_matrix
 
 import coloredlogs, logging
 
-MY_FORMAT = "%(asctime)-24s %(name)-12s %(funcName)-20s %(levelname)-6s %(message)s"   #### ce sont des variables de classes
+MY_FORMAT = "%(asctime)-20s %(name)-10s %(funcName)-20s %(levelname)-6s %(message)s"   #### ce sont des variables de classes
 logging.basicConfig(format=MY_FORMAT, level=logging.WARNING)
 
 def set_logger(logger):
@@ -54,7 +54,7 @@ class Image():
         Args:
             filename (:obj:`str`): path to the image
         """
-        self.my_logger.info('Loading image %s...' % filename)
+        self.my_logger.info('\n\tLoading image %s...' % filename)
         hdu_list = fits.open(filename)
         self.header = hdu_list[0].header
         self.data = hdu_list[0].data
@@ -62,13 +62,13 @@ class Image():
         IMSIZE = int(self.header['XLENGTH'])
         PIXEL2ARCSEC = float(self.header['XPIXSIZE'])
         if self.header['YLENGTH'] != IMSIZE:
-            self.my_logger.warning('Image rectangular: X=%d pix, Y=%d pix' % (IMSIZE, self.header['YLENGTH']))
+            self.my_logger.warning('\n\tImage rectangular: X=%d pix, Y=%d pix' % (IMSIZE, self.header['YLENGTH']))
         if self.header['YPIXSIZE'] != PIXEL2ARCSEC:
-            self.my_logger.warning('Pixel size rectangular: X=%d arcsec, Y=%d arcsec' % (PIXEL2ARCSEC, self.header['YPIXSIZE']))
+            self.my_logger.warning('\n\tPixel size rectangular: X=%d arcsec, Y=%d arcsec' % (PIXEL2ARCSEC, self.header['YPIXSIZE']))
         self.coord = SkyCoord(self.header['RA']+' '+self.header['DEC'],unit=(units.hourangle, units.deg),obstime=self.header['DATE-OBS'] )
-        self.my_logger.info('Image loaded')
+        self.my_logger.info('\n\tImage loaded')
         # Load the disperser
-        self.my_logger.info('Loading disperser %s...' % self.disperser)
+        self.my_logger.info('\n\tLoading disperser %s...' % self.disperser)
         self.disperser = Hologram(self.disperser,data_dir=HOLO_DIR,verbose=VERBOSE)
 
     def find_target(self,guess,rotated=False):
@@ -108,10 +108,10 @@ class Image():
         avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
 
         if profile_X[int(avX)] < 0.8*np.max(profile_X) :
-            self.my_logger.warning('X position determination of the target probably wrong')
+            self.my_logger.warning('\n\tX position determination of the target probably wrong') 
 
         if profile_Y[int(avY)] < 0.8*np.max(profile_Y) :
-            self.my_logger.warning('Y position determination of the target probably wrong')
+            self.my_logger.warning('\n\tY position determination of the target probably wrong')
 
         theX=x0-Dx+avX
         theY=y0-Dy+avY
@@ -143,7 +143,7 @@ class Image():
 
             plt.show()
 
-        self.my_logger.info('X,Y target position in pixels: %.3f,%.3f' % (theX,theY))
+        self.my_logger.info('\n\tX,Y target position in pixels: %.3f,%.3f' % (theX,theY))
         if rotated:
             self.target_pixcoords_rotated = [theX,theY]
         else:
@@ -183,7 +183,7 @@ class Image():
         theta_median = np.median(theta_hist)
         theta_critical = 180.*np.arctan(10./IMSIZE)/np.pi
         if abs(theta_median-theta_guess)>theta_critical:
-            self.my_logger.warning('Interpolated angle and fitted angle disagrees with more than 10 pixels over %d pixels:  %.2f vs %.2f' % (IMSIZE,theta_median,theta_guess))
+            self.my_logger.warning('\n\tInterpolated angle and fitted angle disagrees with more than 10 pixels over %d pixels:  %.2f vs %.2f' % (IMSIZE,theta_median,theta_guess))
         if DEBUG:
             f, (ax1, ax2) = plt.subplots(1,2,figsize=(10,6))
             xindex=np.arange(data.shape[1])
@@ -204,7 +204,7 @@ class Image():
 
     def turn_image(self):
         self.rotation_angle = self.compute_rotation_angle_hessian()
-        self.my_logger.info('Rotate the image with angle theta=%.2f degree' % self.rotation_angle)
+        self.my_logger.info('\n\tRotate the image with angle theta=%.2f degree' % self.rotation_angle)
         self.data_rotated = np.copy(self.data)
         if not np.isnan(self.rotation_angle):
             self.data_rotated=ndimage.interpolation.rotate(self.data,self.rotation_angle,prefilter=False,order=5)
@@ -226,7 +226,7 @@ class Image():
             plt.show()
 
     def extract_spectrum_from_image(self,w=3,ws=[8,30],right_edge=1800):
-        self.my_logger.info('Extracting spectrum from image: spectrum with width 2*%d pixels and background from %d to %d pixels' % (w,ws[0],ws[1]))
+        self.my_logger.info('\n\tExtracting spectrum from image: spectrum with width 2*%d pixels and background from %d to %d pixels' % (w,ws[0],ws[1]))
         data=np.copy(self.data_rotated)[:,0:right_edge]
         if self.expo <= 0 :
             data /= self.expo
@@ -283,7 +283,7 @@ class Spectrum():
             self.target = Image.target
             self.target_pixcoords = Image.target_pixcoords
             self.target_pixcoords_rotated = Image.target_pixcoords_rotated
-            self.my_logger.info('Spectrum info copied from Image')
+            self.my_logger.info('\n\tSpectrum info copied from Image')
         self.data = None
         self.err = None
         self.lambdas = None
@@ -296,7 +296,7 @@ class Spectrum():
             if f['label'] == self.filter:               
                 LAMBDA_MIN = f['min']
                 LAMBDA_MAX = f['max']
-                self.my_logger.info('Load filter %s: lambda between %.1f and %.1f' % (f['label'],LAMBDA_MIN, LAMBDA_MAX))
+                self.my_logger.info('\n\tLoad filter %s: lambda between %.1f and %.1f' % (f['label'],LAMBDA_MIN, LAMBDA_MAX))
                 break
             
 
@@ -322,11 +322,11 @@ class Spectrum():
         plt.show()
 
     def calibrate(self,order=1,atmospheric_lines=True):
-        self.my_logger.warning('Set redshift and options for tests')
+        self.my_logger.warning('\n\tSet redshift and options for tests')
         #if self.target is not None :redshift = self.target.redshift
         #emission_spectrum = False
         atmospheric_lines = True
-        self.my_logger.info('Calibrating order %d spectrum...' % order)
+        self.my_logger.info('\n\tCalibrating order %d spectrum...' % order)
         self.lambdas, self.data = extract_spectrum(self.data,self.disperser,[0,self.data.shape[0]],self.target_pixcoords_rotated[0],self.target_pixcoords,order=order)
         # Cut spectra
         lambdas_indices = np.where(np.logical_and(self.lambdas > LAMBDA_MIN, self.lambdas < LAMBDA_MAX))[0]
@@ -361,7 +361,7 @@ class Spectrum():
         shift = np.mean(lambdas_test - self.lambdas)
         self.lambdas = lambdas_test
         detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=DEBUG)
-        self.my_logger.info('Wavelenght total shift: %.2fnm (after %d steps)\n\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (shift,len(shifts),D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR))
+        self.my_logger.info('\n\tWavelenght total shift: %.2fnm (after %d steps)\n\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (shift,len(shifts),D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR))
         if VERBOSE:
             self.plot_spectrum(xlim=None,order=order,atmospheric_lines=atmospheric_lines,nofit=False)
 
@@ -373,7 +373,7 @@ class Spectrum():
         self.header['COMMENTS'] = 'First column gives the wavelength in unit UNIT1, second column gives the spectrum in unit UNIT2'
         hdu.header = self.header
         hdu.writeto(output_filename,overwrite=overwrite)
-        self.my_logger.info('Spectrum saved in %s' % output_filename)
+        self.my_logger.info('\n\tSpectrum saved in %s' % output_filename)
 
 
     def load_spectrum(self,input_filename):
@@ -382,7 +382,7 @@ class Spectrum():
         self.lambdas = hdu[0].data[0]
         self.data = hdu[0].data[1]
         extract_info_from_CTIO_header(self, self.header)
-        self.my_logger.info('Spectrum loaded from %s' % input_filename)
+        self.my_logger.info('\n\tSpectrum loaded from %s' % input_filename)
         
 
 def Spectractor(filename,outputdir,guess,target):
@@ -394,7 +394,7 @@ def Spectractor(filename,outputdir,guess,target):
         outputdir (:obj:`str`): path to the output directory
     """
     my_logger = set_logger(__name__)
-    my_logger.info('Start SPECTRACTOR')
+    my_logger.info('\n\tStart SPECTRACTOR')
     # Load reduced image
     image = Image(filename,target=target)
     # Set output path
@@ -405,12 +405,12 @@ def Spectractor(filename,outputdir,guess,target):
     # Cut the image
     
     # Find the exact target position in the raw cut image: several methods
-    my_logger.info('Search for the target in the image...')
+    my_logger.info('\n\tSearch for the target in the image...')
     target_pixcoords = image.find_target(guess)
     # Rotate the image: several methods
     image.turn_image()
     # Find the exact target position in the rotated image: several methods
-    my_logger.info('Search for the target in the rotated image...')
+    my_logger.info('\n\tSearch for the target in the rotated image...')
     target_pixcoords_rotated = image.find_target(guess,rotated=True)
     # Subtract background and bad pixels
     spectrum = image.extract_spectrum_from_image()
