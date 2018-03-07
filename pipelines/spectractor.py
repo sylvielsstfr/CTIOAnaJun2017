@@ -13,6 +13,7 @@ from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as units
 
+
 from skimage.feature import hessian_matrix
 
 import coloredlogs, logging
@@ -97,12 +98,16 @@ class Image():
             sub_image = np.copy(self.data[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
         NX=sub_image.shape[1]
         NY=sub_image.shape[0]        
-        profile_X=np.sum(sub_image,axis=0)
-        profile_Y=np.sum(sub_image,axis=1)
-        profile_X -= np.min(profile_X)
-        profile_Y -= np.min(profile_Y)
         X_=np.arange(NX)
         Y_=np.arange(NY)
+        profile_X_raw=np.sum(sub_image,axis=0)
+        profile_Y_raw=np.sum(sub_image,axis=1)
+        # fit and subtract smooth polynomial background
+        # with 3sigma rejection of outliers (star peaks)
+        bkgd_X = fit_poly1d_outlier_removal(X_,profile_X_raw,order=2)
+        bkgd_Y = fit_poly1d_outlier_removal(Y_,profile_Y_raw,order=2)
+        profile_X = profile_X_raw - bkgd_X #np.min(profile_X)
+        profile_Y = profile_Y_raw - bkgd_Y #np.min(profile_Y)
 
         avX,sigX=weighted_avg_and_std(X_,profile_X**4) 
         avY,sigY=weighted_avg_and_std(Y_,profile_Y**4)
@@ -117,8 +122,8 @@ class Image():
         theY=y0-Dy+avY
         
         if DEBUG:
-            profile_X_max=np.max(profile_X)*1.2
-            profile_Y_max=np.max(profile_Y)*1.2
+            profile_X_max=np.max(profile_X_raw)*1.2
+            profile_Y_max=np.max(profile_Y_raw)*1.2
 
             f, (ax1, ax2,ax3) = plt.subplots(1,3, figsize=(15,4))
             ax1.imshow(sub_image,origin='lower',vmin=0,vmax=10000,cmap='rainbow')
@@ -127,16 +132,18 @@ class Image():
             ax1.set_xlabel('X - pixel')
             ax1.set_ylabel('Y - pixel')
 
-            ax2.plot(X_,profile_X,'r-',lw=2)
-            ax2.plot([Dx,Dx],[0,profile_X_max],'y-',label='old',lw=2)
-            ax2.plot([avX,avX],[0,profile_X_max],'b-',label='new',lw=2)
+            ax2.plot(X_,profile_X_raw,'r-',lw=2)
+            ax2.plot(X_,bkgd_X,'g--',lw=2,label='bkgd')
+            ax2.axvline(Dx,color='y',linestyle='-',label='old',lw=2)
+            ax2.axvline(avX,color='b',linestyle='-',label='new',lw=2)
             ax2.grid(True)
             ax2.set_xlabel('X - pixel')
             ax2.legend(loc=1)
 
-            ax3.plot(Y_,profile_Y,'r-',lw=2)
-            ax3.plot([Dy,Dy],[0,profile_Y_max],'y-',label='old',lw=2)
-            ax3.plot([avY,avY],[0,profile_Y_max],'b-',label='new',lw=2)
+            ax3.plot(Y_,profile_Y_raw,'r-',lw=2)
+            ax3.plot(Y_,bkgd_Y,'g--',lw=2,label='bkgd')
+            ax3.axvline(Dy,color='y',linestyle='-',label='old',lw=2)
+            ax3.axvline(avY,color='b',linestyle='-',label='new',lw=2)
             ax3.grid(True)
             ax3.set_xlabel('Y - pixel')
             ax3.legend(loc=1)

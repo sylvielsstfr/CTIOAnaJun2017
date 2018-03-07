@@ -4,6 +4,7 @@ from scipy.optimize import curve_fit
 from scipy.misc import imresize
 import numpy as np
 from astropy.modeling import models, fitting
+from astropy.stats import sigma_clip
 import warnings
 
 from skimage.feature import hessian_matrix
@@ -61,7 +62,27 @@ def fit_poly2d(x,y,z,degree):
         # Ignore model linearity warning from the fitter
         warnings.simplefilter('ignore')
         p = fit_p(p_init, x, y, z)
-    return p
+        return p
+
+def fit_poly1d_outlier_removal(x,y,order=2,sigma=3.0,niter=3):
+    gg_init = models.Polynomial1D(order)
+    gg_init.c0.min = np.min(y)
+    gg_init.c0.max = 2*np.max(y)
+    gg_init.c1 = 0
+    gg_init.c2 = 0
+    with warnings.catch_warnings():
+        # Ignore model linearity warning from the fitter
+        warnings.simplefilter('ignore')
+        or_fit = fitting.LevMarLSQFitter()
+        fit = fitting.FittingWithOutlierRemoval(or_fit, sigma_clip, niter=niter, sigma=sigma)
+        # get fitted model and filtered data
+        filtered_data, fitted_model = fit(gg_init, x, y)
+        or_fitted_model = or_fit(gg_init, x, y)
+        fitted_bkgd = models.Polynomial1D(2)
+        fitted_bkgd.c0 = fitted_model.c0.value
+        fitted_bkgd.c1 = fitted_model.c1.value
+        fitted_bkgd.c2 = fitted_model.c2.value
+        return fitted_bkgd(x)
 
 def find_nearest(array,value):
     idx = (np.abs(array-value)).argmin()
