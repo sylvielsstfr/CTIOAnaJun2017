@@ -143,3 +143,10 @@ def filter_stars_from_bgd(data,margin_cut=1):
     return data
 
 
+def extract_info_from_CTIO_header(obj,header):
+    obj.date_obs = header['DATE-OBS']
+    obj.airmass = header['AIRMASS']
+    obj.expo = header['EXPTIME']
+    obj.filters = header['FILTERS']
+    obj.filter = header['FILTER1']
+    obj.disperser = header['FILTER2']
