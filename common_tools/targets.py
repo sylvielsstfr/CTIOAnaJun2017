@@ -83,35 +83,38 @@ class Target():
                     self.wavelengths.append(data.wave)
                     self.spectra.append(data.flux)
         else :
-            # Try with NED query
-            self.ned = Ned.query_object(self.label)
-            hdulists = Ned.get_spectra(self.label)
-            self.redshift = self.ned['Redshift'][0]
-            self.emission_spectrum = True
-            self.hydrogen_only = False
-            for k,h in enumerate(hdulists) :
-                if h[0].header['NAXIS'] == 1 :
-                    self.spectra.append(h[0].data)
-                else :
-                    for d in h[0].data :
-                        self.spectra.append(d)
-                wave_n = len(h[0].data)
-                if h[0].header['NAXIS'] == 2 : wave_n = len(h[0].data.T)
-                wave_step = h[0].header['CDELT1']
-                wave_start = h[0].header['CRVAL1'] - (h[0].header['CRPIX1']-1)*wave_step
-                wave_end = wave_start + wave_n*wave_step 
-                waves = np.linspace(wave_start,wave_end,wave_n)
-                is_angstrom = False
-                for key in h[0].header.keys() :
-                    if 'angstrom' in str(h[0].header[key]).lower() :
-                        is_angstrom=True
-                if is_angstrom : waves*=0.1
-                if h[0].header['NAXIS'] > 1 :
-                    for k in range(h[0].header['NAXIS']+1) :
+            if 'PNG' not in self.label:
+                # Try with NED query
+                self.ned = Ned.query_object(self.label)
+                hdulists = Ned.get_spectra(self.label)
+                self.redshift = self.ned['Redshift'][0]
+                self.emission_spectrum = True
+                self.hydrogen_only = False
+                for k,h in enumerate(hdulists) :
+                    if h[0].header['NAXIS'] == 1 :
+                        self.spectra.append(h[0].data)
+                    else :
+                        for d in h[0].data :
+                            self.spectra.append(d)
+                    wave_n = len(h[0].data)
+                    if h[0].header['NAXIS'] == 2 : wave_n = len(h[0].data.T)
+                    wave_step = h[0].header['CDELT1']
+                    wave_start = h[0].header['CRVAL1'] - (h[0].header['CRPIX1']-1)*wave_step
+                    wave_end = wave_start + wave_n*wave_step 
+                    waves = np.linspace(wave_start,wave_end,wave_n)
+                    is_angstrom = False
+                    for key in h[0].header.keys() :
+                        if 'angstrom' in str(h[0].header[key]).lower() :
+                            is_angstrom=True
+                    if is_angstrom : waves*=0.1
+                    if h[0].header['NAXIS'] > 1 :
+                        for k in range(h[0].header['NAXIS']+1) :
+                            self.wavelengths.append(waves)
+                    else : 
                         self.wavelengths.append(waves)
-                else : 
-                    self.wavelengths.append(waves)
-            
+            else:
+                self.emission_spectrum = True
+
         
     def plot_spectra(self):
         target.load_spectra()
