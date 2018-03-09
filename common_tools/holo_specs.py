@@ -477,7 +477,7 @@ class Grating():
 class Hologram(Grating):
 
     def __init__(self,label,D=DISTANCE2CCD,lambda_plot=256000,data_dir=DATA_DIR,verbose=True):
-        Grating.__init__(self,GROOVES_PER_MM,D=D,label=label,data_dir=data_dir,verbose=verbose)
+        Grating.__init__(self,GROOVES_PER_MM,D=D,label=label,data_dir=data_dir,verbose=False)
         self.holo_center = None # center of symmetry of the hologram interferences in pixels
         self.plate_center = None # center of the hologram plate
         self.theta = None # interpolated rotation angle map of the hologram from data in degrees
@@ -489,6 +489,7 @@ class Hologram(Grating):
         self.N_data = None
         self.lambda_plot = lambda_plot
         self.load_specs(verbose=verbose)
+        self.is_hologram = True
 
     def N(self,x):
         N = GROOVES_PER_MM
@@ -499,7 +500,9 @@ class Hologram(Grating):
         return N
     
     def load_specs(self,verbose=True):
-        if verbose : print 'Load hologram %s:' % self.label
+        if verbose :
+            print 'Load disperser %s:' % self.label
+            print '\tfrom %s' % self.data_dir+self.label
         filename = self.data_dir+self.label+"/hologram_grooves_per_mm.txt"
         if os.path.isfile(filename):
             a = np.loadtxt(filename)
@@ -508,6 +511,7 @@ class Hologram(Grating):
             self.N_fit = fit_poly2d(self.N_x,self.N_y, self.N_data, degree=2) 
             self.N_interp = lambda x : N_interp(x[0],x[1])
         else :
+            self.is_hologram = False
             filename = self.data_dir+self.label+"/N.txt"
             if os.path.isfile(filename):
                 a = np.loadtxt(filename)            
@@ -535,13 +539,20 @@ class Hologram(Grating):
         self.plate_center = [0.5*IMSIZE+PLATE_CENTER_SHIFT_X/PIXEL2MM,0.5*IMSIZE+PLATE_CENTER_SHIFT_Y/PIXEL2MM] 
         self.x_lines, self.line1, self.line2 = neutral_lines(self.holo_center[0],self.holo_center[1],self.theta_tilt)
         if verbose :
-            print 'Plate center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.plate_center[0],self.plate_center[1],self.theta_tilt)
-            print 'Hologram center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.holo_center[0],self.holo_center[1],self.theta_tilt)
-            #print 'N = %.2f +/- %.2f grooves/mm' % (self.N, self.N_err)
-        self.order0_position, self.order1_position, self.AB = find_order01_positions(self.holo_center,self.N_interp,self.theta,verbose=verbose)
+            if self.is_hologram:
+                print 'Hologram characteristics:'
+                print '\tN = %.2f +/- %.2f grooves/mm at plate center' % (self.N(self.plate_center), self.N_err)
+                print '\tPlate center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.plate_center[0],self.plate_center[1],self.theta_tilt)
+                print '\tHologram center at x0 = %.1f and y0 = %.1f with average tilt of %.1f degrees' % (self.holo_center[0],self.holo_center[1],self.theta_tilt)
+            else:
+                print 'Grating characteristics:'
+                print '\tN = %.2f +/- %.2f grooves/mm' % (self.N([0,0]), self.N_err)
+                print '\tAverage tilt of %.1f degrees' % (self.theta_tilt)
+        if self.is_hologram:
+            self.order0_position, self.order1_position, self.AB = find_order01_positions(self.holo_center,self.N_interp,self.theta,verbose=verbose)
         #if verbose :
         #    print 'At order 0 position: N=%.2f grooves/mm and theta=%.2f degrees' % (self.N(self.order0_position),self.theta(self.order0_position))
-        self.hologram_shape = build_hologram(self.order0_position,self.order1_position,self.theta_tilt,lambda_plot=self.lambda_plot)
+        #self.hologram_shape = build_hologram(self.order0_position,self.order1_position,self.theta_tilt,lambda_plot=self.lambda_plot)
             
 
 

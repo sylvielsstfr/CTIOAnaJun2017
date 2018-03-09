@@ -3,16 +3,15 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import sys,os
 import copy
-sys.path.append("../common_tools/")
+mypath = os.path.dirname(__file__)
+sys.path.append(os.path.join(mypath,"../common_tools/"))
 from tools import *
 from holo_specs import *
 from targets import *
-from parameters import *
-
+import parameters
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as units
-
 
 from skimage.feature import hessian_matrix
 
@@ -23,13 +22,13 @@ logging.basicConfig(format=MY_FORMAT, level=logging.WARNING)
 
 def set_logger(logger):
     my_logger = logging.getLogger(logger)
-    if VERBOSE > 0:
+    if parameters.VERBOSE > 0:
         my_logger.setLevel(logging.INFO)
         coloredlogs.install(fmt=MY_FORMAT,level=logging.INFO)
     else:
         my_logger.setLevel(logging.WARNING)
         coloredlogs.install(fmt=MY_FORMAT,level=logging.WARNING)
-    if DEBUG:
+    if parameters.DEBUG:
         my_logger.setLevel(logging.DEBUG)
         coloredlogs.install(fmt=MY_FORMAT,level=logging.DEBUG)
     return my_logger
@@ -47,7 +46,7 @@ class Image():
         self.load(filename)
         # Load the target if given
         self.target = None
-        if target != "": self.target=Target(target,verbose=VERBOSE)
+        if target != "": self.target=Target(target,verbose=parameters.VERBOSE)
         self.err = None
 
     def load(self,filename):
@@ -70,7 +69,7 @@ class Image():
         self.my_logger.info('\n\tImage loaded')
         # Load the disperser
         self.my_logger.info('\n\tLoading disperser %s...' % self.disperser)
-        self.disperser = Hologram(self.disperser,data_dir=HOLO_DIR,verbose=VERBOSE)
+        self.disperser = Hologram(self.disperser,data_dir=parameters.HOLO_DIR,verbose=parameters.VERBOSE)
 
     def find_target(self,guess,rotated=False):
         """
@@ -81,8 +80,8 @@ class Image():
         """
         x0 = guess[0]
         y0 = guess[1]
-        Dx = XWINDOW
-        Dy = YWINDOW
+        Dx = parameters.XWINDOW
+        Dy = parameters.YWINDOW
         if rotated:
             angle = self.rotation_angle*np.pi/180.
             rotmat = np.matrix([[np.cos(angle),-np.sin(angle)],[np.sin(angle),np.cos(angle)]])
@@ -91,8 +90,8 @@ class Image():
             x0 = int(guess2[0,0])
             y0 = int(guess2[0,1])
         if rotated:
-            Dx = XWINDOW_ROT
-            Dy = YWINDOW_ROT
+            Dx = parameters.XWINDOW_ROT
+            Dy = parameters.YWINDOW_ROT
             sub_image = np.copy(self.data_rotated[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
         else:
             sub_image = np.copy(self.data[y0-Dy:y0+Dy,x0-Dx:x0+Dx])
@@ -121,7 +120,7 @@ class Image():
         theX=x0-Dx+avX
         theY=y0-Dy+avY
         
-        if DEBUG:
+        if parameters.DEBUG:
             profile_X_max=np.max(profile_X_raw)*1.2
             profile_Y_max=np.max(profile_Y_raw)*1.2
 
@@ -157,7 +156,7 @@ class Image():
             self.target_pixcoords = [theX,theY]
         return [theX,theY]
 
-    def compute_rotation_angle_hessian(self, deg_threshold = 10, width_cut = YWINDOW, right_edge = IMSIZE-200, margin_cut=12):
+    def compute_rotation_angle_hessian(self, deg_threshold = 10, width_cut = parameters.YWINDOW, right_edge = IMSIZE-200, margin_cut=12):
         x0, y0 = np.array(self.target_pixcoords).astype(int)
         # extract a region 
         data=np.copy(self.data[y0-width_cut:y0+width_cut,0:right_edge])
@@ -191,7 +190,7 @@ class Image():
         theta_critical = 180.*np.arctan(10./IMSIZE)/np.pi
         if abs(theta_median-theta_guess)>theta_critical:
             self.my_logger.warning('\n\tInterpolated angle and fitted angle disagrees with more than 10 pixels over %d pixels:  %.2f vs %.2f' % (IMSIZE,theta_median,theta_guess))
-        if DEBUG:
+        if parameters.DEBUG:
             f, (ax1, ax2) = plt.subplots(1,2,figsize=(10,6))
             xindex=np.arange(data.shape[1])
             x_new = np.linspace(xindex.min(),xindex.max(), 50)
@@ -215,18 +214,18 @@ class Image():
         self.data_rotated = np.copy(self.data)
         if not np.isnan(self.rotation_angle):
             self.data_rotated=ndimage.interpolation.rotate(self.data,self.rotation_angle,prefilter=False,order=5)
-        if DEBUG:
+        if parameters.DEBUG:
             f, (ax1,ax2) = plt.subplots(2,1,figsize=[8,8])
             y0 = int(self.target_pixcoords[1])
-            ax1.imshow(np.log10(self.data[y0-YWINDOW:y0+YWINDOW,200:-200]),origin='lower',cmap='rainbow',aspect="auto")
+            ax1.imshow(np.log10(self.data[y0-parameters.YWINDOW:y0+parameters.YWINDOW,200:-200]),origin='lower',cmap='rainbow',aspect="auto")
             #ax1.imshow(np.log10(self.data),origin='lower',cmap='rainbow',aspect="auto")
-            ax1.plot([0,self.data.shape[0]-200],[YWINDOW,YWINDOW],'w-')
+            ax1.plot([0,self.data.shape[0]-200],[parameters.YWINDOW,parameters.YWINDOW],'w-')
             ax1.grid(color='white', ls='solid')
             ax1.grid(True)
             ax1.set_title('Raw image (log10 scale)')
-            ax2.imshow(np.log10(self.data_rotated[y0-YWINDOW:y0+YWINDOW,200:-200]),origin='lower',cmap='rainbow',aspect="auto")
+            ax2.imshow(np.log10(self.data_rotated[y0-parameters.YWINDOW:y0+parameters.YWINDOW,200:-200]),origin='lower',cmap='rainbow',aspect="auto")
             #ax2.imshow(np.log10(self.data_rotated),origin='lower',cmap='rainbow',aspect="auto")
-            ax2.plot([0,self.data_rotated.shape[0]-200],[YWINDOW,YWINDOW],'w-')
+            ax2.plot([0,self.data_rotated.shape[0]-200],[parameters.YWINDOW,parameters.YWINDOW],'w-')
             ax2.grid(color='white', ls='solid')
             ax2.grid(True)
             ax2.set_title('Turned image (log10 scale)')
@@ -258,7 +257,7 @@ class Image():
 
         spectrum = Spectrum(Image=self)
         spectrum.data = xprofile - xprofile_background
-        if DEBUG:
+        if parameters.DEBUG:
             spectrum.plot_spectrum()
     
         return spectrum
@@ -276,6 +275,10 @@ class Spectrum():
         """
         self.my_logger = set_logger(self.__class__.__name__)
         self.target = None
+        self.data = None
+        self.err = None
+        self.lambdas = None
+        self.order = 1
         if filename != "" :
             self.filename = filename
             self.load_spectrum(filename)
@@ -291,19 +294,14 @@ class Spectrum():
             self.target_pixcoords = Image.target_pixcoords
             self.target_pixcoords_rotated = Image.target_pixcoords_rotated
             self.my_logger.info('\n\tSpectrum info copied from Image')
-        self.data = None
-        self.err = None
-        self.lambdas = None
-        self.order = 1
         self.load_filter()
 
     def load_filter(self):
-        global LAMBDA_MIN, LAMBDA_MAX
         for f in FILTERS:
             if f['label'] == self.filter:               
-                LAMBDA_MIN = f['min']
-                LAMBDA_MAX = f['max']
-                self.my_logger.info('\n\tLoad filter %s: lambda between %.1f and %.1f' % (f['label'],LAMBDA_MIN, LAMBDA_MAX))
+                parameters.LAMBDA_MIN = f['min']
+                parameters.LAMBDA_MAX = f['max']
+                self.my_logger.info('\n\tLoad filter %s: lambda between %.1f and %.1f' % (f['label'],parameters.LAMBDA_MIN, parameters.LAMBDA_MAX))
                 break
             
 
@@ -317,7 +315,7 @@ class Spectrum():
         if self.lambdas is not None:
             plot_atomic_lines(plt.gca(),redshift=self.target.redshift,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,fontsize=12)
         plt.grid(True)
-        plt.xlim([LAMBDA_MIN,LAMBDA_MAX])
+        plt.xlim([parameters.LAMBDA_MIN,parameters.LAMBDA_MAX])
         plt.ylim(0.,np.max(self.data)*1.2)
         plt.xlabel('$\lambda$ [nm]')
         if self.lambdas is None: plt.xlabel('Pixels')
@@ -334,7 +332,7 @@ class Spectrum():
         self.my_logger.info('\n\tCalibrating order %d spectrum...' % order)
         self.lambdas, self.data = extract_spectrum(self.data,self.disperser,[0,self.data.shape[0]],self.target_pixcoords_rotated[0],self.target_pixcoords,order=order)
         # Cut spectra
-        lambdas_indices = np.where(np.logical_and(self.lambdas > LAMBDA_MIN, self.lambdas < LAMBDA_MAX))[0]
+        lambdas_indices = np.where(np.logical_and(self.lambdas > parameters.LAMBDA_MIN, self.lambdas < parameters.LAMBDA_MAX))[0]
         self.lambdas = self.lambdas[lambdas_indices]
         self.data = self.data[lambdas_indices]
         # Detect emission/absorption lines and calibrate pixel/lambda 
@@ -347,7 +345,7 @@ class Spectrum():
         while D < DISTANCE2CCD+4*DISTANCE2CCD_ERR and D > DISTANCE2CCD-4*DISTANCE2CCD_ERR and counts < 30 :
             self.disperser.D = D
             lambdas_test = self.disperser.grating_pixel_to_lambda(delta_pixels,self.target_pixcoords,order=order)
-            lambda_shift = detect_lines(lambdas_test,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=DEBUG)
+            lambda_shift = detect_lines(lambdas_test,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=parameters.DEBUG)
             shifts.append(lambda_shift)
             counts += 1
             if abs(lambda_shift)<0.1 :
@@ -365,14 +363,16 @@ class Spectrum():
             D += D_step
         shift = np.mean(lambdas_test - self.lambdas)
         self.lambdas = lambdas_test
-        detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=DEBUG)
+        detect_lines(self.lambdas,self.data,redshift=self.target.redshift,emission_spectrum=self.target.emission_spectrum,atmospheric_lines=atmospheric_lines,hydrogen_only=self.target.hydrogen_only,ax=None,verbose=parameters.DEBUG)
         self.my_logger.info('\n\tWavelenght total shift: %.2fnm (after %d steps)\n\twith D = %.2f mm (DISTANCE2CCD = %.2f +/- %.2f mm, %.1f sigma shift)' % (shift,len(shifts),D,DISTANCE2CCD,DISTANCE2CCD_ERR,(D-DISTANCE2CCD)/DISTANCE2CCD_ERR))
-        if VERBOSE:
+        if parameters.VERBOSE or parameters.DEBUG:
             self.plot_spectrum(xlim=None,order=order,atmospheric_lines=atmospheric_lines,nofit=False)
 
     def save_spectrum(self,output_filename,overwrite=False):
         hdu = fits.PrimaryHDU()
         hdu.data = [self.lambdas,self.data]
+        self.header['TARGET'] = self.target.label
+        self.header['REDSHIFT'] = self.target.redshift
         self.header['UNIT1'] = "nanometer"
         self.header['UNIT2'] = "spectrum unit thing"
         self.header['COMMENTS'] = 'First column gives the wavelength in unit UNIT1, second column gives the spectrum in unit UNIT2'
@@ -382,12 +382,17 @@ class Spectrum():
 
 
     def load_spectrum(self,input_filename):
-        hdu = fits.open(input_filename)
-        self.header = hdu[0].header
-        self.lambdas = hdu[0].data[0]
-        self.data = hdu[0].data[1]
-        extract_info_from_CTIO_header(self, self.header)
-        self.my_logger.info('\n\tSpectrum loaded from %s' % input_filename)
+        if os.path.isfile(input_filename):
+            hdu = fits.open(input_filename)
+            self.header = hdu[0].header
+            self.lambdas = hdu[0].data[0]
+            self.data = hdu[0].data[1]
+            extract_info_from_CTIO_header(self, self.header)
+            if self.header['TARGET'] != "":
+                self.target=Target(self.header['TARGET'],verbose=parameters.VERBOSE)
+            self.my_logger.info('\n\tSpectrum loaded from %s' % input_filename)
+        else:
+            self.my_logger.info('\n\tSpectrum file %s not found' % input_filename)
         
 
 def Spectractor(filename,outputdir,guess,target):
@@ -445,16 +450,16 @@ if __name__ == "__main__":
                       help="Write results in given output directory (default: ./tests/).")
     (opts, args) = parser.parse_args()
 
-    VERBOSE = opts.verbose
+    parameters.VERBOSE = opts.verbose
     if opts.debug:
-        DEBUG=True
-        VERBOSE=True
+        parameters.DEBUG = True
+        parameters.VERBOSE = True
         
         
-    filename="../../CTIODataJune2017_reducedRed/data_05jun17/reduc_20170605_00.fits"
-    filename="../ana_05jun17/OverScanRemove/trim_images/trim_20170605_007.fits"
+    filename = "../../CTIODataJune2017_reducedRed/data_05jun17/reduc_20170605_00.fits"
+    filename = "../ana_05jun17/OverScanRemove/trim_images/trim_20170605_007.fits"
     guess = [745,643]
-    target="3C273"
+    target = "3C273"
 
     #filename="../ana_05jun17/OverScanRemove/trim_images/trim_20170605_029.fits"
     #guess = [814, 585]

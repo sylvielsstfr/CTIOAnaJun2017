@@ -1,8 +1,12 @@
-# Paths
-HOLO_DIR = "../common_tools/data/"
+import os, sys
+mypath = os.path.dirname(__file__)
 
+# Paths
+HOLO_DIR = os.path.join(mypath,"../common_tools/data/")
+
+# Verbose  mode
+VERBOSE = False
 # Debug mode
-VERBOSE = 0
 DEBUG = False
 
 # Spectractor parameters
