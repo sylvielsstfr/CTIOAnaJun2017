@@ -85,7 +85,7 @@ class Target():
         else :
             if 'PNG' not in self.label:
                 # Try with NED query
-                print 'Loading target %s from NED...' % self.label
+                #print 'Loading target %s from NED...' % self.label
                 self.ned = Ned.query_object(self.label)
                 hdulists = Ned.get_spectra(self.label)
                 self.redshift = self.ned['Redshift'][0]
