@@ -172,7 +172,7 @@ def BuildHeaderInfo(filenames):
 if __name__ == '__main__':
     
     # CCIN2P3 disk mounted through network using sshfs
-    top_input_images='/Users/dagoret/MacOSX/data/AtmosphericCalibration/CTIODataJune2017_ovsctrim'
+    top_input_images='/sps/lsst/data/AtmosphericCalibration/CTIODataJune2017_reducedRed'
 
     # put which subdirs to which perform overscan and trim
 
@@ -185,7 +185,7 @@ if __name__ == '__main__':
 
     MIN_IMGNUMBER=1
     MAX_IMGNUMBER=1000
-    SearchTagRe='^trim_2017[0-9]+_([0-9]+).fits$'
+    SearchTagRe='^reduc_2017[0-9]+_([0-9]+).fits$'
     
     NumberOfFiles=0
     night_index=0
@@ -202,13 +202,13 @@ if __name__ == '__main__':
         
         inputdir=os.path.join(top_input_images,subdir)
         
-        #print inputdir
+        print inputdir
         
         # get the list of fits file in the directory
         filelist_fitsimages, indexes_files = MakeFileList([inputdir],SearchTagRe,MIN_IMGNUMBER, MAX_IMGNUMBER)
         
         filelist_shortfilename=[os.path.basename(path) for path in filelist_fitsimages]
-        
+	print filelist_shortfilename        
         
         # extract info from header
         (all_dates,all_airmass,all_obj,all_exposures,all_ut,all_ra,all_dec,all_epoch,all_zenith,all_ha,all_st,all_alt,all_focus,all_temp,all_press,all_hum,all_windsp,all_seeing,all_seeingam,all_filter1,all_filter2)=BuildHeaderInfo(filelist_fitsimages) 
