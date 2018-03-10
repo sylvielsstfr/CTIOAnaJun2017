@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.ticker import MaxNLocator
+
 import sys,os
 import copy
 mypath = os.path.dirname(__file__)
@@ -70,6 +73,19 @@ class Image():
         # Load the disperser
         self.my_logger.info('\n\tLoading disperser %s...' % self.disperser)
         self.disperser = Hologram(self.disperser,data_dir=parameters.HOLO_DIR,verbose=parameters.VERBOSE)
+        self.compute_statistical_error()
+
+    def build_gain_map(self):
+        self.gain = np.zeros_like(self.data)
+        # ampli 11
+        self.gain[0:IMSIZE/2,0:IMSIZE/2] = self.header['GTGAIN11']
+        # ampli 12
+        self.gain[0:IMSIZE/2,IMSIZE/2:IMSIZE] = self.header['GTGAIN12']
+        # ampli 21
+        self.gain[IMSIZE/2:IMSIZE,0:IMSIZE] = self.header['GTGAIN21']
+        # ampli 22
+        self.gain[IMSIZE/2:IMSIZE,IMSIZE/2:IMSIZE] = self.header['GTGAIN22']
+        
 
     def find_target(self,guess,rotated=False):
         """
@@ -254,13 +270,48 @@ class Image():
         
         #Clean_Up, Clean_Do,Clean_Av=CleanBadPixels(thespectraUp,thespectraDown)
         xprofile_background = 0.5*(xprofileUp+xprofileDown)
-
         spectrum = Spectrum(Image=self)
         spectrum.data = xprofile - xprofile_background
         if parameters.DEBUG:
-            spectrum.plot_spectrum()
-    
+            spectrum.plot_spectrum()    
         return spectrum
+
+    def compute_statistical_error(self):
+        # compute CCD gain map
+        self.build_gain_map()
+        # removes the zeros and negative pixels first
+        # set to minimum positive value
+        data = np.copy(self.data)
+        zeros = np.where(data<=0)
+        min_noz = np.min(data[np.where(data>0)])
+        data[zeros] = min_noz
+        # compute poisson noise
+        self.stat_errors=np.sqrt(data)/np.sqrt(self.gain*self.expo)
+    
+    def plot_image(self,scale="lin",title="",units="Image units",plot_stats=False):
+        fig, ax = plt.subplots(1,1,figsize=[9.3,8])
+        data = np.copy(self.data)
+        if plot_stats: data = np.copy(self.stat_errors)
+        if scale=="log" or scale=="log10":
+            # removes the zeros and negative pixels first
+            zeros = np.where(data<=0)
+            min_noz = np.min(data[np.where(data>0)])
+            data[zeros] = min_noz
+            # apply log
+            data = np.log10(data)
+        im = ax.imshow(data,origin='lower',cmap='rainbow')
+        ax.grid(color='white', ls='solid')
+        ax.grid(True)
+        ax.set_xlabel('X (pixels)')
+        ax.set_ylabel('Y (pixels)')
+        cb = fig.colorbar(im,ax=ax)
+        cb.formatter.set_powerlimits((0, 0))
+        cb.locator = MaxNLocator(7,prune=None)
+        cb.update_ticks()
+        cb.set_label('%s (%s scale)' % (units,scale)) #,fontsize=16)
+        if title!="": ax.set_title(title)
+        plt.show()
+        
 
 
 class Spectrum():
