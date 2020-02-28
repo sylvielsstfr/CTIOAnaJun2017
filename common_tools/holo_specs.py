@@ -319,13 +319,13 @@ def build_ronchi(x_center,y_center,theta_tilt,grooves=400):
 
 
 
-def get_theta0(x0):
+def get_theta0(x0,alpha_tilt=0):
     """ Return incident angle on grating in radians.
     x0: the order 0 position in the full raw image."""
     if isinstance(x0, (list, tuple, np.ndarray)) :
-        return (x0[0] - IMSIZE/2)*PIXEL2ARCSEC*ARCSEC2RADIANS
+        return (x0[0] - IMSIZE/2)*PIXEL2ARCSEC*ARCSEC2RADIANS-alpha_tilt
     else :
-        return (x0 - IMSIZE/2)*PIXEL2ARCSEC*ARCSEC2RADIANS
+        return (x0 - IMSIZE/2)*PIXEL2ARCSEC*ARCSEC2RADIANS-alpha_tilt
 
 #def get_delta_pix(x,x0):
 #    """ Return the distance in pixels between pixel x and order 0 position. """
@@ -336,33 +336,34 @@ def get_theta0(x0):
 #        deltaX = (x - x0)
 #    return deltaX
     
-def get_delta_pix_ortho(deltaX,x0,D=DISTANCE2CCD):
+def get_delta_pix_ortho(deltaX,x0,D=DISTANCE2CCD,alpha_tilt=0):
     """ Return the distance in pixels between pixel x and 
     projected incident point on grating. D is in mm.
     x0 is the order 0 position in the full raw image.
     deltaX is the distance in pixels between order 0 and signal point 
     in the rotated image."""
-    theta0 = get_theta0(x0)
-    deltaX0 = np.tan(theta0)*D/PIXEL2MM 
+    theta0 = get_theta0(x0,alpha_tilt)
+    deltaX0 = np.tan(theta0+alpha_tilt)*D/PIXEL2MM
     return deltaX + deltaX0
 
-def get_refraction_angle(deltaX,x0,D=DISTANCE2CCD):
+def get_refraction_angle(deltaX,x0,D=DISTANCE2CCD,alpha_tilt=0):
     """ Return the refraction angle from order 0 and x positions.
     x0 is the order 0 position in the full raw image.
     deltaX is the distance in pixels between order 0 and signal point 
     in the rotated image."""
-    delta = get_delta_pix_ortho(deltaX,x0,D=D)
-    theta = np.arctan2(delta*PIXEL2MM,D)
+    theta0 = get_theta0(x0,alpha_tilt)
+    delta = get_delta_pix_ortho(deltaX,x0,D=D,alpha_tilt=alpha_tilt)
+    theta = np.arctan2(delta*PIXEL2MM,D)-alpha_tilt
     return theta
 
-def get_N(deltaX,x0,D=DISTANCE2CCD,l=HALPHA_CENTER,order=1):
+def get_N(deltaX,x0,D=DISTANCE2CCD,l=HALPHA_CENTER,order=1,alpha_tilt=0):
     """ Return grooves per mm given the signal x position with 
     its wavelength in mm, the distance to CCD in mm and the order number.
     x0 is the order 0 position in the full raw image.
     deltaX is the distance in pixels between order 0 and signal point 
     in the rotated image."""
-    theta = get_refraction_angle(deltaX,x0,D=D)
-    theta0 = get_theta0(x0)
+    theta = get_refraction_angle(deltaX,x0,D=D,alpha_tilt=alpha_tilt)
+    theta0 = get_theta0(x0,alpha_tilt=alpha_tilt)
     N = (np.sin(theta)-np.sin(theta0))/(order*HALPHA_CENTER)
     return N
     
@@ -615,7 +616,7 @@ def CalibrateDistance2CCD_OneOrder(thecorrspectra,thex0,order0_positions,all_fil
         test_sup = 1e20
         test_inf = 1e20
         for D in Ds :
-            N = get_N(deltaX,order0_positions[index],D=D,l=HALPHA_CENTER,order=order)
+            N = get_N(deltaX,order0_positions[index],D=D,l=HALPHA_CENTER,order=order,alpha_tilt=0.0)
             Ns.append( N )
             diff = np.abs(N-N_theo)
             diff_sup = np.abs(N-N_theo+1)
@@ -682,7 +683,7 @@ def CalibrateDistance2CCD_OneOrder(thecorrspectra,thex0,order0_positions,all_fil
     return(distances_mean,distances_mean_err,distances)
 
 
-def CalibrateDistance2CCD_TwoOrder(thecorrspectra,all_filt,leftorder_edges=[100,400],rightorder_edges=[1200,1600],guess=[[10,200,100],[10,1400,200]],bounds=(-np.inf,np.inf)):
+def CalibrateDistance2CCD_TwoOrder(thecorrspectra,order0_positions,all_filt,leftorder_edges=[100,400],rightorder_edges=[1200,1600],guess=[[10,200,100],[10,1400,200]],bounds=(-np.inf,np.inf)):
     NBSPEC=0
     for index in range(len(thecorrspectra)):
         if "Ron400" not in all_filt[index] and "Thor300" not in all_filt[index] :
@@ -741,9 +742,10 @@ def CalibrateDistance2CCD_TwoOrder(thecorrspectra,all_filt,leftorder_edges=[100,
         test = 1e20
         test_sup = 1e20
         test_inf = 1e20
+        theta0 = 0*get_theta0(order0_positions[index])
         for D in Ds :
             theta = np.arctan2(deltaX*PIXEL2MM,D)
-            N = np.sin(theta)/HALPHA_CENTER
+            N = (np.sin(theta)-np.sin(theta0))/HALPHA_CENTER
             Ns.append( N )
             diff = np.abs(N-N_theo)
             diff_sup = np.abs(N-N_theo+1)
