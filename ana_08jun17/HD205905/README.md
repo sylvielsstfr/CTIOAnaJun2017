@@ -16,6 +16,10 @@ Last update: SDC, Oct 18th 2017
 - **AnaCompareDataSimSpec.ipynb** : Compare data/sim spectra 	 
 
 
+Study
+cp ../../ana_09jun17/HD111980/contamination_ron400.csv .
+
+
 
 # Deprecated Notebooks
 ---------------------------------
