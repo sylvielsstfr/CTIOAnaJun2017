@@ -7459,7 +7459,7 @@ def ShowEquivalentWidthNonLinearwthStatErr_OnePlot(wl, spec, specerr, wl1, wl2, 
     axarr.plot(wl_cut, ratio, lw=1, color='red')
     axarr.errorbar(wl_cut, ratio, yerr=ratio_err, fmt='.', lw=2, color='red')
     axarr.errorbar(wl_cut[external_indexes], ratio[external_indexes], yerr=ratio_err[external_indexes], fmt='.',
-                      lw=0, color='blue')
+                      lw=0, color='green')
 
     axarr.plot([wl2, wl2], [0, 1.2], 'k-.', lw=2)
     axarr.plot([wl3, wl3], [0, 1.2], 'k-.', lw=2)
@@ -7628,8 +7628,8 @@ def ShowEquivalentWidthNonLinear_OnePlot(wl, spec, wl1, wl2, wl3, wl4, ndeg=3, l
     # Figure 2
     ###########
 
-    axarr.plot(wl_cut, ratio, marker='.', color='red')
-    axarr.plot(wl_cut[external_indexes], ratio[external_indexes], marker='.', color='blue', lw=0)
+    axarr.plot(wl_cut, ratio, marker='.', color='blue')
+    axarr.plot(wl_cut[external_indexes], ratio[external_indexes], marker='.', color='green', lw=0)
 
     axarr.plot([wl2, wl2], [0, 1.2], 'k-.', lw=2)
     axarr.plot([wl3, wl3], [0, 1.2], 'k-.', lw=2)
