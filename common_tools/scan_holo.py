@@ -143,10 +143,9 @@ def hessian_analysis(z):
             dets[i,j] = np.linalg.det(h)
     return(Hxx,Hyy,Hxy,dets)
 
-def scatter_interpol(central_positions,values,margin=10,kind='cubic',plot=False,holo_name='',zlabel=''):
+def scatter_interpol(central_positions,values,margin=10,kind='cubic',plot=False,holo_name='',zlabel='',step=1):
     x, y = np.array(central_positions).T
     interp_2args = interpolate.interp2d(x, y, values, kind=kind)
-    step = 1
     xx = np.arange(np.min(x)-margin,np.max(x)+margin,step)
     yy = np.arange(np.min(y)-margin,np.max(y)+margin,step)
     z = interp_2args(xx,yy)
@@ -171,7 +170,7 @@ def surface_gradient(xx,yy,z,margin=10,plot=False,holo_name='',dir_top_images=No
     grad = np.sqrt(gy**2+gx**2)
     grad = grad[margin:-margin,margin:-margin]
     min_grad = np.min(grad)
-    null_grad = np.where(np.isclose(grad,min_grad))
+    null_grad = np.where(np.isclose(grad,min_grad, rtol=1e-6))
     x_center = xx[null_grad[1]]
     y_center = yy[null_grad[0]]
     if plot :
@@ -209,6 +208,8 @@ def saddle_point(xx,yy,z,interp,margin=10,plot=True,verbose=True,holo_name='',vm
     grad = surface_gradient(xx,yy,z,margin=margin,plot=False)
     min_grad = np.min(grad)
     null_grad = np.where(np.isclose(grad,min_grad,rtol=1e-6))
+    if len(null_grad) > 1:
+        print "Several minima founds:", null_grad
     x_center = xx[null_grad[1]]
     y_center = yy[null_grad[0]]
     theta_tilt = interp([x_center,y_center])

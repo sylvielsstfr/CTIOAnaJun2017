@@ -1722,7 +1722,8 @@ def ComputeStatImages(all_images,fwhm=10,threshold=300,sigma=10.0,iters=5):
         img_mean.append(mean)
         img_median.append(median)
         img_std.append(std)
-        sources = daofind(image - median, fwhm=fwhm, threshold=threshold*std) 
+        dao = daofind(fwhm=fwhm, threshold=threshold*std) 
+        sources = dao.find_stars(image - median)
         print sources
         img_sources.append(sources)    
         index+=1
@@ -2476,6 +2477,7 @@ def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2
     
     f, axarr = plt.subplots(MAXIMGROW,NBIMGPERROW,figsize=(25,5*MAXIMGROW))
     f.tight_layout()
+    params = []
     for index in np.arange(0,NBSPEC):
         ix=index%NBIMGPERROW
         iy=index/NBIMGPERROW
@@ -2492,10 +2494,10 @@ def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2
         axarr[iy,ix].plot(xs,right_spectrum,'r-',lw=2)
         if right_edge - left_edge > 10 :
             popt, pcov = EmissionLineFit(spectra[index],left_edge,right_edge,guess=guess)
-        
+            params.append(popt)
             axarr[iy,ix].plot(xs,gauss(xs,*popt),'b-')
             axarr[iy,ix].axvline(popt[1],color='b',linestyle='-',lw=2)    
-            print '%s:\t gaussian center x=%.2f+/-%.2f' % (all_filt[index],popt[1],np.sqrt(pcov[1,1]))
+            print '%s:\t gaussian center x=%.2f+/-%.2f with sigma=%.2f+/-%.2f' % (all_filt[index],popt[1],np.sqrt(pcov[1,1]),popt[2],np.sqrt(pcov[2,2]))
         thetitle="{}) : {} , {} ".format(index,all_titles[index],all_filt[index])    
         axarr[iy,ix].set_title(thetitle)
         axarr[iy,ix].grid(True)
@@ -2506,6 +2508,7 @@ def ShowSpectrumProfileFit(spectra,all_titles,object_name,all_filt,NBIMGPERROW=2
             axarr[iy,ix].axvline(vertical_lines[index],color='k',linestyle='--',lw=2)    
     title='Spectrum 1D profile and background Up/Down for {}'.format(object_name)
     plt.suptitle(title,size=16)
+    return np.asarray(params)
     
 #-------------------------------------------------------------------------------------------
 #  Sylvie : October 2017

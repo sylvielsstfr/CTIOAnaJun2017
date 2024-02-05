@@ -16,6 +16,7 @@ PIXEL2ARCSEC = 0.401 # pixel size in arcsec
 ARCSEC2RADIANS = np.pi/(180.*3600.) # conversion factor from arcsec to radians
 #DISTANCE2CCD = 55.56 # distance between hologram and CCD in mm
 #DISTANCE2CCD_ERR = 0.17 # uncertainty on distance between hologram and CCD in mm
+AB = 12.8 # distance between the coherent sources in mm
 DISTANCE2CCD = 55.45 # distance between hologram and CCD in mm
 DISTANCE2CCD_ERR = 0.19 # uncertainty on distance between hologram and CCD in mm
 MAXADU = 60000 # approximate maximum ADU output of the CCD
@@ -489,8 +490,8 @@ class Hologram(Grating):
         self.N_y = None
         self.N_data = None
         self.lambda_plot = lambda_plot
-        self.load_specs(verbose=verbose)
         self.is_hologram = True
+        self.load_specs(verbose=verbose)
 
     def N(self,x):
         N = GROOVES_PER_MM
@@ -551,9 +552,9 @@ class Hologram(Grating):
                 print '\tAverage tilt of %.1f degrees' % (self.theta_tilt)
         if self.is_hologram:
             self.order0_position, self.order1_position, self.AB = find_order01_positions(self.holo_center,self.N_interp,self.theta,verbose=verbose)
-        #if verbose :
-        #    print 'At order 0 position: N=%.2f grooves/mm and theta=%.2f degrees' % (self.N(self.order0_position),self.theta(self.order0_position))
-        #self.hologram_shape = build_hologram(self.order0_position,self.order1_position,self.theta_tilt,lambda_plot=self.lambda_plot)
+        if verbose :
+            print 'At order 0 position: N=%.2f grooves/mm and theta=%.2f degrees' % (self.N(self.order0_position),self.theta(self.order0_position))
+        self.hologram_shape = build_hologram(self.order0_position,self.order1_position,self.theta_tilt,lambda_plot=self.lambda_plot)
             
 
 
@@ -1084,5 +1085,111 @@ def EstimateSecondOrderRatios(specs1,specs2,lambdas,all_titles,object_name,all_f
         plt.savefig(figfilename) 
     plt.show()
     return ratios
+
+
+def AP_wlz(w,l,z=DISTANCE2CCD,wA=-AB/2,lA=0,zA=0):
+    return np.sqrt((wA-w)*(wA-w) + (lA-l)*(lA-l) + (zA-z)*(zA-z))
+
+def BP_wlz(w,l,z=DISTANCE2CCD,wB=AB/2,lB=0,zB=0):
+    return np.sqrt((wB-w)*(wB-w) + (lB-l)*(lB-l) + (zB-z)*(zB-z))
+
+def n(w,l,z,w0,l0,z0=DISTANCE2CCD,wA=-AB/2.,wB=AB/2.,lA=0.,lB=0.,zA=0,zB=0):
+    """
+    Compute the number of grooves between a point P(w,l,z) and the order 0 incident point
+    on the disperser $S'_0(w'_0,l'_0,z'_0)$
+    
+    w0: float
+        Position $w'_0$ of the order 0 along the w axis, origin at center of the hologram
+    l0: float
+        Position $l'_0$ of the order 0 along the l axis, origin at center of the hologram
+    zA, zB, lB, lA, wB, wA: float
+        Positions of the A and B monochromatic coherent sources with respect to the center of the hologram
+    """
+    AP = AP_wlz(w,l,z=z,wA=wA,lA=lA,zA=zA)
+    BP = BP_wlz(w,l,z=z,wB=wB,lB=lB,zB=zB)
+    ASp0 = AP_wlz(w0,l0,z=z0,wA=wA,lA=lA,zA=zA)
+    BSp0 = BP_wlz(w0,l0,z=z0,wB=wB,lB=lB,zB=zB)
+    return ((BP-AP)-(BSp0-ASp0)) / LAMBDA_CONSTRUCTOR
+
+def dndw(w0,l0,z0=DISTANCE2CCD,wA=-AB/2,wB=AB/2,lA=0,lB=0,zA=0,zB=0):
+    """
+    Compute $\frac{\partial n(w,l)}{\partial w}(w0,l0)$
+    
+    w0: float
+        Position $w'_0$ of the order 0 along the w axis, origin at center of the hologram
+    l0: float
+        Position $l'_0$ of the order 0 along the l axis, origin at center of the hologram
+    zA, zB, lB, lA, wB, wA: float
+        Positions of the A and B monochromatic coherent sources with respect to the center of the hologram
+    """
+    rA = AP_wlz(w0,l0,z=DISTANCE2CCD,wA=wA,lA=lA,zA=zA)
+    rB = BP_wlz(w0,l0,z=DISTANCE2CCD,wB=wB,lB=lB,zB=zB)
+    return (-(wA-w0)/rA + (wB-w0)/rB)/LAMBDA_CONSTRUCTOR
+
+def Neff(w0,l0,z0=DISTANCE2CCD,wA=-AB/2,wB=AB/2,lA=0,lB=0,zA=0,zB=0):
+    """
+    Compute $N_\mathrm{eff}(w0,l0)$
+    
+    w0: float
+        Position $w'_0$ of the order 0 along the w axis, origin at center of the hologram
+    l0: float
+        Position $l'_0$ of the order 0 along the l axis, origin at center of the hologram
+    zA, zB, lB, lA, wB, wA: float
+        Positions of the A and B monochromatic coherent sources with respect to the center of the hologram
+    """
+    return dndw(w0,l0,z0=z0,wA=wA,wB=wB,lA=lA,lB=lB,zA=zA,zB=zB)
+
+def dndl(w0,l0,wA=-AB/2,wB=AB/2,lA=0,lB=0,zA=0,zB=0):
+    """
+    Compute \frac{\partial n(w,l)}{\partial l}(w0,l0)$
+    
+    w0: float
+        Position $w'_0$ of the order 0 along the w axis, origin at center of the hologram
+    l0: float
+        Position $l'_0$ of the order 0 along the l axis, origin at center of the hologram
+    zA, zB, lB, lA, wB, wA: float
+        Positions of the A and B monochromatic coherent sources with respect to the center of the hologram
+    """
+    rA = AP_wlz(w0,l0,z=DISTANCE2CCD,wA=wA,lA=lA,zA=zA)
+    rB = BP_wlz(w0,l0,z=DISTANCE2CCD,wB=wB,lB=lB,zB=zB)
+    return (-(lA-l0)/rA + (lB-l0)/rB)/LAMBDA_CONSTRUCTOR
+    
+def d2ndw2(w0,l0,wA=-AB/2,wB=AB/2,lA=0,lB=0,zA=0,zB=0):
+    """
+    Compute \frac{\partial^2 n(w,l)}{\partial w^2}(w0,l0)$
+    
+    w0: float
+        Position $w'_0$ of the order 0 along the w axis, origin at center of the hologram
+    l0: float
+        Position $l'_0$ of the order 0 along the l axis, origin at center of the hologram
+    zA, zB, lB, lA, wB, wA: float
+        Positions of the A and B monochromatic coherent sources with respect to the center of the hologram
+    """
+    rA = AP_wlz(w0,l0,z=DISTANCE2CCD,wA=wA,lA=lA,zA=zA)
+    rB = BP_wlz(w0,l0,z=DISTANCE2CCD,wB=wB,lB=lB,zB=zB)
+    return (((zA-DISTANCE2CCD)**2+(lA-l0)**2)/rA**3 - ((zB-DISTANCE2CCD)**2+(lB-l0)**2)/rB**3)/LAMBDA_CONSTRUCTOR
+
+def d2ndl2(w0,l0,wA=-AB/2,wB=AB/2,lA=0,lB=0,zA=0,zB=0):
+    """
+    Compute \frac{\partial^2 n(w,l)}{\partial l^2}(w0,l0)$
+    
+    w0: float
+        Position $w'_0$ of the order 0 along the w axis, origin at center of the hologram
+    l0: float
+        Position $l'_0$ of the order 0 along the l axis, origin at center of the hologram
+    zA, zB, lB, lA, wB, wA: float
+        Positions of the A and B monochromatic coherent sources with respect to the center of the hologram
+    """
+    rA = AP_wlz(w0,l0,z=DISTANCE2CCD,wA=wA,lA=lA,zA=zA)
+    rB = BP_wlz(w0,l0,z=DISTANCE2CCD,wB=wB,lB=lB,zB=zB)
+    return (((zA-DISTANCE2CCD)**2+(wA-w0)**2)/rA**3 - ((zB-DISTANCE2CCD)**2+(wB-w0)**2)/rB**3)/LAMBDA_CONSTRUCTOR
+
+def NmaxMurty(d=float(AB)*PIXEL2MM, D=DISTANCE2CCD):
+    return 1 / (LAMBDA_CONSTRUCTOR*np.sqrt(0.25+(D/d)**2))
+
+def NeffMurty(w, l=0, d=float(AB)*PIXEL2MM, D=DISTANCE2CCD):
+    num = Nmax(d=d,D=D) * np.sqrt(1+l**2/(D**2+(d/2)**2))
+    den = 1 + l**2/(D**2+(d/2)**2) + 1.5*(w*w*(D*D+l*l)/(D**2+(d/2)**2)**2)
+    return num / den 
 
 
